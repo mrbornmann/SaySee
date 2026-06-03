@@ -3,7 +3,6 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "SaySee AAC Visual Learning App",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
