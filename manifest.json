@@ -12,24 +12,17 @@
   "categories": ["education", "medical"],
   "icons": [
     {
-      "src": "/icon-512.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "https://i.postimg.cc/y8QybRqR/Just-Eye.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "https://i.postimg.cc/y8QybRqR/Just-Eye.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
-  "prefer_related_applications": false,
-  "shortcuts": [
-    {
-      "name": "Open SaySee",
-      "url": "/",
-      "description": "Open the SaySee AAC app"
-    }
-  ]
+  "prefer_related_applications": false
 }
