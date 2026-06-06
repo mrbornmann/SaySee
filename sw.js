@@ -1,40 +1,47 @@
 // SaySee© Service Worker
 // © 2026 SaySee LLC. All rights reserved.
 
-const CACHE_NAME = 'saysee-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-];
+const CACHE = 'saysee-v2';
+const OFFLINE_PAGE = '/';
 
-// Install — cache core assets
+// Install — cache the shell
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE).then(cache => {
+      return cache.addAll(['/']);
+    }).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate — remove old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch — network first, fall back to cache
+// Fetch — network first, cache fallback
 self.addEventListener('fetch', event => {
+  // Skip non-GET and cross-origin requests
   if (event.request.method !== 'GET') return;
+  if (!event.request.url.startsWith(self.location.origin)) return;
+
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        // Cache successful responses
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE).then(cache => cache.put(event.request, clone));
+        }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => {
+        // Offline fallback — return cached version
+        return caches.match(event.request)
+          .then(cached => cached || caches.match(OFFLINE_PAGE));
+      })
   );
 });
