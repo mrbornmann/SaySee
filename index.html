@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="SaySee© AAC Visual Learning — Voice-activated visual support for every student" />
+    <meta name="theme-color" content="#5AAB2A" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SaySee" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <title>SaySee© — AAC Visual Learning</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: #1B4F9E; min-height: 100vh; }
+      #root { min-height: 100vh; background: #F4F6FB; }
+
+      #splash {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(135deg, #1B4F9E, #2B6CB0);
+        z-index: 9999;
+        transition: opacity 0.6s ease;
+      }
+      #splash.gone { opacity: 0; pointer-events: none; }
+      #splash-name {
+        font-family: Arial, sans-serif;
+        font-size: 38px;
+        font-weight: 900;
+        color: #5AAB2A;
+        letter-spacing: 1px;
+      }
+      #splash-sub {
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        color: rgba(255,255,255,0.6);
+        letter-spacing: 3px;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Splash — green eye SVG icon, no external image needed -->
+    <div id="splash">
+      <svg width="110" height="96" viewBox="0 0 50 44" role="img" aria-label="SaySee">
+        <path d="M25 6 Q42 6 48 20 Q42 34 25 34 Q8 34 2 20 Q8 6 25 6Z"
+          fill="none" stroke="#5AAB2A" stroke-width="2" stroke-linecap="round"/>
+        <path d="M11 34 L4 46 L22 34" fill="#5AAB2A"/>
+        <circle cx="25" cy="20" r="10" fill="none" stroke="#5AAB2A" stroke-width="2"/>
+        <circle cx="25" cy="20" r="4.5" fill="#5AAB2A"/>
+        <circle cx="28.5" cy="17" r="1.6" fill="#2265AD"/>
+      </svg>
+      <div id="splash-name">SaySee©</div>
+      <div id="splash-sub">AAC Visual Learning</div>
+    </div>
+
+    <div id="root"></div>
+
+    <script type="module" src="./src/main.jsx"></script>
+
+    <script>
+      // Unregister any broken service workers first, then re-register
+      if ('serviceWorker' in navigator) {
+        // Unregister old broken workers that may be serving blank pages
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(reg) { reg.unregister(); });
+        });
+        // Register fresh after page loads
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function() { console.log('SaySee PWA ready'); })
+            .catch(function(e) { console.log('SW skip:', e); });
+        });
+      }
+
+      // Remove splash once React renders into #root
+      var observer = new MutationObserver(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          observer.disconnect();
+          var splash = document.getElementById('splash');
+          if (splash) {
+            splash.classList.add('gone');
+            setTimeout(function() {
+              if (splash.parentNode) splash.parentNode.removeChild(splash);
+            }, 700);
+          }
+        }
+      });
+      observer.observe(document.getElementById('root'), { childList: true, subtree: true });
+
+      // Fallback — remove splash after 4 seconds no matter what
+      setTimeout(function() {
+        var splash = document.getElementById('splash');
+        if (splash) {
+          splash.classList.add('gone');
+          setTimeout(function() {
+            if (splash.parentNode) splash.parentNode.removeChild(splash);
+          }, 700);
+        }
+      }, 4000);
+    </script>
+  </body>
+</html>
