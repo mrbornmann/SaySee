@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background circle - blue gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B4F9E"/>
+      <stop offset="100%" style="stop-color:#2B6CB0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App icon background -->
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+
+  <!-- Green eye / speech bubble shape - scaled to fit icon -->
+  <!-- Eye almond shape -->
+  <path d="M256 130 Q370 130 410 256 Q370 382 256 382 Q142 382 102 256 Q142 130 256 130Z"
+    fill="none" stroke="#5AAB2A" stroke-width="22" stroke-linecap="round"/>
+
+  <!-- Speech bubble tail - bottom left -->
+  <path d="M155 372 L100 450 L210 372Z" fill="#5AAB2A"/>
+
+  <!-- Iris ring -->
+  <circle cx="256" cy="256" r="88" fill="none" stroke="#5AAB2A" stroke-width="22"/>
+
+  <!-- Pupil -->
+  <circle cx="256" cy="256" r="42" fill="#5AAB2A"/>
+
+  <!-- Catchlight -->
+  <circle cx="284" cy="228" r="16" fill="#2265AD"/>
+</svg>
