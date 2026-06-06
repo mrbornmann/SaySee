@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512">
+  <!-- Blue background matching the logo -->
+  <rect width="200" height="200" fill="#2B6CB0"/>
+  
+  <!-- Eye almond shape - green outline -->
+  <path d="M100 55 Q145 55 162 100 Q145 145 100 145 Q55 145 38 100 Q55 55 100 55Z"
+    fill="none" stroke="#5AAB2A" stroke-width="7" stroke-linecap="round"/>
+  
+  <!-- Speech bubble tail - bottom left -->
+  <path d="M62 138 L44 165 L82 138Z" fill="#5AAB2A"/>
+  
+  <!-- Iris ring -->
+  <circle cx="100" cy="100" r="28" fill="none" stroke="#5AAB2A" stroke-width="7"/>
+  
+  <!-- Pupil filled -->
+  <circle cx="100" cy="100" r="13" fill="#5AAB2A"/>
+  
+  <!-- Catchlight - blue dot -->
+  <circle cx="108" cy="92" r="5" fill="#2B6CB0"/>
+</svg>
