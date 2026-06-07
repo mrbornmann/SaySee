@@ -1793,12 +1793,21 @@ export default function SaySee(){
       const { user:u } = await sbAuth.signIn(email, password);
       const acct = await sbAuth.getAccount(u.id);
       const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
-      const defaultRole = isAdmin ? 'admin' : (u.user_metadata?.role || 'teacher');
-      const defaultPlan = isAdmin ? 'admin' : 'monthly';
-      setUser(acct
-        ? {...acct, role: isAdmin ? 'admin' : acct.role, plan: isAdmin ? 'admin' : acct.plan}
-        : { id:u.id, email:u.email, name:u.user_metadata?.name||email, role:defaultRole, plan:defaultPlan, maxStudents:28 }
-      );
+      if(acct) {
+        // Supabase account found - normalize it with defaults for missing fields
+        setUser({
+          ...acct,
+          role: isAdmin ? 'admin' : (acct.role || 'teacher'),
+          plan: isAdmin ? 'admin' : (acct.plan || 'monthly'),
+          maxStudents: acct.max_students || 28,
+          name: acct.name || email,
+        });
+      } else {
+        // No account row found - create defaults
+        const defaultRole = isAdmin ? 'admin' : (u.user_metadata?.role || 'teacher');
+        const defaultPlan = isAdmin ? 'admin' : 'monthly';
+        setUser({ id:u.id, email:u.email, name:u.user_metadata?.name||email, role:defaultRole, plan:defaultPlan, maxStudents:28 });
+      }
     } catch(e) {
       // Fall back to demo accounts for testing
       const demo = [...DEMO_ACCOUNTS].find(a=>a.email===email&&a.password===password);
