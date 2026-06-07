@@ -1,6 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
+// ── Error Boundary ───────────────────────────────────────────────
+import React from "react";
+class ErrorBoundary extends React.Component {
+  constructor(props){ super(props); this.state={error:null}; }
+  static getDerivedStateFromError(e){ return {error:e}; }
+  render(){
+    if(this.state.error) return(
+      <div style={{padding:40,fontFamily:"Arial",background:"#fff",minHeight:"100vh"}}>
+        <h2 style={{color:"red",marginBottom:16}}>SaySee Error — Please share this with support</h2>
+        <pre style={{background:"#f5f5f5",padding:16,borderRadius:8,fontSize:12,overflow:"auto",whiteSpace:"pre-wrap"}}>
+          {this.state.error?.toString()}
+          {"
+
+"}
+          {this.state.error?.stack}
+        </pre>
+        <button onClick={()=>window.location.reload()} style={{marginTop:20,padding:"10px 24px",background:"#1B65B8",color:"#fff",border:"none",borderRadius:8,fontSize:14,cursor:"pointer"}}>
+          Reload App
+        </button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 // ── SaySee Logo components ───────────────────────────────────────
 // SVG eye icon — speech bubble eye shape
 function SaySeeIcon({size=44, bg="white"}){
@@ -1851,10 +1876,10 @@ export default function SaySee(){
       {!user
         ?<AuthScreen onLogin={login} onRegister={register}/>
         :user.role==="admin"
-          ?<AdminPanel words={masterWords} setWords={setMasterWords} onLogout={logout}/>
+          ?<ErrorBoundary><AdminPanel words={masterWords} setWords={setMasterWords} onLogout={logout}/></ErrorBoundary>
           :user.role==="district_admin"
-            ?<DistrictAdminPanel user={user} onLogout={logout}/>
-            :<TeacherApp user={user} words={masterWords} onLogout={logout}/>
+            ?<ErrorBoundary><DistrictAdminPanel user={user} onLogout={logout}/></ErrorBoundary>
+            :<ErrorBoundary><TeacherApp user={user} words={masterWords} onLogout={logout}/></ErrorBoundary>
       }
     </>
   );
