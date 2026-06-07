@@ -1767,13 +1767,13 @@ export default function SaySee(){
 
   // ── Trial enforcement helpers ────────────────────────────────
   const isTrialExpired = (acct) => {
+    // Only block if explicitly on trial plan AND trialStart exists AND 7+ days have passed
     if(!acct) return false;
-    if(acct.role === 'admin' || acct.role === 'district_admin') return false;
-    if(acct.plan === 'monthly' || acct.plan === 'annual' || acct.plan === 'school') return false;
     if(!acct.trialStart) return false;
+    if(acct.plan !== 'trial') return false;
     const trialStart = new Date(acct.trialStart);
-    const now = new Date();
-    const daysDiff = (now - trialStart) / (1000 * 60 * 60 * 24);
+    if(isNaN(trialStart.getTime())) return false;
+    const daysDiff = (Date.now() - trialStart) / (1000 * 60 * 60 * 24);
     return daysDiff > 7;
   };
 
@@ -1785,11 +1785,20 @@ export default function SaySee(){
     return Math.max(0, Math.ceil(7 - daysDiff));
   };
 
+  // Admin emails always get admin role regardless of database state
+  const ADMIN_EMAILS = ['admin@saysee.app', 'admin@saysee.io', 'hello@saysee.io'];
+
   const login = async (email, password, setErr) => {
     try {
       const { user:u } = await sbAuth.signIn(email, password);
       const acct = await sbAuth.getAccount(u.id);
-      setUser(acct || { id:u.id, email:u.email, name:u.user_metadata?.name||email, role:u.user_metadata?.role||"teacher", plan:"trial", trialStart:new Date().toISOString(), maxStudents:28 });
+      const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
+      const defaultRole = isAdmin ? 'admin' : (u.user_metadata?.role || 'teacher');
+      const defaultPlan = isAdmin ? 'admin' : 'monthly';
+      setUser(acct
+        ? {...acct, role: isAdmin ? 'admin' : acct.role, plan: isAdmin ? 'admin' : acct.plan}
+        : { id:u.id, email:u.email, name:u.user_metadata?.name||email, role:defaultRole, plan:defaultPlan, maxStudents:28 }
+      );
     } catch(e) {
       // Fall back to demo accounts for testing
       const demo = [...DEMO_ACCOUNTS].find(a=>a.email===email&&a.password===password);
