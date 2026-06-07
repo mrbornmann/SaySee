@@ -2,19 +2,22 @@
   "name": "SaySee",
   "short_name": "SaySee",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#1B65B8",
+  "background_color": "#ffffff",
   "theme_color": "#5AAB2A",
   "icons": [
     {
       "src": "/saysee-icon.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/saysee-icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
