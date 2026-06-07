@@ -815,6 +815,7 @@ Reply with ONLY the matching word or NO_MATCH.`
   useEffect(()=>{mem.set(`stu_${user.id}`,students);},[students]);
   useEffect(()=>{mem.set(`cw_${user.id}`,customW);},[customW]);
   useEffect(()=>{mem.set(`cats_${user.id}`,userCats);},[userCats]);
+  const allCats = [...CATS, ...userCats];
 
   const activeStu = students.find(s=>s.id===activeId)||null;
   useEffect(()=>{if(activeStu)setLevel(activeStu.level);},[activeId]);
@@ -960,7 +961,6 @@ Reply with ONLY the matching word or NO_MATCH.`
   };
 
   const ac=curWord?.color||(CATS.find(c=>c.id===activeCat)?.color||"#1B65B8");
-  const allCats = [...CATS, ...userCats];
   const filtered=allWords.filter(w=>w.cat===activeCat);
 
   if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>setStuMode(false)}/>;
