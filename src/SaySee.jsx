@@ -196,9 +196,20 @@ const LEVELS = [
 const AVATARS = ["🐱","🐶","🐸","🦊","🐼","🐨","🦁","🐯","🦄","🐙","🦋","🐬","🦉","🐻","🐺"];
 
 const DEMO_ACCOUNTS = [
-  {id:"admin", email:"admin@saysee.app",  password:"saysee2024!", name:"SaySee Admin",  role:"admin"},
-  {id:"demo",  email:"teacher@demo.com",  password:"demo123",     name:"Ms. Johnson",   role:"teacher", plan:"monthly", maxStudents:28},
+  // ── SaySee Admin ─────────────────────────────────────────────
+  {id:"admin",    email:"admin@saysee.app",      password:"saysee2024!",  name:"SaySee Admin",       role:"admin",          plan:"admin",   maxStudents:999},
+
+  // ── Demo accounts — bypass all trials, always work ───────────
+  {id:"demoT",   email:"teacher@saysee.io",      password:"SaySee2026!",  name:"Demo Teacher",       role:"teacher",        plan:"monthly", maxStudents:28},
+  {id:"demoD",   email:"district@saysee.io",     password:"SaySee2026!",  name:"Demo District",      role:"district_admin", plan:"school",  maxStudents:999},
+  {id:"demoT2",  email:"teacher2@saysee.io",     password:"SaySee2026!",  name:"Demo Teacher 2",     role:"teacher",        plan:"monthly", maxStudents:28},
+
+  // ── Legacy demo ───────────────────────────────────────────────
+  {id:"demo",    email:"teacher@demo.com",        password:"demo123",      name:"Ms. Johnson",        role:"teacher",        plan:"monthly", maxStudents:28},
 ];
+
+// Demo accounts always bypass Supabase and trial checks
+const DEMO_EMAILS = new Set(DEMO_ACCOUNTS.map(a=>a.email.toLowerCase()));
 
 const DEMO_STUDENTS = [
   {id:"s1", name:"Alex R.",   avatar:"🐱", color:"#1B65B8", level:1, progress:{},                  sharedWith:[]},
@@ -664,7 +675,7 @@ function AdminWordForm({word,onSave,onDelete,onClose}){
 }
 
 // ── Teacher app ───────────────────────────────────────────────
-function TeacherApp({user,words,onLogout}){
+function TeacherApp({user,words,onLogout,daysLeft=null}){
   const [students,setStudents]   = useState(mem.get(`stu_${user.id}`, user.id==="demo"?DEMO_STUDENTS:[]));
   const [customW,setCustomW]     = useState(mem.get(`cw_${user.id}`,[]));
   const [userCats,setUserCats]   = useState(mem.get(`cats_${user.id}`,[]));
@@ -982,36 +993,6 @@ Reply with ONLY the matching word or NO_MATCH.`
 
   if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>setStuMode(false)}/>;
 
-  // Trial expired wall
-  if(isTrialExpired(user)) return(
-    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#1B4F9E,#2B6CB0)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:"#fff",borderRadius:24,padding:36,maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 24px 60px rgba(0,0,0,0.2)"}}>
-        <SaySeeFullLogo size={100}/>
-        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#1B65B8",margin:"20px 0 8px"}}>Your Free Trial Has Ended</div>
-        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:14,color:"#666",lineHeight:1.7,marginBottom:24}}>
-          Thank you for trying SaySee©! Your 7-day free trial has expired.<br/>Choose a plan to continue supporting your students.
-        </div>
-        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
-          {[
-            {label:"Monthly",price:"$28/mo",sub:"Up to 28 students",color:"#1B65B8"},
-            {label:"Annual",price:"$252/yr",sub:"Save 25% · Up to 28 students",color:"#5AAB2A",badge:"BEST VALUE"},
-          ].map(p=>(
-            <div key={p.label} style={{padding:"14px 16px",borderRadius:14,background:`${p.color}12`,border:`2px solid ${p.color}`,position:"relative"}}>
-              {p.badge&&<div style={{position:"absolute",top:-9,right:12,background:p.color,color:"#fff",fontSize:9,fontWeight:900,padding:"2px 8px",borderRadius:20,fontFamily:"'Nunito',sans-serif"}}>{p.badge}</div>}
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:15,color:"#1A1A2E"}}>{p.label}</div>
-                <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:p.color}}>{p.price}</div>
-              </div>
-              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:2}}>{p.sub}</div>
-            </div>
-          ))}
-        </div>
-        <a href="mailto:hello@saysee.io" style={{display:"block",padding:"13px",borderRadius:30,background:"#1B65B8",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:15,textDecoration:"none",boxShadow:"0 4px 16px #1B65B855",marginBottom:10}}>Subscribe Now — hello@saysee.io</a>
-        <button onClick={onLogout} style={{background:"none",border:"none",fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#AAA",cursor:"pointer"}}>Sign out</button>
-      </div>
-    </div>
-  );
-
   return(
     <div style={{minHeight:"100vh",background:flash?"#FFFDE7":"#EEF5FF",transition:"background 0.3s",display:"flex",flexDirection:"column",fontFamily:"'Nunito',sans-serif"}}>
 
@@ -1041,12 +1022,11 @@ Reply with ONLY the matching word or NO_MATCH.`
         </div>
       </header>
 
-      {/* Trial banner */}
-      {user.plan==="trial"&&daysLeftInTrial(user)<=3&&(
+      {daysLeft!==null&&daysLeft<=3&&(
         <div style={{background:"#FFFBEB",borderBottom:"1px solid #FEEBC8",padding:"8px 16px",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-          <span style={{fontSize:14}}>⏰</span>
+          <span>⏰</span>
           <span style={{fontFamily:"'Nunito',sans-serif",fontSize:13,fontWeight:700,color:"#92600A"}}>
-            {daysLeftInTrial(user)===0?"Your trial expires today!":`${daysLeftInTrial(user)} day${daysLeftInTrial(user)===1?"":"s"} left in your free trial`}
+            {daysLeft===0?"Your trial expires today!":`${daysLeft} day${daysLeft===1?"":"s"} left in your free trial`}
           </span>
           <a href="mailto:hello@saysee.io" style={{fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:800,color:"#1B65B8",textDecoration:"none",background:"#EEF5FF",padding:"3px 10px",borderRadius:20}}>Subscribe →</a>
         </div>
@@ -1784,10 +1764,12 @@ export default function SaySee(){
 
   // ── Trial enforcement helpers ────────────────────────────────
   const isTrialExpired = (acct) => {
-    // Only block if explicitly on trial plan AND trialStart exists AND 7+ days have passed
     if(!acct) return false;
-    if(!acct.trialStart) return false;
+    // Never block admins, paid plans, or demo accounts
+    if(acct.role === 'admin' || acct.role === 'district_admin') return false;
     if(acct.plan !== 'trial') return false;
+    if(DEMO_EMAILS.has(acct.email?.toLowerCase())) return false;
+    if(!acct.trialStart) return false;
     const trialStart = new Date(acct.trialStart);
     if(isNaN(trialStart.getTime())) return false;
     const daysDiff = (Date.now() - trialStart) / (1000 * 60 * 60 * 24);
@@ -1806,30 +1788,34 @@ export default function SaySee(){
   const ADMIN_EMAILS = ['admin@saysee.app', 'admin@saysee.io', 'hello@saysee.io'];
 
   const login = async (email, password, setErr) => {
+    // ── Check demo accounts first — always work, bypass Supabase ──
+    const demo = DEMO_ACCOUNTS.find(a=>a.email===email.toLowerCase()&&a.password===password);
+    if(demo){ setUser(demo); return; }
+
+    // ── Try Supabase for real accounts ─────────────────────────────
     try {
       const { user:u } = await sbAuth.signIn(email, password);
       const acct = await sbAuth.getAccount(u.id);
       const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
       if(acct) {
-        // Supabase account found - normalize it with defaults for missing fields
         setUser({
           ...acct,
-          role: isAdmin ? 'admin' : (acct.role || 'teacher'),
-          plan: isAdmin ? 'admin' : (acct.plan || 'monthly'),
-          maxStudents: acct.max_students || 28,
-          name: acct.name || email,
+          role:       isAdmin ? 'admin'   : (acct.role   || 'teacher'),
+          plan:       isAdmin ? 'admin'   : (acct.plan   || 'monthly'),
+          maxStudents: acct.max_students  || 28,
+          name:       acct.name           || email,
         });
       } else {
-        // No account row found - create defaults
-        const defaultRole = isAdmin ? 'admin' : (u.user_metadata?.role || 'teacher');
-        const defaultPlan = isAdmin ? 'admin' : 'monthly';
-        setUser({ id:u.id, email:u.email, name:u.user_metadata?.name||email, role:defaultRole, plan:defaultPlan, maxStudents:28 });
+        setUser({
+          id: u.id, email: u.email,
+          name: u.user_metadata?.name || email,
+          role: isAdmin ? 'admin'  : (u.user_metadata?.role || 'teacher'),
+          plan: isAdmin ? 'admin'  : 'monthly',
+          maxStudents: 28,
+        });
       }
     } catch(e) {
-      // Fall back to demo accounts for testing
-      const demo = [...DEMO_ACCOUNTS].find(a=>a.email===email&&a.password===password);
-      if (demo) setUser(demo);
-      else setErr(e.message||"Invalid email or password.");
+      setErr(e.message||"Invalid email or password.");
     }
   };
 
@@ -1871,7 +1857,9 @@ export default function SaySee(){
           ?<ErrorBoundary><AdminPanel words={masterWords} setWords={setMasterWords} onLogout={logout}/></ErrorBoundary>
           :user.role==="district_admin"
             ?<ErrorBoundary><DistrictAdminPanel user={user} onLogout={logout}/></ErrorBoundary>
-            :<ErrorBoundary><TeacherApp user={user} words={masterWords} onLogout={logout}/></ErrorBoundary>
+            :isTrialExpired(user)
+              ?<TrialExpiredScreen user={user} onLogout={logout}/>
+              :<ErrorBoundary><TeacherApp user={user} words={masterWords} onLogout={logout} daysLeft={daysLeftInTrial(user)}/></ErrorBoundary>
       }
     </>
   );
