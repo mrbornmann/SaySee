@@ -1004,9 +1004,10 @@ function AuthScreen({accounts,onLogin,onRegister}){
               <PaymentForm
                 user={{id:`temp_${Date.now()}`,email,name,role:"teacher",plan:stripePlan,maxStudents:28}}
                 plan={stripePlan}
-                onSuccess={async ()=>{
+                onSuccess={async (paidPlan)=>{
                   setShowStripe(false);
-                  await onRegister(name,email,pass,stripePlan,setErr);
+                  // Register account with paid plan
+                  await onRegister(name,email,pass,paidPlan||stripePlan,setErr);
                 }}
                 onCancel={()=>setShowStripe(false)}
               />
@@ -1230,6 +1231,10 @@ function AdminWordForm({word,onSave,onDelete,onClose}){
 
 // ── Teacher app ───────────────────────────────────────────────
 function TeacherApp({user,words,onLogout,daysLeft=null}){
+  // ── In-app Stripe payment ───────────────────────────────────────
+  const [showStripeInApp,setShowStripeInApp] = useState(false);
+  const [stripeInAppPlan,setStripeInAppPlan] = useState("monthly");
+
   // ── App Mode ─────────────────────────────────────────────────────
   const [appMode,setAppMode]       = useState("aac"); // aac | workingfor | firstthen | choice
   const [showModeMenu,setShowModeMenu] = useState(false);
@@ -1819,7 +1824,11 @@ Reply with ONLY the matching word or NO_MATCH.`
           <span style={{fontFamily:"'Nunito',sans-serif",fontSize:13,fontWeight:700,color:"#92600A"}}>
             {daysLeft===0?"Your trial expires today!":`${daysLeft} day${daysLeft===1?"":"s"} left in your free trial`}
           </span>
-          <a href="mailto:hello@saysee.io" style={{fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:800,color:"#1B65B8",textDecoration:"none",background:"#EEF5FF",padding:"3px 10px",borderRadius:20}}>✉️ Subscribe →</a>
+          <button onClick={()=>{setDrawer(true);setDtab("account");}}
+            style={{fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:800,color:"#1B65B8",
+            background:"#EEF5FF",padding:"4px 12px",borderRadius:20,border:"none",cursor:"pointer"}}>
+            Subscribe →
+          </button>
         </div>
       )}
 
@@ -2104,7 +2113,65 @@ Reply with ONLY the matching word or NO_MATCH.`
                 </div>
                 <div style={{background:"#F0FFF4",borderRadius:13,padding:14,marginBottom:18,border:"1px solid #C6F6D5"}}>
                   <div style={{fontWeight:800,fontSize:13,color:"#276749"}}>Subscription</div>
-                  <div style={{fontSize:13,color:"#4A856A",marginTop:4,lineHeight:1.5}}>Billing connects to Stripe in production. Upgrade, cancel, and invoice management will be available here.</div>
+                  <div style={{fontSize:12,color:"#4A856A",marginTop:4,lineHeight:1.6}}>
+                    Plan: <b style={{textTransform:"capitalize"}}>{user.plan||"trial"}</b>
+                    {user.plan==="monthly"&&" · $28/month"}
+                    {user.plan==="annual"&&" · $252/year"}
+                  </div>
+                  {/* Subscription status */}
+                  <div style={{marginTop:8,padding:"10px 14px",borderRadius:10,
+                    background: user.plan==="monthly"||user.plan==="annual"||user.plan==="school"?"#EEF5FF":"#FFF8EC",
+                    border:`1px solid ${user.plan==="monthly"||user.plan==="annual"||user.plan==="school"?"#BDD7F5":"#FEEBC8"}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>
+                        Current Plan
+                      </div>
+                      <div style={{fontFamily:"'Fredoka One',cursive",fontSize:16,
+                        color:user.plan==="monthly"||user.plan==="annual"||user.plan==="school"?"#1B65B8":"#E67E22",
+                        textTransform:"capitalize"}}>
+                        {user.plan==="monthly"?"Monthly ✅":
+                         user.plan==="annual"?"Annual ✅":
+                         user.plan==="school"?"School Site ✅":
+                         user.plan==="admin"?"Admin ✅":
+                         "Free Trial ⏰"}
+                      </div>
+                    </div>
+                    {user.plan==="monthly"&&<div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#888",marginTop:2}}>$28/month · Up to 28 students</div>}
+                    {user.plan==="annual"&&<div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#888",marginTop:2}}>$252/year · Up to 28 students · Best value</div>}
+                    {user.plan==="school"&&<div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#888",marginTop:2}}>School Site License · Unlimited students</div>}
+                    {(user.plan==="trial"||!user.plan)&&(
+                      <>
+                        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#E67E22",marginTop:2,fontWeight:700}}>Subscribe to keep full access</div>
+                        <div style={{display:"flex",gap:8,marginTop:10}}>
+                          <button onClick={()=>{setShowStripeInApp(true);setStripeInAppPlan("monthly");}}
+                            style={{flex:1,padding:"9px",borderRadius:10,border:"2px solid #1B65B8",
+                            background:"transparent",color:"#1B65B8",fontFamily:"'Nunito',sans-serif",
+                            fontWeight:800,fontSize:11,cursor:"pointer"}}>
+                            Monthly<br/>$28/mo
+                          </button>
+                          <button onClick={()=>{setShowStripeInApp(true);setStripeInAppPlan("annual");}}
+                            style={{flex:1,padding:"9px",borderRadius:10,border:"none",
+                            background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",
+                            fontWeight:800,fontSize:11,cursor:"pointer"}}>
+                            Annual ⭐<br/>$252/yr
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Cancellation / changes via request */}
+                  <div style={{marginTop:10,padding:"10px 14px",borderRadius:10,background:"#F8F9FC",border:"1px solid #E8ECF0"}}>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",lineHeight:1.6}}>
+                      To upgrade, downgrade, or cancel your subscription contact us — we'll take care of it within 24 hours.
+                    </div>
+                    <a href="mailto:hello@saysee.io?subject=Subscription Change Request&body=Hi SaySee team,%0A%0AI would like to make a change to my subscription:%0A%0AEmail: " style={{
+                      display:"block",marginTop:8,padding:"9px 14px",borderRadius:10,
+                      background:"#1B65B8",color:"#fff",fontFamily:"'Nunito',sans-serif",
+                      fontWeight:800,fontSize:12,textDecoration:"none",textAlign:"center"}}>
+                      ✉️ Contact Us to Make Changes
+                    </a>
+                  </div>
                 </div>
                 <button onClick={onLogout} style={{width:"100%",padding:"11px",borderRadius:12,border:"2px solid #E74C3C",background:"#fff",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,cursor:"pointer"}}>Log Out</button>
               </>}
@@ -2168,6 +2235,23 @@ Reply with ONLY the matching word or NO_MATCH.`
         onAdd={cat=>{setUserCats(p=>[...p,cat]);setActiveCat(cat.id);setShowAddCat(false);}}
         onClose={()=>setShowAddCat(false)}
       />}
+
+      {/* In-app subscription payment */}
+      {showStripeInApp&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",
+          alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+          <PaymentForm
+            user={user}
+            plan={stripeInAppPlan}
+            onSuccess={paidPlan=>{
+              setShowStripeInApp(false);
+              setUser(u=>({...u,plan:paidPlan}));
+              setDrawer(false);
+            }}
+            onCancel={()=>setShowStripeInApp(false)}
+          />
+        </div>
+      )}
 
       {/* Reinforcer Picker */}
       {showWorkingForPicker&&(
