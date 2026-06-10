@@ -412,6 +412,10 @@ const DEMO_ACCOUNTS = [
 // Demo accounts always bypass Supabase and trial checks
 const DEMO_EMAILS = new Set(DEMO_ACCOUNTS.map(a=>a.email.toLowerCase()));
 
+// ── IP Notice ────────────────────────────────────────────────────
+// © 2026 SaySee LLC. All rights reserved.
+// Patent Pending — U.S. Application No. 64/086,776
+
 const DEMO_STUDENTS = [
   {id:"s1", name:"Alex R.",   avatar:"🐱", color:"#1B65B8", level:1, progress:{},                  sharedWith:[]},
   {id:"s2", name:"Maya T.",   avatar:"🦊", color:"#8E44AD", level:2, progress:{1:true,2:true,5:true},sharedWith:[]},
