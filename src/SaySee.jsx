@@ -1211,9 +1211,9 @@ function TeacherApp({user,words,onLogout,daysLeft=null}){
 
     saveTrials();
     // Also persist to Supabase asynchronously
-    const trial = trialRef.current[`${studentId}_${wordId}`];
-    if(trial && supabase){
-      sbAuth.saveProgress(studentId, wordId, trial.level, trial.correct, trial.incorrect, user.id)
+    const trialData = trialRef.current[`${studentId}_${wordId}`];
+    if(trialData && supabase){
+      sbAuth.saveProgress(studentId, wordId, trialData.level, trialData.correct, trialData.incorrect, user.id)
         .catch(e=>console.log("Progress save error:", e));
     }
   },[students, saveTrials, user.id]);
