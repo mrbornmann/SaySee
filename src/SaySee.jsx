@@ -774,6 +774,129 @@ function ReinforcerPicker({onSelect, onClose}){
   );
 }
 
+// ── Stripe Payment Form ──────────────────────────────────────
+function PaymentForm({user, plan, onSuccess, onCancel}){
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [cardReady, setCardReady] = useState(false);
+  const cardRef = useRef(null);
+  const stripeRef = useRef(null);
+  const elementsRef = useRef(null);
+  const cardElementRef = useRef(null);
+
+  const STRIPE_KEY = import.meta.env.VITE_STRIPE_KEY;
+  const MONTHLY_PRICE = import.meta.env.VITE_STRIPE_MONTHLY_PRICE;
+  const ANNUAL_PRICE = import.meta.env.VITE_STRIPE_ANNUAL_PRICE;
+
+  const planDetails = plan === 'monthly'
+    ? { label: 'Monthly', price: '$28/month', priceId: MONTHLY_PRICE }
+    : { label: 'Annual',  price: '$252/year', priceId: ANNUAL_PRICE };
+
+  useEffect(()=>{
+    // Load Stripe.js dynamically
+    if(!STRIPE_KEY) return;
+    const script = document.createElement('script');
+    script.src = 'https://js.stripe.com/v3/';
+    script.onload = () => {
+      stripeRef.current = window.Stripe(STRIPE_KEY);
+      elementsRef.current = stripeRef.current.elements();
+      cardElementRef.current = elementsRef.current.create('card', {
+        style: {
+          base: {
+            fontSize: '16px',
+            fontFamily: "'Nunito', sans-serif",
+            color: '#1A1A2E',
+            '::placeholder': { color: '#AAB' },
+          },
+          invalid: { color: '#E74C3C' },
+        }
+      });
+      cardElementRef.current.mount(cardRef.current);
+      cardElementRef.current.on('ready', () => setCardReady(true));
+      cardElementRef.current.on('change', e => {
+        if(e.error) setError(e.error.message);
+        else setError('');
+      });
+    };
+    document.head.appendChild(script);
+    return () => {
+      if(cardElementRef.current) cardElementRef.current.destroy();
+    };
+  }, []);
+
+  const handleSubmit = async () => {
+    if(!stripeRef.current || !cardElementRef.current) return;
+    setLoading(true);
+    setError('');
+    try {
+      // Create payment method
+      const { paymentMethod, error: pmError } = await stripeRef.current
+        .createPaymentMethod({ type: 'card', card: cardElementRef.current,
+          billing_details: { email: user.email, name: user.name }
+        });
+      if(pmError){ setError(pmError.message); setLoading(false); return; }
+
+      // Call Supabase edge function to create subscription
+      const res = await fetch('https://peuuimpaylmprjrnnkqi.supabase.co/functions/v1/create-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBldXVpbXBheWxtcHJqcm5ua3FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk5MzMsImV4cCI6MjA5NjAyNTkzM30.MBQbempSUsYAWlacXLCqe7qVr6ssA4B4uS5QOiJMaF0` },
+        body: JSON.stringify({
+          paymentMethodId: paymentMethod.id,
+          priceId: planDetails.priceId,
+          email: user.email,
+          userId: user.id,
+          plan: plan,
+        })
+      });
+      const data = await res.json();
+      if(data.error){ setError(data.error); setLoading(false); return; }
+      if(data.requiresAction){
+        const { error: confirmError } = await stripeRef.current
+          .confirmCardPayment(data.clientSecret);
+        if(confirmError){ setError(confirmError.message); setLoading(false); return; }
+      }
+      onSuccess(plan);
+    } catch(e){
+      setError('Payment failed. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  return(
+    <div style={{background:"#fff",borderRadius:20,padding:28,width:"min(94vw,420px)",boxShadow:"0 24px 60px rgba(0,0,0,0.15)"}}>
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <SaySeeFullLogo size={80}/>
+      </div>
+      <div style={{background:"#EEF5FF",borderRadius:14,padding:"14px 16px",marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#1B65B8"}}>{planDetails.label} Plan</div>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>Up to 28 students · Cancel anytime</div>
+        </div>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#1B65B8"}}>{planDetails.price}</div>
+      </div>
+      <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginBottom:8,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>Card Details</div>
+      <div ref={cardRef} style={{padding:"14px 16px",border:"2px solid #E8ECF0",borderRadius:12,marginBottom:16,minHeight:44,background:"#fff"}}/>
+      {error&&<div style={{background:"#FFF5F5",border:"1px solid #FED7D7",borderRadius:10,padding:"8px 12px",marginBottom:12,fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#E74C3C"}}>{error}</div>}
+      <button onClick={handleSubmit} disabled={loading||!cardReady}
+        style={{width:"100%",padding:"14px",borderRadius:30,border:"none",
+          background:loading||!cardReady?"#CCC":"#5AAB2A",
+          color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,
+          cursor:loading||!cardReady?"not-allowed":"pointer",
+          boxShadow:loading||!cardReady?"none":"0 4px 16px #5AAB2A55",
+          marginBottom:10}}>
+        {loading?"Processing...":"Subscribe Now"}
+      </button>
+      <button onClick={onCancel} style={{width:"100%",padding:"10px",borderRadius:30,border:"2px solid #EEE",background:"transparent",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:14,color:"#AAA",cursor:"pointer"}}>
+        Cancel
+      </button>
+      <div style={{textAlign:"center",marginTop:12,fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#CCC"}}>
+        🔒 Secured by Stripe · © 2026 SaySee LLC
+      </div>
+    </div>
+  );
+}
+
 // ── Auth screen ───────────────────────────────────────────────
 function AuthScreen({accounts,onLogin,onRegister}){
   const [mode,setMode]=useState("login");
