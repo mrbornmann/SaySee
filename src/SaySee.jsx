@@ -64,6 +64,39 @@ function SaySeeBanner({height=50}){
   return <SaySeeLogo size={height}/>;
 }
 
+// ── Built-in Reinforcer Library ──────────────────────────────────
+const REINFORCERS = [
+  // Edibles
+  {id:"chips",      label:"Chips",        emoji:"🥔", category:"edible"},
+  {id:"goldfish",   label:"Goldfish",     emoji:"🐟", category:"edible"},
+  {id:"cheeseballs",label:"Cheese Balls", emoji:"🧀", category:"edible"},
+  {id:"candy",      label:"Candy",        emoji:"🍬", category:"edible"},
+  {id:"cookie",     label:"Cookie",       emoji:"🍪", category:"edible"},
+  {id:"crackers",   label:"Crackers",     emoji:"🫙", category:"edible"},
+  {id:"popcorn",    label:"Popcorn",      emoji:"🍿", category:"edible"},
+  {id:"fruit",      label:"Fruit",        emoji:"🍓", category:"edible"},
+  {id:"juice",      label:"Juice",        emoji:"🧃", category:"edible"},
+  {id:"pretzels",   label:"Pretzels",     emoji:"🥨", category:"edible"},
+  // Activities
+  {id:"tablet",     label:"Tablet",       emoji:"📱", category:"activity"},
+  {id:"youtube",    label:"YouTube",      emoji:"▶️",  category:"activity"},
+  {id:"music",      label:"Music",        emoji:"🎵", category:"activity"},
+  {id:"game",       label:"Game",         emoji:"🎮", category:"activity"},
+  {id:"break",      label:"Break",        emoji:"⏸️",  category:"activity"},
+  {id:"walk",       label:"Walk",         emoji:"🚶", category:"activity"},
+  {id:"outside",    label:"Outside",      emoji:"🌳", category:"activity"},
+  {id:"movie",      label:"Movie",        emoji:"🎬", category:"activity"},
+  {id:"drawing",    label:"Drawing",      emoji:"✏️",  category:"activity"},
+  {id:"reading",    label:"Book",         emoji:"📚", category:"activity"},
+  // Tangibles
+  {id:"puzzle",     label:"Puzzle",       emoji:"🧩", category:"tangible"},
+  {id:"toy",        label:"Toy",          emoji:"🧸", category:"tangible"},
+  {id:"ball",       label:"Ball",         emoji:"⚽", category:"tangible"},
+  {id:"bubbles",    label:"Bubbles",      emoji:"🫧", category:"tangible"},
+  {id:"fidget",     label:"Fidget",       emoji:"🌀", category:"tangible"},
+  {id:"slime",      label:"Slime",        emoji:"🟢", category:"tangible"},
+];
+
 // ── Supabase connection ───────────────────────────────────────────
 const SUPABASE_URL = "https://peuuimpaylmprjrnnkqi.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBldXVpbXBheWxtcHJqcm5ua3FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk5MzMsImV4cCI6MjA5NjAyNTkzM30.MBQbempSUsYAWlacXLCqe7qVr6ssA4B4uS5QOiJMaF0";
@@ -87,7 +120,175 @@ const sbAuth = {
   },
   signOut: async () => { if (supabase) await supabase.auth.signOut(); },
   getSession: async () => { if (!supabase) return null; const { data } = await supabase.auth.getSession(); return data.session; },
-  getAccount: async (userId) => { if (!supabase) return null; const { data } = await supabase.from("accounts").select("*").eq("id", userId).single(); return data; }
+  getAccount: async (userId) => { if (!supabase) return null; const { data } = await supabase.from("accounts").select("*").eq("id", userId).single(); return data; },
+
+  // ── Photos ────────────────────────────────────────────────────
+  // Upload photo to Supabase Storage and save URL to photos table
+  uploadPhoto: async (wordId, userId, dataUrl) => {
+    if (!supabase) return null;
+    try {
+      // Convert dataUrl to blob
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : 'jpg';
+      const path = `${userId}/${wordId}.${ext}`;
+
+      // Upload to storage bucket
+      const { error: upErr } = await supabase.storage
+        .from('photos')
+        .upload(path, blob, { upsert: true, contentType: blob.type });
+
+      if(upErr) throw upErr;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('photos')
+        .getPublicUrl(path);
+
+      const publicUrl = urlData?.publicUrl;
+
+      // Save reference in photos table
+      await supabase.from('photos').upsert({
+        word_id: String(wordId),
+        user_id: userId,
+        storage_path: path,
+        public_url: publicUrl,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'word_id,user_id' });
+
+      return publicUrl;
+    } catch(e) {
+      console.log("Photo upload error:", e);
+      return null;
+    }
+  },
+
+  // Load all photos for a user
+  getPhotos: async (userId) => {
+    if (!supabase) return {};
+    const { data } = await supabase.from('photos')
+      .select('word_id, public_url, storage_path')
+      .eq('user_id', userId);
+    if(!data) return {};
+    // Return as {wordId: url} map
+    const map = {};
+    data.forEach(p => { map[p.word_id] = p.public_url; });
+    return map;
+  },
+
+  // Delete a photo
+  deletePhoto: async (wordId, userId) => {
+    if (!supabase) return;
+    const { data } = await supabase.from('photos')
+      .select('storage_path').eq('word_id', String(wordId)).eq('user_id', userId).single();
+    if(data?.storage_path){
+      await supabase.storage.from('photos').remove([data.storage_path]);
+    }
+    await supabase.from('photos').delete()
+      .eq('word_id', String(wordId)).eq('user_id', userId);
+  },
+
+  // ── Students ──────────────────────────────────────────────────
+  getStudents: async (userId) => {
+    if (!supabase) return null;
+    const { data } = await supabase.from("students")
+      .select("*").eq("teacher_id", userId).order("created_at");
+    return data;
+  },
+  saveStudent: async (student, userId) => {
+    if (!supabase) return null;
+    const row = {
+      id: student.id?.startsWith("s_") ? undefined : student.id,
+      teacher_id: userId,
+      name: student.name,
+      avatar: student.avatar,
+      color: student.color,
+      starting_level: student.level || 1,
+      created_at: new Date().toISOString(),
+    };
+    // upsert — insert or update
+    const { data } = await supabase.from("students")
+      .upsert({...row, id: student.supabaseId || undefined})
+      .select().single();
+    return data;
+  },
+  deleteStudent: async (supabaseId) => {
+    if (!supabase) return;
+    await supabase.from("students").delete().eq("id", supabaseId);
+  },
+
+  // ── Progress / Trial Data ──────────────────────────────────────
+  getProgress: async (userId) => {
+    if (!supabase) return null;
+    const { data } = await supabase.from("student_progress")
+      .select("*").eq("teacher_id", userId);
+    return data;
+  },
+  saveProgress: async (studentId, wordId, level, correct, incorrect, teacherId) => {
+    if (!supabase) return;
+    await supabase.from("student_progress").upsert({
+      student_id: studentId,
+      word_id: String(wordId),
+      teacher_id: teacherId,
+      level,
+      correct_count: correct,
+      incorrect_count: incorrect,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "student_id,word_id" });
+  },
+
+  // ── Custom Words ──────────────────────────────────────────────
+  // Load all custom words for a user (teacher or district)
+  getCustomWords: async (userId, districtId=null) => {
+    if (!supabase) return [];
+    let query = supabase.from("custom_words").select("*").eq("user_id", userId);
+    const { data: userWords } = await query;
+    let districtWords = [];
+    if(districtId){
+      const { data: dw } = await supabase.from("custom_words").select("*").eq("district_id", districtId).is("user_id", null);
+      districtWords = dw || [];
+    }
+    return [...(userWords||[]), ...districtWords];
+  },
+
+  // Save a custom word
+  saveCustomWord: async (word, userId, districtId=null) => {
+    if (!supabase) return null;
+    const row = {
+      user_id: districtId ? null : userId,
+      district_id: districtId || null,
+      word: word.word,
+      display: word.display,
+      emoji: word.emoji,
+      photo_hint: word.photo,
+      color: word.color,
+      category: word.cat,
+      triggers: word.triggers || [word.word],
+      created_at: new Date().toISOString(),
+    };
+    const { data } = await supabase.from("custom_words").insert(row).select().single();
+    return data;
+  },
+
+  // Delete a custom word
+  deleteCustomWord: async (wordId) => {
+    if (!supabase) return;
+    await supabase.from("custom_words").delete().eq("id", wordId);
+  },
+
+  // Load custom categories for a user
+  getCustomCats: async (userId, districtId=null) => {
+    if (!supabase) return [];
+    const { data: userCats } = await supabase.from("custom_words")
+      .select("category").eq("user_id", userId).neq("category","custom");
+    let districtCats = [];
+    if(districtId){
+      const { data: dc } = await supabase.from("custom_words")
+        .select("category").eq("district_id", districtId).is("user_id", null);
+      districtCats = dc || [];
+    }
+    return [...(userCats||[]), ...districtCats];
+  },
 };
 
 // ── Data helpers ──────────────────────────────────────────────────
@@ -219,7 +420,7 @@ const DEMO_STUDENTS = [
 
 // Photos are stored as base64 data URLs in mem store, keyed by word id
 // No external image service needed — all royalty-free because teachers take them
-function getWordPhoto(wordId){ return mem.get(`photo_${wordId}`, null); }
+function getWordPhoto(wordId, userId){ return mem.get(`photo_${wordId}_${userId}`, mem.get(`photo_${wordId}`, null)); }
 function setWordPhoto(wordId, dataUrl){ mem.set(`photo_${wordId}`, dataUrl); }
 
 function readFileAsDataURL(file){
@@ -330,10 +531,10 @@ function WordCard({entry, level, photoOverride, onRequestPhoto}){
         background:`${entry.color}10`,border:`3px dashed ${entry.color}66`,gap:16}}>
         <div style={{fontSize:"min(38vw,38vh)",lineHeight:1}}>{entry.emoji}</div>
         <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:entry.color,textAlign:"center",padding:"0 20px"}}>
-          Add a real photo!
+          📷 Add a Photo
         </div>
         <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",textAlign:"center",padding:"0 24px",lineHeight:1.5}}>
-          Take a photo of your classroom's actual {entry.word.toLowerCase()} for the best learning experience
+          Tap the camera below to add a real photo for "{entry.display}" — a photo from your actual classroom works best
         </div>
         {onRequestPhoto&&(
           <button onClick={onRequestPhoto} style={{
@@ -414,6 +615,144 @@ function StudentMode({entry,level,listening,transcript,onExit}){
       )}
 
       <div style={{position:"absolute",bottom:8,left:"50%",transform:"translateX(-50%)",fontSize:10,color:"rgba(255,255,255,0.2)",fontFamily:"'Nunito',sans-serif"}}>triple-tap to exit</div>
+    </div>
+  );
+}
+
+// ── Working For Board ────────────────────────────────────────────
+function WorkingForBoard({item, onPickNew, onBackToAAC, studentName}){
+  return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#FFF8E1",gap:20,padding:20}}>
+      <div style={{background:"#F5A623",borderRadius:16,padding:"10px 32px",boxShadow:"0 4px 20px #F5A62355"}}>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:28,color:"#fff",letterSpacing:2,textAlign:"center"}}>
+          {studentName ? `${studentName} is Working For` : "Working For"}
+        </div>
+      </div>
+      {item ? (
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,animation:"popIn 0.5s cubic-bezier(.34,1.56,.64,1)"}}>
+          <div style={{fontSize:"min(45vw,45vh)",lineHeight:1}}>{item.emoji}</div>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(28px,8vw,52px)",color:"#F5A623",letterSpacing:2}}>{item.label.toUpperCase()}</div>
+        </div>
+      ):(
+        <div style={{textAlign:"center",opacity:0.5}}>
+          <div style={{fontSize:64,marginBottom:8}}>🌟</div>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#F5A623"}}>Say the reward name</div>
+        </div>
+      )}
+      <div style={{display:"flex",gap:10}}>
+        <button onClick={onPickNew} style={{padding:"10px 24px",borderRadius:30,border:"2px solid #F5A623",background:"transparent",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,color:"#F5A623",cursor:"pointer"}}>🔄 Change Reward</button>
+        <button onClick={onBackToAAC} style={{padding:"10px 24px",borderRadius:30,border:"2px solid #5AAB2A",background:"transparent",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,color:"#5AAB2A",cursor:"pointer"}}>↩ Back to AAC</button>
+      </div>
+    </div>
+  );
+}
+
+// ── First Then Board ──────────────────────────────────────────────
+function FirstThenBoard({firstItem, thenItem}){
+  return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#E3F2FD",borderBottom:"3px solid #1B65B8",padding:16,gap:8}}>
+        <div style={{background:"#1B65B8",borderRadius:12,padding:"6px 24px"}}>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#fff",letterSpacing:2}}>FIRST</div>
+        </div>
+        {firstItem ? (
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,animation:"popIn 0.4s ease"}}>
+            <div style={{fontSize:"min(22vw,22vh)",lineHeight:1}}>{firstItem.emoji}</div>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(20px,6vw,36px)",color:"#1B65B8"}}>{firstItem.display||firstItem.label}</div>
+          </div>
+        ):(
+          <div style={{opacity:0.35,textAlign:"center"}}>
+            <div style={{fontSize:48}}>❓</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#1B65B8",fontWeight:700}}>Say the task after "first"</div>
+          </div>
+        )}
+      </div>
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#E8F5E9",padding:16,gap:8}}>
+        <div style={{background:"#5AAB2A",borderRadius:12,padding:"6px 24px"}}>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#fff",letterSpacing:2}}>THEN</div>
+        </div>
+        {thenItem ? (
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,animation:"popIn 0.4s ease"}}>
+            <div style={{fontSize:"min(22vw,22vh)",lineHeight:1}}>{thenItem.emoji}</div>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(20px,6vw,36px)",color:"#5AAB2A"}}>{thenItem.display||thenItem.label}</div>
+          </div>
+        ):(
+          <div style={{opacity:0.35,textAlign:"center"}}>
+            <div style={{fontSize:48}}>🌟</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#5AAB2A",fontWeight:700}}>Say "then" + the reward</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Choice Board ──────────────────────────────────────────────────
+function ChoiceBoard({items, selected, onSelect, stage}){
+  const cols = items.length<=2?2:items.length<=4?2:3;
+  return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",background:"#F3E5F5",padding:16,gap:16}}>
+      <div style={{background:stage==="workingfor_pick"?"#F5A623":"#8E44AD",borderRadius:14,padding:"8px 28px",boxShadow:`0 4px 20px ${stage==="workingfor_pick"?"#F5A62344":"#8E44AD44"}`}}>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#fff",letterSpacing:2}}>
+          {stage==="workingfor_pick"?"🌟 What are you working for?":stage==="listening"?"Listening for choices...":"Make a Choice"}
+        </div>
+      </div>
+      {items.length===0?(
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,opacity:0.4}}>
+          <div style={{fontSize:56}}>🎯</div>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#8E44AD"}}>Say the choices</div>
+        </div>
+      ):(
+        <div style={{flex:1,display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap:12,width:"100%",maxWidth:500}}>
+          {items.map((item,i)=>(
+            <button key={item.id||i} onClick={()=>onSelect(item)} style={{
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+              gap:8,padding:16,borderRadius:20,border:"none",cursor:"pointer",
+              background:selected?.id===item.id?(stage==="workingfor_pick"?"#F5A623":"#8E44AD"):"#fff",
+              boxShadow:selected?.id===item.id?(stage==="workingfor_pick"?"0 6px 24px #F5A62355":"0 6px 24px #8E44AD55"):"0 3px 12px rgba(0,0,0,0.1)",
+              transform:selected?.id===item.id?"scale(1.05)":"scale(1)",
+              transition:"all 0.2s",
+            }}>
+              <div style={{fontSize:"min(14vw,14vh)",lineHeight:1}}>{item.emoji}</div>
+              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(14px,4vw,22px)",color:selected?.id===item.id?"#fff":"#333"}}>
+                {(item.display||item.label||item.word||"").toUpperCase()}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {selected&&(
+        <div style={{background:stage==="workingfor_pick"?"#F5A623":"#8E44AD",borderRadius:14,padding:"8px 24px",animation:"popIn 0.4s ease"}}>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#fff"}}>
+            {stage==="workingfor_pick"?"🌟":"✅"} {(selected.display||selected.label||selected.word||"").toUpperCase()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Reinforcer Picker Modal ───────────────────────────────────────
+function ReinforcerPicker({onSelect, onClose}){
+  const [activeCat,setActiveCat]=useState("edible");
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:3000}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:24,width:"100%",maxWidth:500,maxHeight:"70vh",overflowY:"auto"}}>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#F5A623",marginBottom:12,textAlign:"center"}}>🌟 Pick a Reward</div>
+        <div style={{display:"flex",gap:8,marginBottom:16,justifyContent:"center"}}>
+          {["edible","activity","tangible"].map(c=>(
+            <button key={c} onClick={()=>setActiveCat(c)} style={{padding:"6px 16px",borderRadius:30,border:"none",background:activeCat===c?"#F5A623":"#F4F5F7",color:activeCat===c?"#fff":"#666",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,cursor:"pointer",textTransform:"capitalize"}}>{c}s</button>
+          ))}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+          {REINFORCERS.filter(r=>r.category===activeCat).map(r=>(
+            <button key={r.id} onClick={()=>onSelect(r)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:12,borderRadius:14,border:"2px solid #F4F5F7",background:"#fff",cursor:"pointer"}}>
+              <div style={{fontSize:32}}>{r.emoji}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,color:"#333"}}>{r.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -630,7 +969,8 @@ function AdminPanel({words,setWords,onLogout}){
       {addW&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,backdropFilter:"blur(6px)"}} onClick={()=>setAddW(false)}>
           <div style={{background:"#1A1A2E",borderRadius:20,padding:28,width:"min(94vw,500px)",maxHeight:"90vh",overflowY:"auto",border:"1px solid rgba(255,255,255,0.1)",animation:"popIn 0.3s cubic-bezier(.34,1.56,.64,1)"}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff",marginBottom:20}}>New Word</div>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff",marginBottom:4}}>➕ Add Word to Library</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"rgba(255,255,255,0.5)",marginBottom:20,lineHeight:1.5}}>This word will appear in every teacher's word library on the platform.</div>
             <AdminWordForm onSave={w=>{setWords(p=>[...p,{...w,id:Date.now()}]);setAddW(false);}} onClose={()=>setAddW(false)}/>
           </div>
         </div>
@@ -647,7 +987,7 @@ function AdminWordForm({word,onSave,onDelete,onClose}){
   return(
     <div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        {[["Word","word"],["Display","display"],["Emoji","emoji"],["Photo hint","photo"]].map(([l,k])=>(
+        {[["Word — what the teacher says","word"],["Display Text — what students see","display"],["Emoji Icon","emoji"],["Photo Search Hint","photo"]].map(([l,k])=>(
           <div key={k}><label style={lbl}>{l}</label><input value={f[k]||""} onChange={e=>s(k,e.target.value)} style={dark}/></div>
         ))}
         <div>
@@ -676,6 +1016,26 @@ function AdminWordForm({word,onSave,onDelete,onClose}){
 
 // ── Teacher app ───────────────────────────────────────────────
 function TeacherApp({user,words,onLogout,daysLeft=null}){
+  // ── App Mode ─────────────────────────────────────────────────────
+  const [appMode,setAppMode]       = useState("aac"); // aac | workingfor | firstthen | choice
+  const [showModeMenu,setShowModeMenu] = useState(false);
+
+  // ── Working For state ─────────────────────────────────────────
+  const [workingForItem,setWorkingForItem] = useState(null);
+  const [showWorkingForPicker,setShowWorkingForPicker] = useState(false);
+  const [workingForActive,setWorkingForActive] = useState(false);
+
+  // ── First Then state ──────────────────────────────────────────
+  const [firstItem,setFirstItem]   = useState(null);
+  const [thenItem,setThenItem]     = useState(null);
+  const [firstThenStage,setFirstThenStage] = useState("idle"); // idle | first | then | complete
+
+  // ── Choice Board state ────────────────────────────────────────
+  const [choiceItems,setChoiceItems]   = useState([]);
+  const [choiceSelected,setChoiceSelected] = useState(null);
+  const [choiceListening,setChoiceListening] = useState(false);
+  const [choiceStage,setChoiceStage]   = useState("idle"); // idle | listening | display
+
   const [students,setStudents]   = useState(mem.get(`stu_${user.id}`, user.id==="demo"?DEMO_STUDENTS:[]));
   const [customW,setCustomW]     = useState(mem.get(`cw_${user.id}`,[]));
   const [userCats,setUserCats]   = useState(mem.get(`cats_${user.id}`,[]));
@@ -702,6 +1062,87 @@ function TeacherApp({user,words,onLogout,daysLeft=null}){
     const saved = mem.get(`trials_${user.id}`,{});
     trialRef.current = saved;
   },[]);
+
+  // ── Load ALL data from Supabase on mount ──────────────────────
+  useEffect(()=>{
+    const loadFromSupabase = async () => {
+
+      // 1. Load students
+      try {
+        const stuData = await sbAuth.getStudents(user.id);
+        if(stuData && stuData.length > 0){
+          const formatted = stuData.map(s=>({
+            id: s.id,
+            supabaseId: s.id,
+            name: s.name,
+            avatar: s.avatar || "🧑",
+            color: s.color || "#1B65B8",
+            level: s.starting_level || 1,
+            progress: {},
+          }));
+          setStudents(formatted);
+          mem.set(`stu_${user.id}`, formatted);
+        }
+      } catch(e){ console.log("Students load error:", e); }
+
+      // 2. Load progress data
+      try {
+        const progData = await sbAuth.getProgress(user.id);
+        if(progData && progData.length > 0){
+          // Convert flat rows into trialRef structure
+          const trials = {};
+          progData.forEach(p=>{
+            const key = `${p.student_id}_${p.word_id}`;
+            trials[key] = {
+              level: p.level || 1,
+              correct: p.correct_count || 0,
+              incorrect: p.incorrect_count || 0,
+              streak: 0,
+            };
+          });
+          trialRef.current = {...trialRef.current, ...trials};
+          mem.set(`trials_${user.id}`, trialRef.current);
+        }
+      } catch(e){ console.log("Progress load error:", e); }
+
+      // 3. Load photos from Supabase storage
+      try {
+        const photoMap = await sbAuth.getPhotos(user.id);
+        if(photoMap && Object.keys(photoMap).length > 0){
+          setPhotos(prev=>{
+            const merged = {...prev, ...photoMap};
+            // Also update local memory cache
+            Object.entries(photoMap).forEach(([wid, url])=>{
+              mem.set(`photo_${wid}_${user.id}`, url);
+            });
+            return merged;
+          });
+        }
+      } catch(e){ console.log("Photos load error:", e); }
+
+      // 4. Load custom words
+      try {
+        const districtId = user.district_id || null;
+        const words = await sbAuth.getCustomWords(user.id, districtId);
+        if(words && words.length > 0){
+          const formatted = words.map(w=>({
+            id: w.id || `cw_${w.word}`,
+            cat: w.category || "custom",
+            word: w.word,
+            display: w.display || w.word?.toUpperCase(),
+            emoji: w.emoji || "⭐",
+            photo: w.photo_hint || "",
+            color: w.color || "#1B65B8",
+            triggers: w.triggers || [w.word],
+            supabaseId: w.id,
+          }));
+          setCustomW(formatted);
+          mem.set(`cw_${user.id}`, formatted);
+        }
+      } catch(e){ console.log("Custom words load error:", e); }
+    };
+    loadFromSupabase();
+  },[user.id]); // eslint-disable-line
 
   // Save trial data
   const saveTrials = useCallback(()=>{
@@ -752,7 +1193,13 @@ function TeacherApp({user,words,onLogout,daysLeft=null}){
     }]);
 
     saveTrials();
-  },[students, saveTrials]);
+    // Also persist to Supabase asynchronously
+    const trial = trialRef.current[`${studentId}_${wordId}`];
+    if(trial && supabase){
+      sbAuth.saveProgress(studentId, wordId, trial.level, trial.correct, trial.incorrect, user.id)
+        .catch(e=>console.log("Progress save error:", e));
+    }
+  },[students, saveTrials, user.id]);
 
   // Semantic matching via Claude API
   // FERPA COMPLIANCE: Student names and identifying information are
@@ -839,11 +1286,23 @@ Reply with ONLY the matching word or NO_MATCH.`
   useEffect(()=>{ studentsRef.current = students; },[students]);
   useEffect(()=>{ activeIdRef.current = activeId; },[activeId]);
   useEffect(()=>{ aiModeRef.current = aiMode; },[aiMode]);
+  const appModeRef = useRef("aac");
+  const choiceStageRef = useRef("idle");
+  useEffect(()=>{ appModeRef.current = appMode; },[appMode]);
+  useEffect(()=>{ choiceStageRef.current = choiceStage; },[choiceStage]);
 
   useEffect(()=>{mem.set(`stu_${user.id}`,students);},[students]);
   useEffect(()=>{mem.set(`cw_${user.id}`,customW);},[customW]);
   useEffect(()=>{mem.set(`cats_${user.id}`,userCats);},[userCats]);
   const allCats = [...CATS, ...userCats];
+
+  // Save working for per student
+  const getStudentReinforcer = (studentId) => mem.get(`wf_${studentId}`, null);
+  const setStudentReinforcer = (studentId, item) => {
+    mem.set(`wf_${studentId}`, item);
+    setWorkingForItem(item);
+    setWorkingForActive(true);
+  };
 
   const activeStu = students.find(s=>s.id===activeId)||null;
   useEffect(()=>{if(activeStu)setLevel(activeStu.level);},[activeId]);
@@ -877,6 +1336,91 @@ Reply with ONLY the matching word or NO_MATCH.`
               activeIdRef.current = studentMatch.id;
               setAiStatus(`👤 Switched to ${studentMatch.name}`);
               setTimeout(()=>setAiStatus(""),2500);
+              // Restore working for for this student
+              const savedReinforcer = mem.get(`wf_${studentMatch.id}`, null);
+              if(savedReinforcer) setWorkingForItem(savedReinforcer);
+            }
+
+            // ── 1b. Working For — "what are you working for" ──
+            const wfPhrases = ["what are you working for","working for","what do you get","what are we working for","what are you earning","what do you earn"];
+            if(wfPhrases.some(p=>t.includes(p))){
+              // Always show choice board with reinforcers so student can pick
+              // Load reinforcers as choices on the choice board
+              setChoiceItems(REINFORCERS.slice(0,6)); // show first 6 as default choices
+              setChoiceSelected(null);
+              setChoiceStage("workingfor_pick"); // special stage - picking reinforcer
+              setAppMode("choice");
+              setAiStatus("🌟 Student picks their reward...");
+              setTimeout(()=>setAiStatus(""),3000);
+              return;
+            }
+
+            // ── 1c. Listen for reinforcer name while in working for mode ──
+            if(appModeRef.current === "workingfor" && !showWorkingForPicker){
+              const reinforcerMatch = REINFORCERS.find(r=>
+                t.includes(r.label.toLowerCase()) ||
+                t.includes(r.id.toLowerCase())
+              );
+              if(reinforcerMatch && activeIdRef.current){
+                setStudentReinforcer(activeIdRef.current, reinforcerMatch);
+              }
+            }
+
+            // ── 1d. First-Then ──
+            const firstPhrases = ["first","first you need to","first we","first let's"];
+            const thenPhrases  = ["then","then you get","then you can","and then"];
+            if(firstPhrases.some(p=>t.startsWith(p)) || t==="first"){
+              setAppMode("firstthen");
+              setFirstThenStage("first");
+              // Listen for task after "first"
+              const afterFirst = t.replace(/^first\s*/i,"").trim();
+              if(afterFirst.length > 1){
+                const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterFirst.includes(tr)));
+                if(taskMatch) setFirstItem(taskMatch);
+              }
+              return;
+            }
+            if((thenPhrases.some(p=>t.startsWith(p)) || t==="then") && appModeRef.current==="firstthen"){
+              setFirstThenStage("then");
+              const afterThen = t.replace(/^then\s*/i,"").trim();
+              if(afterThen.length > 1){
+                // Check reinforcers first
+                const rMatch = REINFORCERS.find(r=>afterThen.includes(r.label.toLowerCase())||afterThen.includes(r.id));
+                if(rMatch){ setThenItem({...rMatch, isThenReinforcer:true}); setFirstThenStage("complete"); }
+                else {
+                  const wordMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterThen.includes(tr)));
+                  if(wordMatch){ setThenItem(wordMatch); setFirstThenStage("complete"); }
+                }
+              }
+              return;
+            }
+
+            // ── 1e. Choice Board ──
+            const choicePhrases = ["make a choice","what do you want","choose","which one","pick one","what would you like","you choose"];
+            if(choicePhrases.some(p=>t.includes(p))){
+              setAppMode("choice");
+              setChoiceItems([]);
+              setChoiceSelected(null);
+              setChoiceStage("listening");
+              setAiStatus("🎯 Listening for choices...");
+              setTimeout(()=>setAiStatus(""),3000);
+              return;
+            }
+            // Add choices when in choice listening mode
+            if(choiceStageRef.current === "listening"){
+              const choiceWord = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>t.includes(tr)));
+              const choiceReinforcer = REINFORCERS.find(r=>t.includes(r.label.toLowerCase()));
+              const newChoice = choiceWord || (choiceReinforcer ? {...choiceReinforcer, display:choiceReinforcer.label} : null);
+              if(newChoice){
+                setChoiceItems(prev=>{
+                  if(prev.length >= 6) return prev;
+                  if(prev.find(c=>c.id===newChoice.id)) return prev;
+                  const updated = [...prev, newChoice];
+                  if(updated.length >= 2) setChoiceStage("display");
+                  return updated;
+                });
+              }
+              return;
             }
 
             // ── 2. Check for praise — log correct response ──
@@ -979,8 +1523,23 @@ Reply with ONLY the matching word or NO_MATCH.`
     setStudents(p=>p.map(s=>s.id===activeId?{...s,progress:{...s.progress,[wid]:true}}:s));
   };
 
-  const handlePhotoSaved=(wordId, dataUrl)=>{
+  const handlePhotoSaved=async (wordId, dataUrl)=>{
+    // Save locally immediately for instant display
     setPhotos(p=>({...p,[wordId]:dataUrl}));
+    mem.set(`photo_${wordId}_${user.id}`, dataUrl);
+
+    // Upload to Supabase Storage for permanent persistence
+    try {
+      const publicUrl = await sbAuth.uploadPhoto(wordId, user.id, dataUrl);
+      if(publicUrl){
+        // Replace local dataUrl with permanent Supabase URL
+        setPhotos(p=>({...p,[wordId]:publicUrl}));
+        mem.set(`photo_${wordId}_${user.id}`, publicUrl);
+      }
+    } catch(e){
+      console.log("Photo upload to Supabase failed, keeping local:", e);
+      // Photo stays as local dataUrl — still works this session
+    }
   };
 
   const shareCode=(stu)=>{
@@ -1018,6 +1577,24 @@ Reply with ONLY the matching word or NO_MATCH.`
             <span style={{fontFamily:"'Nunito',sans-serif",fontSize:9,fontWeight:800,color:listening?"#5AAB2A":"#CBD5E0",letterSpacing:0.5,textTransform:"uppercase"}}>{listening?"ON":"OFF"}</span>
           </div>
           <button onClick={()=>setStuMode(true)} style={{padding:"6px 12px",borderRadius:9,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,cursor:"pointer",boxShadow:"0 3px 12px rgba(9,132,227,0.4)"}}>▶ Student</button>
+          {/* Mode switcher */}
+          <div style={{display:"flex",gap:4,background:"#F0F2F5",borderRadius:10,padding:3,position:"relative"}}>
+            {[
+              {id:"aac",      icon:"👁️", label:"AAC"},
+              {id:"workingfor",icon:"🌟",label:"Working For"},
+              {id:"firstthen", icon:"↔️", label:"First-Then"},
+              {id:"choice",    icon:"🎯",label:"Choice"},
+            ].map(m=>(
+              <button key={m.id} onClick={()=>{setAppMode(m.id);if(m.id==="choice"){setChoiceItems([]);setChoiceSelected(null);setChoiceStage("idle");}if(m.id==="firstthen"){setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}}
+                title={m.label}
+                style={{width:32,height:32,borderRadius:7,border:"none",fontSize:15,cursor:"pointer",
+                  background:appMode===m.id?"#fff":"transparent",
+                  boxShadow:appMode===m.id?"0 1px 4px rgba(0,0,0,0.12)":"none",
+                  transition:"all 0.15s"}}>
+                {m.icon}
+              </button>
+            ))}
+          </div>
           <button onClick={()=>setDrawer(true)} style={{width:38,height:38,borderRadius:9,border:"none",fontSize:17,cursor:"pointer",background:"#F0F2F5",display:"flex",alignItems:"center",justifyContent:"center"}}>⚙️</button>
         </div>
       </header>
@@ -1311,9 +1888,49 @@ Reply with ONLY the matching word or NO_MATCH.`
       )}
 
       {/* MODALS */}
-      {addStu&&<StuModal onSave={s=>{if(students.length>=(user.maxStudents||28))return;setStudents(p=>[...p,s]);setActiveId(s.id);setAddStu(false);}} onClose={()=>setAddStu(false)} maxReached={students.length>=(user.maxStudents||28)}/>}
+      {addStu&&<StuModal onSave={async s=>{
+        if(students.length>=(user.maxStudents||28))return;
+        try {
+          const saved = await sbAuth.saveStudent(s, user.id);
+          const stu = saved ? {...s, id:saved.id, supabaseId:saved.id} : s;
+          setStudents(p=>{
+            const updated=[...p,stu];
+            mem.set(`stu_${user.id}`,updated);
+            return updated;
+          });
+          setActiveId(stu.id);
+        } catch(e) {
+          // Supabase failed — save locally
+          setStudents(p=>{
+            const updated=[...p,s];
+            mem.set(`stu_${user.id}`,updated);
+            return updated;
+          });
+          setActiveId(s.id);
+        }
+        setAddStu(false);
+      }} onClose={()=>setAddStu(false)} maxReached={students.length>=(user.maxStudents||28)}/>}
       {editStu&&<StuModal existing={editStu} onSave={s=>{setStudents(p=>p.map(x=>x.id===s.id?s:x));setEditStu(null);}} onDelete={id=>{setStudents(p=>p.filter(x=>x.id!==id));if(activeId===id)setActiveId(students.find(s=>s.id!==id)?.id||null);setEditStu(null);}} onClose={()=>setEditStu(null)}/>}
-      {addWord&&<CWModal onAdd={w=>setCustomW(p=>[...p,w])} onClose={()=>setAddWord(false)}/>}
+      {addWord&&<CWModal onAdd={async w=>{
+        // Save to Supabase for persistence across devices/browsers
+        try {
+          const saved = await sbAuth.saveCustomWord(w, user.id, user.district_id||null);
+          const wordWithId = saved ? {...w, id:saved.id, supabaseId:saved.id} : w;
+          setCustomW(p=>{
+            const updated=[...p,wordWithId];
+            mem.set(`cw_${user.id}`,updated); // also update local cache
+            return updated;
+          });
+        } catch(e) {
+          // Supabase failed — save locally only
+          console.log("Supabase save failed, saving locally:", e);
+          setCustomW(p=>{
+            const updated=[...p,w];
+            mem.set(`cw_${user.id}`,updated);
+            return updated;
+          });
+        }
+      }} onClose={()=>setAddWord(false)}/>}}
 
       {/* Photo upload modal */}
       {photoModal&&(
@@ -1325,6 +1942,19 @@ Reply with ONLY the matching word or NO_MATCH.`
         onAdd={cat=>{setUserCats(p=>[...p,cat]);setActiveCat(cat.id);setShowAddCat(false);}}
         onClose={()=>setShowAddCat(false)}
       />}
+
+      {/* Reinforcer Picker */}
+      {showWorkingForPicker&&(
+        <ReinforcerPicker
+          onSelect={r=>{
+            if(activeId) setStudentReinforcer(activeId, r);
+            else setWorkingForItem(r);
+            setShowWorkingForPicker(false);
+            setWorkingForActive(true);
+          }}
+          onClose={()=>setShowWorkingForPicker(false)}
+        />
+      )}
 
       {shareInfo&&(
         <Modal onClose={()=>setShareInfo(null)}>
@@ -1375,7 +2005,7 @@ function PhotoModal({entry, onSaved, onClose}){
     <Modal onClose={onClose}>
       <MH>📸 Photo for "{entry.display}"</MH>
       <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#666",marginBottom:18,lineHeight:1.6}}>
-        Take or upload a real photo from your classroom. This makes the word more meaningful for your students — their actual chair, their real cafeteria, their own playground.
+        Add a real photo for this word from your classroom or environment. A photo of the actual object, place, or activity your students see every day makes this word more meaningful and supports faster learning.
       </div>
 
       {/* Preview area */}
@@ -1545,12 +2175,15 @@ function CWModal({onAdd,onClose}){
   const [cat,setCat]=useState("custom");
   return(
     <Modal onClose={onClose}>
-      <MH>Add Custom Word</MH>
-      <Field label="Word *"         value={word}  onChange={setWord}  placeholder="apple"/>
-      <Field label="Display Text"   value={disp}  onChange={setDisp}  placeholder="APPLE"/>
-      <Field label="Emoji *"        value={emoji} onChange={setEmoji} placeholder="🍎"/>
-      <Field label="Photo Search"   value={photo} onChange={setPhoto} placeholder="red apple fruit"/>
-      <Field label="Voice Triggers (comma-separated)" value={trigs} onChange={setTrigs} placeholder="apple, eat apple"/>
+      <MH>➕ Add a Word</MH>
+      <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginBottom:12,lineHeight:1.5}}>
+        Add a word you use regularly with your students. SaySee will display the visual when it hears you say it.
+      </div>
+      <Field label="Word — what you say *" value={word} onChange={setWord} placeholder="e.g. sit down, apple, outside"/>
+      <Field label="Display Text — what students see" value={disp} onChange={setDisp} placeholder="e.g. SIT DOWN, APPLE, OUTSIDE"/>
+      <Field label="Emoji — visual icon *" value={emoji} onChange={setEmoji} placeholder="e.g. 🪑 🍎 🌳"/>
+      <Field label="Photo Search Hint — helps find a matching image" value={photo} onChange={setPhoto} placeholder="e.g. child sitting in chair, red apple, playground"/>
+      <Field label="Voice Triggers — words or phrases that activate this visual (comma separated)" value={trigs} onChange={setTrigs} placeholder="e.g. sit down, take a seat, sit please"/>
       <div style={{marginBottom:14}}>
         <div style={{fontSize:12,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>Category</div>
         <select value={cat} onChange={e=>setCat(e.target.value)} style={{width:"100%",padding:"10px 12px",border:"2px solid #E8ECF0",borderRadius:10,fontSize:14,fontFamily:"'Nunito',sans-serif",outline:"none"}}>
