@@ -897,6 +897,40 @@ function PaymentForm({user, plan, onSuccess, onCancel}){
   );
 }
 
+// ── Trial Expired Screen ─────────────────────────────────────────
+function TrialExpiredScreen({user, onLogout, setShowPayment, setPaymentPlan}){
+  return(
+    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#1B4F9E,#2B6CB0)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#fff",borderRadius:24,padding:36,maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 24px 60px rgba(0,0,0,0.2)"}}>
+        <SaySeeFullLogo size={100}/>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#1B65B8",margin:"20px 0 8px"}}>Your Free Trial Has Ended</div>
+        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:14,color:"#666",lineHeight:1.7,marginBottom:24}}>
+          Thank you for trying SaySee©! Choose a plan to continue supporting your students.
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
+          {[
+            {label:"Monthly",price:"$28/mo",sub:"Up to 28 students · Cancel anytime",color:"#1B65B8",plan:"monthly"},
+            {label:"Annual",price:"$252/yr",sub:"Save 25% · Best value",color:"#5AAB2A",badge:"BEST VALUE",plan:"annual"},
+          ].map(p=>(
+            <div key={p.label} onClick={()=>{setPaymentPlan(p.plan);setShowPayment(true);}}
+              style={{padding:"14px 16px",borderRadius:14,background:`${p.color}12`,border:`2px solid ${p.color}`,position:"relative",cursor:"pointer"}}>
+              {p.badge&&<div style={{position:"absolute",top:-9,right:12,background:p.color,color:"#fff",fontSize:9,fontWeight:900,padding:"2px 8px",borderRadius:20,fontFamily:"'Nunito',sans-serif"}}>{p.badge}</div>}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:15,color:"#1A1A2E"}}>{p.label}</div>
+                <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:p.color}}>{p.price}</div>
+              </div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:2}}>{p.sub}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:p.color,marginTop:4,fontWeight:800}}>Tap to subscribe →</div>
+            </div>
+          ))}
+        </div>
+        <a href="mailto:hello@saysee.io" style={{display:"block",padding:"10px",borderRadius:30,border:"2px solid #EEE",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:13,color:"#AAA",textDecoration:"none",marginBottom:8,textAlign:"center"}}>✉️ hello@saysee.io</a>
+        <button onClick={onLogout} style={{background:"none",border:"none",fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#AAA",cursor:"pointer"}}>Sign out</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Auth screen ───────────────────────────────────────────────
 function AuthScreen({accounts,onLogin,onRegister}){
   const [mode,setMode]=useState("login");
@@ -2003,6 +2037,13 @@ Reply with ONLY the matching word or NO_MATCH.`
               </>}
 
               {dtab==="account"&&<>
+                {/* Subscription status */}
+                <div style={{background:"#F8F9FC",borderRadius:14,padding:16,marginBottom:14}}>
+                  <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#AAA",textTransform:"uppercase",letterSpacing:0.5,fontWeight:700,marginBottom:4}}>Current Plan</div>
+                  <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#1B65B8",textTransform:"capitalize"}}>{user.plan||"Trial"}</div>
+                  {user.plan==="trial"&&<div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#E67E22",marginTop:4,fontWeight:700}}>⏰ Trial active — subscribe to keep access</div>}
+                </div>
+                {/* Contact */}
                 <div style={{background:"#EEF5FF",borderRadius:14,padding:16,marginBottom:16,textAlign:"center"}}>
                   <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginBottom:6,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>Questions or Support</div>
                   <a href="mailto:hello@saysee.io" style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#1B65B8",textDecoration:"none",display:"block"}}>✉️ hello@saysee.io</a>
@@ -2512,6 +2553,8 @@ export default function SaySee(){
   const [user,setUser]           = useState(null);
   const [loading,setLoading]     = useState(true);
   const [masterWords,setMasterWords] = useState([...MASTER_WORDS]);
+  const [showPayment,setShowPayment]   = useState(false);
+  const [paymentPlan,setPaymentPlan]   = useState('monthly');
 
   // Check for existing session on load
   useEffect(()=>{
@@ -2636,7 +2679,22 @@ export default function SaySee(){
           :user.role==="district_admin"
             ?<ErrorBoundary><DistrictAdminPanel user={user} onLogout={logout}/></ErrorBoundary>
             :isTrialExpired(user)
-              ?<TrialExpiredScreen user={user} onLogout={logout}/>
+              ?<>
+                <TrialExpiredScreen user={user} onLogout={logout} setShowPayment={setShowPayment} setPaymentPlan={setPaymentPlan}/>
+                {showPayment&&(
+                  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+                    <PaymentForm
+                      user={user}
+                      plan={paymentPlan}
+                      onSuccess={plan=>{
+                        setUser(u=>({...u,plan}));
+                        setShowPayment(false);
+                      }}
+                      onCancel={()=>setShowPayment(false)}
+                    />
+                  </div>
+                )}
+              </>
               :<ErrorBoundary><TeacherApp user={user} words={masterWords} onLogout={logout} daysLeft={daysLeftInTrial(user)}/></ErrorBoundary>
       }
     </>
