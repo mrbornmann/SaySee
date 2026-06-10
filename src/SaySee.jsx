@@ -1745,7 +1745,7 @@ Reply with ONLY the matching word or NO_MATCH.`
           <span style={{fontFamily:"'Nunito',sans-serif",fontSize:13,fontWeight:700,color:"#92600A"}}>
             {daysLeft===0?"Your trial expires today!":`${daysLeft} day${daysLeft===1?"":"s"} left in your free trial`}
           </span>
-          <a href="mailto:hello@saysee.io" style={{fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:800,color:"#1B65B8",textDecoration:"none",background:"#EEF5FF",padding:"3px 10px",borderRadius:20}}>Subscribe →</a>
+          <a href="mailto:hello@saysee.io" style={{fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:800,color:"#1B65B8",textDecoration:"none",background:"#EEF5FF",padding:"3px 10px",borderRadius:20}}>✉️ Subscribe →</a>
         </div>
       )}
 
@@ -2003,6 +2003,11 @@ Reply with ONLY the matching word or NO_MATCH.`
               </>}
 
               {dtab==="account"&&<>
+                <div style={{background:"#EEF5FF",borderRadius:14,padding:16,marginBottom:16,textAlign:"center"}}>
+                  <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginBottom:6,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>Questions or Support</div>
+                  <a href="mailto:hello@saysee.io" style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#1B65B8",textDecoration:"none",display:"block"}}>✉️ hello@saysee.io</a>
+                  <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#AAA",marginTop:4}}>Tap to open in your email app</div>
+                </div>
                 <div style={{fontFamily:"'Fredoka One',cursive",fontSize:19,color:"#1A1A2E",marginBottom:14}}>Account</div>
                 <div style={{background:"#F8F9FC",borderRadius:13,padding:14,marginBottom:12}}>
                   <div style={{fontWeight:900,fontSize:15,color:"#1A1A2E"}}>{user.name}</div>
