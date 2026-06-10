@@ -154,7 +154,7 @@ const sbAuth = {
         storage_path: path,
         public_url: publicUrl,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'word_id,user_id' });
+      }, { onConflict: 'word_id,owner_id' });
 
       return publicUrl;
     } catch(e) {
@@ -168,7 +168,7 @@ const sbAuth = {
     if (!supabase) return {};
     const { data } = await supabase.from('photos')
       .select('word_id, public_url, storage_path')
-      .eq('user_id', userId);
+      .eq('owner_id', userId);
     if(!data) return {};
     // Return as {wordId: url} map
     const map = {};
@@ -180,12 +180,12 @@ const sbAuth = {
   deletePhoto: async (wordId, userId) => {
     if (!supabase) return;
     const { data } = await supabase.from('photos')
-      .select('storage_path').eq('word_id', String(wordId)).eq('user_id', userId).single();
+      .select('storage_path').eq('word_id', String(wordId)).eq('owner_id', userId).single();
     if(data?.storage_path){
       await supabase.storage.from('photos').remove([data.storage_path]);
     }
     await supabase.from('photos').delete()
-      .eq('word_id', String(wordId)).eq('user_id', userId);
+      .eq('word_id', String(wordId)).eq('owner_id', userId);
   },
 
   // ── Students ──────────────────────────────────────────────────
@@ -241,7 +241,7 @@ const sbAuth = {
   // Load all custom words for a user (teacher or district)
   getCustomWords: async (userId, districtId=null) => {
     if (!supabase) return [];
-    let query = supabase.from("custom_words").select("*").eq("user_id", userId);
+    let query = supabase.from("custom_words").select("*").eq("owner_id", userId);
     const { data: userWords } = await query;
     let districtWords = [];
     if(districtId){
@@ -255,7 +255,7 @@ const sbAuth = {
   saveCustomWord: async (word, userId, districtId=null) => {
     if (!supabase) return null;
     const row = {
-      user_id: districtId ? null : userId,
+      owner_id: districtId ? null : userId,
       district_id: districtId || null,
       word: word.word,
       display: word.display,
@@ -280,7 +280,7 @@ const sbAuth = {
   getCustomCats: async (userId, districtId=null) => {
     if (!supabase) return [];
     const { data: userCats } = await supabase.from("custom_words")
-      .select("category").eq("user_id", userId).neq("category","custom");
+      .select("category").eq("owner_id", userId).neq("category","custom");
     let districtCats = [];
     if(districtId){
       const { data: dc } = await supabase.from("custom_words")
