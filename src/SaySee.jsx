@@ -836,11 +836,10 @@ function PaymentForm({user, plan, onSuccess, onCancel}){
         });
       if(pmError){ setError(pmError.message); setLoading(false); return; }
 
-      // Call Supabase edge function to create subscription
-      const res = await fetch('https://peuuimpaylmprjrnnkqi.supabase.co/functions/v1/create-subscription', {
+      // Call Vercel API to create subscription
+      const res = await fetch('/api/create-subscription', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBldXVpbXBheWxtcHJqcm5ua3FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk5MzMsImV4cCI6MjA5NjAyNTkzM30.MBQbempSUsYAWlacXLCqe7qVr6ssA4B4uS5QOiJMaF0` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentMethodId: paymentMethod.id,
           priceId: planDetails.priceId,
@@ -850,6 +849,7 @@ function PaymentForm({user, plan, onSuccess, onCancel}){
         })
       });
       const data = await res.json();
+      console.log('Subscription response:', data);
       if(data.error){ setError(data.error); setLoading(false); return; }
       if(data.requiresAction){
         const { error: confirmError } = await stripeRef.current
