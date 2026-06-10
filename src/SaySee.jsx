@@ -939,6 +939,8 @@ function AuthScreen({accounts,onLogin,onRegister}){
   const [name,setName]=useState("");
   const [plan,setPlan]=useState("monthly");
   const [err,setErr]=useState("");
+  const [showStripe,setShowStripe]=useState(false);
+  const [stripePlan,setStripePlan]=useState("monthly");
 
   const iStyle={width:"100%",padding:"12px 16px",borderRadius:12,border:"2px solid rgba(255,255,255,0.25)",background:"rgba(255,255,255,0.92)",color:"#1A1A2E",fontSize:15,fontFamily:"'Nunito',sans-serif",outline:"none",boxSizing:"border-box"};
   const lStyle={fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.55)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:5,display:"block",fontFamily:"'Nunito',sans-serif"};
@@ -997,20 +999,58 @@ function AuthScreen({accounts,onLogin,onRegister}){
             </div>
           </>}
 
+          {showStripe&&(
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+              <PaymentForm
+                user={{id:`temp_${Date.now()}`,email,name,role:"teacher",plan:stripePlan,maxStudents:28}}
+                plan={stripePlan}
+                onSuccess={async ()=>{
+                  setShowStripe(false);
+                  await onRegister(name,email,pass,stripePlan,setErr);
+                }}
+                onCancel={()=>setShowStripe(false)}
+              />
+            </div>
+          )}
+
           {mode==="plan"&&<>
             <div style={{fontFamily:"'Fredoka One',cursive",fontSize:21,color:"#fff",marginBottom:5}}>Choose your plan</div>
-            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"rgba(255,255,255,0.45)",marginBottom:20}}>7-day free trial. Cancel anytime.</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"rgba(255,255,255,0.45)",marginBottom:20}}>Start free for 7 days — or pay now and skip the trial.</div>
             {plans.map(p=>(
-              <div key={p.id} onClick={()=>setPlan(p.id)} style={{padding:"14px 16px",borderRadius:14,marginBottom:10,cursor:"pointer",background:plan===p.id?`${p.color}22`:"rgba(255,255,255,0.04)",border:`2px solid ${plan===p.id?p.color:"rgba(255,255,255,0.1)"}`,transition:"all 0.2s",position:"relative"}}>
+              <div key={p.id} style={{padding:"14px 16px",borderRadius:14,marginBottom:10,background:plan===p.id?`${p.color}22`:"rgba(255,255,255,0.04)",border:`2px solid ${plan===p.id?p.color:"rgba(255,255,255,0.1)"}`,transition:"all 0.2s",position:"relative"}}>
                 {p.badge&&<div style={{position:"absolute",top:-8,right:10,background:p.color,color:"#fff",fontSize:9,fontWeight:900,padding:"2px 8px",borderRadius:20,fontFamily:"'Nunito',sans-serif",letterSpacing:1}}>{p.badge}</div>}
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                   <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:15,color:"#fff"}}>{p.label}</div>
                   <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:p.color}}>{p.price}</div>
                 </div>
                 <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:2}}>{p.sub}</div>
+                {/* Free Trial + Pay Now buttons per card */}
+                {p.id==="school"?(
+                  <a href="mailto:hello@saysee.io?subject=School Site License Inquiry"
+                    style={{display:"block",textAlign:"center",padding:"9px",borderRadius:10,
+                    background:p.color,color:"#fff",fontFamily:"'Nunito',sans-serif",
+                    fontWeight:800,fontSize:13,textDecoration:"none",marginTop:10}}>
+                    ✉️ Contact Us
+                  </a>
+                ):(
+                  <div style={{display:"flex",gap:8,marginTop:10}}>
+                    <button onClick={()=>{setPlan(p.id);doCreate();}}
+                      style={{flex:1,padding:"9px",borderRadius:10,
+                      border:`2px solid ${p.color}`,background:"transparent",
+                      color:p.color,fontFamily:"'Nunito',sans-serif",
+                      fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                      🎁 Free Trial
+                    </button>
+                    <button onClick={()=>{setPlan(p.id);setStripePlan(p.id);setShowStripe(true);}}
+                      style={{flex:1,padding:"9px",borderRadius:10,border:"none",
+                      background:p.color,color:"#fff",fontFamily:"'Nunito',sans-serif",
+                      fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                      💳 Pay Now
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
-            <button onClick={doCreate} style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginTop:6}}>Start 7-Day Free Trial</button>
           </>}
         </div>
       </div>
