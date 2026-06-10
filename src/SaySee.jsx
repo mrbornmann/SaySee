@@ -140,39 +140,52 @@ const sbAuth = {
 
       if(upErr) throw upErr;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Generate signed URL — private bucket, 1 hour expiry
+      const { data: signedData } = await supabase.storage
         .from('photos')
-        .getPublicUrl(path);
+        .createSignedUrl(path, 604800);
+      const signedUrl = signedData?.signedUrl;
 
-      const publicUrl = urlData?.publicUrl;
-
-      // Save reference in photos table
+      // Save storage path reference in photos table
       await supabase.from('photos').upsert({
         word_id: String(wordId),
-        user_id: userId,
+        owner_id: userId,
         storage_path: path,
-        public_url: publicUrl,
+        public_url: path,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'word_id,owner_id' });
 
-      return publicUrl;
+      return signedUrl;
     } catch(e) {
       console.log("Photo upload error:", e);
       return null;
     }
   },
 
-  // Load all photos for a user
+  // Load all photos for a user — generate fresh signed URLs
   getPhotos: async (userId) => {
     if (!supabase) return {};
     const { data } = await supabase.from('photos')
       .select('word_id, public_url, storage_path')
       .eq('owner_id', userId);
-    if(!data) return {};
-    // Return as {wordId: url} map
+    if(!data || data.length === 0) return {};
+
+    // Generate signed URLs for all photos
     const map = {};
-    data.forEach(p => { map[p.word_id] = p.public_url; });
+    await Promise.all(data.map(async p => {
+      const storagePath = p.storage_path || p.public_url;
+      if(!storagePath) return;
+      try {
+        const { data: signed } = await supabase.storage
+          .from('photos')
+          .createSignedUrl(storagePath, 604800); // 1 hour expiry
+        if(signed?.signedUrl){
+          map[p.word_id] = signed.signedUrl;
+        }
+      } catch(e) {
+        console.log('Signed URL error for', p.word_id, e);
+      }
+    }));
     return map;
   },
 
