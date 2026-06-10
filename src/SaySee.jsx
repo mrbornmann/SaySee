@@ -1059,6 +1059,183 @@ function AuthScreen({accounts,onLogin,onRegister}){
   );
 }
 
+// ── Subscriber Manager (Admin only) ──────────────────────────────
+function SubscriberManager(){
+  const [subscribers, setSubscribers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(null);
+  const [search, setSearch] = useState("");
+  const [msg, setMsg] = useState("");
+
+  useEffect(()=>{
+    loadSubscribers();
+  },[]);
+
+  const loadSubscribers = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from("accounts")
+        .select("id, email, name, role, plan, stripe_customer_id, stripe_subscription_id, created_at")
+        .order("created_at", { ascending: false });
+      setSubscribers(data || []);
+    } catch(e){
+      console.log("Error loading subscribers:", e);
+    }
+    setLoading(false);
+  };
+
+  const cancelSubscription = async (sub) => {
+    if(!window.confirm(`Cancel subscription for ${sub.email}? This will stop future charges immediately.`)) return;
+    setCancelling(sub.id);
+    try {
+      const res = await fetch("/api/cancel-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: sub.email, subscriptionId: sub.stripe_subscription_id }),
+      });
+      const data = await res.json();
+      if(data.success){
+        setMsg(`✅ Subscription cancelled for ${sub.email}`);
+        loadSubscribers();
+      } else {
+        setMsg(`❌ Error: ${data.error}`);
+      }
+    } catch(e){
+      setMsg("❌ Failed to cancel. Try again.");
+    }
+    setCancelling(null);
+    setTimeout(()=>setMsg(""), 5000);
+  };
+
+  const updatePlan = async (sub, newPlan) => {
+    try {
+      await supabase.from("accounts").update({ plan: newPlan }).eq("id", sub.id);
+      setMsg(`✅ Plan updated to ${newPlan} for ${sub.email}`);
+      loadSubscribers();
+      setTimeout(()=>setMsg(""), 4000);
+    } catch(e){
+      setMsg("❌ Failed to update plan.");
+    }
+  };
+
+  const planColor = (plan) => {
+    if(plan==="monthly"||plan==="annual"||plan==="school") return "#5AAB2A";
+    if(plan==="admin") return "#1B65B8";
+    return "#E67E22";
+  };
+
+  const filtered = subscribers.filter(s=>
+    s.email?.toLowerCase().includes(search.toLowerCase()) ||
+    s.name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const paid = subscribers.filter(s=>s.plan==="monthly"||s.plan==="annual"||s.plan==="school");
+  const trial = subscribers.filter(s=>s.plan==="trial"||!s.plan);
+  const mrr = paid.filter(s=>s.plan==="monthly").length * 28 +
+              paid.filter(s=>s.plan==="annual").length * 21 +
+              paid.filter(s=>s.plan==="school").length * 0;
+
+  return(
+    <div>
+      {/* Stats */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+        {[
+          ["Total Accounts", subscribers.length, "#1B65B8"],
+          ["Active Plans", paid.length, "#5AAB2A"],
+          ["Trial Users", trial.length, "#E67E22"],
+          ["Est. MRR", `$${mrr}`, "#8E44AD"],
+        ].map(([label,val,color])=>(
+          <div key={label} style={{background:"rgba(255,255,255,0.05)",borderRadius:12,padding:14,textAlign:"center"}}>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color}}>{val}</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#888",marginTop:2}}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Message */}
+      {msg&&<div style={{padding:"10px 14px",borderRadius:10,background:msg.startsWith("✅")?"#EAF3DE":"#FFF0F0",
+        fontFamily:"'Nunito',sans-serif",fontSize:13,color:msg.startsWith("✅")?"#3D8A1A":"#E74C3C",
+        marginBottom:14,fontWeight:700}}>{msg}</div>}
+
+      {/* Search */}
+      <input value={search} onChange={e=>setSearch(e.target.value)}
+        placeholder="Search by name or email..."
+        style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",
+        background:"rgba(255,255,255,0.06)",color:"#fff",fontFamily:"'Nunito',sans-serif",
+        fontSize:13,marginBottom:14,boxSizing:"border-box",outline:"none"}}/>
+
+      {/* Subscriber list */}
+      {loading?(
+        <div style={{textAlign:"center",padding:40,color:"#888"}}>Loading...</div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {filtered.map(sub=>(
+            <div key={sub.id} style={{background:"rgba(255,255,255,0.05)",borderRadius:14,padding:16,
+              border:"1px solid rgba(255,255,255,0.08)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+                <div>
+                  <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,color:"#fff"}}>
+                    {sub.name||"No name"}
+                  </div>
+                  <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:2}}>
+                    {sub.email}
+                  </div>
+                  <div style={{marginTop:6,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                    <span style={{padding:"2px 10px",borderRadius:20,fontSize:11,fontWeight:800,
+                      fontFamily:"'Nunito',sans-serif",
+                      background:`${planColor(sub.plan)}22`,color:planColor(sub.plan),
+                      border:`1px solid ${planColor(sub.plan)}44`}}>
+                      {sub.plan||"trial"}
+                    </span>
+                    <span style={{fontSize:11,color:"#555",fontFamily:"'Nunito',sans-serif"}}>
+                      {sub.role}
+                    </span>
+                    {sub.stripe_subscription_id&&(
+                      <span style={{fontSize:10,color:"#444",fontFamily:"'Nunito',sans-serif"}}>
+                        · Stripe active
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {/* Plan override dropdown */}
+                  <select onChange={e=>{ if(e.target.value) updatePlan(sub, e.target.value); e.target.value=""; }}
+                    style={{padding:"6px 10px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",
+                    background:"rgba(255,255,255,0.08)",color:"#fff",fontFamily:"'Nunito',sans-serif",
+                    fontSize:12,cursor:"pointer"}}>
+                    <option value="">Change Plan</option>
+                    <option value="trial">Trial</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="annual">Annual</option>
+                    <option value="school">School Site</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  {/* Cancel button - only show if has Stripe subscription */}
+                  {sub.stripe_subscription_id&&(
+                    <button onClick={()=>cancelSubscription(sub)}
+                      disabled={cancelling===sub.id}
+                      style={{padding:"6px 14px",borderRadius:8,border:"1px solid #E74C3C",
+                      background:"transparent",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",
+                      fontWeight:800,fontSize:12,cursor:"pointer",opacity:cancelling===sub.id?0.5:1}}>
+                      {cancelling===sub.id?"Cancelling...":"Cancel Sub"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          {filtered.length===0&&(
+            <div style={{textAlign:"center",padding:30,color:"#555",fontFamily:"'Nunito',sans-serif"}}>
+              No accounts found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Admin panel ───────────────────────────────────────────────
 function AdminPanel({words,setWords,onLogout}){
   const [tab,setTab]=useState("words");
@@ -1147,18 +1324,7 @@ function AdminPanel({words,setWords,onLogout}){
         {tab==="subscribers"&&(
           <div>
             <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,marginBottom:18}}>Subscribers</div>
-            <div style={{background:"rgba(255,255,255,0.05)",borderRadius:16,padding:24,textAlign:"center"}}>
-              <div style={{fontSize:38,marginBottom:10}}>📊</div>
-              <div style={{fontSize:14,color:"#555",marginBottom:24}}>Subscriber management connects to your backend in production.</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-                {[["Total Users","1"],["Active Plans","1"],["MRR","$28"]].map(([l,v])=>(
-                  <div key={l} style={{background:"rgba(255,255,255,0.06)",borderRadius:12,padding:16}}>
-                    <div style={{fontSize:26,fontFamily:"'Fredoka One',cursive",color:"#6C5CE7"}}>{v}</div>
-                    <div style={{fontSize:12,color:"#555",marginTop:4}}>{l}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <SubscriberManager/>
           </div>
         )}
 
