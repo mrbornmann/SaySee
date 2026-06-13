@@ -2555,7 +2555,7 @@ function AdminWordForm({word,onSave,onDelete,onClose}){
 }
 
 // ── Teacher app ───────────────────────────────────────────────
-function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome}){
+function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome,autoStart=false}){
   // ── In-app Stripe payment ───────────────────────────────────────
   const [showStripeInApp,setShowStripeInApp] = useState(false);
   const [stripeInAppPlan,setStripeInAppPlan] = useState("monthly");
@@ -3127,6 +3127,123 @@ Reply with ONLY the matching word or NO_MATCH.`
   const filtered=allWords.filter(w=>w.cat===activeCat);
 
   if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>{ setStuMode(false); if(onGoHome) onGoHome(); }}/>;
+
+  // ── Pure listening view (from Say tile) ──────────────────────
+  if(autoStart) return(
+    <div style={{minHeight:"100vh",background:"#1B4F9E",display:"flex",
+      flexDirection:"column",position:"relative"}}>
+      {/* Minimal header — just back and mic status */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"12px 16px",background:"rgba(0,0,0,0.2)"}}>
+        <button onClick={onGoHome} style={{background:"rgba(255,255,255,0.15)",border:"none",
+          borderRadius:10,padding:"6px 14px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Home</button>
+        <SaySeeLogo size={28}/>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:8,height:8,borderRadius:"50%",
+            background:listening?"#5AAB2A":"#666",
+            boxShadow:listening?"0 0 8px #5AAB2A":""}}/>
+          <button onClick={listening?stopMic:startMic}
+            style={{background:listening?"#5AAB2A":"rgba(255,255,255,0.15)",
+            border:"none",borderRadius:10,padding:"6px 14px",color:"#fff",
+            fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>
+            {listening?"👄 Stop":"👄 Start"}
+          </button>
+        </div>
+      </div>
+
+      {/* Student carousel - minimal */}
+      {students.length>0&&(
+        <div style={{display:"flex",gap:8,padding:"8px 16px",overflowX:"auto",
+          scrollbarWidth:"none",background:"rgba(0,0,0,0.1)"}}>
+          {students.map(s=>(
+            <button key={s.id} onClick={()=>setActiveId(s.id)}
+              style={{flexShrink:0,padding:"4px 12px",borderRadius:20,border:"none",
+              background:activeId===s.id?"#5AAB2A":"rgba(255,255,255,0.15)",
+              color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,
+              fontSize:12,cursor:"pointer"}}>
+              {s.avatar} {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Main content - word display or listening pulse */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
+        justifyContent:"center",padding:20}}>
+        {curWord?(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,
+            animation:"popIn 0.4s ease"}}>
+            <WordCard entry={curWord} level={level}
+              photoOverride={photos[curWord.id]}
+              onRequestPhoto={level===1?()=>setPhotoModal(curWord):null}/>
+            {level>=2&&<div style={{fontFamily:"'Fredoka One',cursive",
+              fontSize:"clamp(32px,10vw,64px)",color:ac,letterSpacing:2,
+              textShadow:`0 2px 20px ${ac}66`,textAlign:"center"}}>
+              {curWord.display}
+            </div>}
+            {/* Correct/No Response buttons */}
+            <div style={{display:"flex",gap:12,marginTop:8}}>
+              <button onClick={()=>logTrial(activeId,curWord.id,true,Date.now()-timerStartRef.current)}
+                style={{padding:"10px 24px",borderRadius:30,border:"none",
+                background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",
+                fontWeight:800,fontSize:14,cursor:"pointer"}}>✅ Correct</button>
+              <button onClick={()=>{logTrial(activeId,curWord.id,false,0);setCurWord(null);}}
+                style={{padding:"10px 24px",borderRadius:30,border:"none",
+                background:"rgba(255,255,255,0.15)",color:"#fff",
+                fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,cursor:"pointer"}}>
+                No Response
+              </button>
+            </div>
+          </div>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:20}}>
+            {listening?(
+              <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{position:"absolute",width:200,height:200,borderRadius:"50%",
+                  background:"#5AAB2A",opacity:0.08,animation:"listenPulse 2s ease-in-out infinite"}}/>
+                <div style={{position:"absolute",width:160,height:160,borderRadius:"50%",
+                  background:"#5AAB2A",opacity:0.12,animation:"listenPulse 2s ease-in-out infinite 0.3s"}}/>
+                <div style={{position:"absolute",width:120,height:120,borderRadius:"50%",
+                  background:"#5AAB2A",opacity:0.18,animation:"listenPulse 2s ease-in-out infinite 0.6s"}}/>
+                <div style={{width:80,height:80,borderRadius:"50%",
+                  background:"linear-gradient(135deg,#5AAB2A,#3d8a1e)",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:36,boxShadow:"0 4px 20px #5AAB2A55",zIndex:1}}>👄</div>
+              </div>
+            ):(
+              <div style={{opacity:0.4,fontSize:64}}>👄</div>
+            )}
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,
+              color:listening?"#5AAB2A":"rgba(255,255,255,0.4)",textAlign:"center"}}>
+              {listening?"Listening…":"Tap Start to Listen"}
+            </div>
+            {aiStatus&&<div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
+              color:"rgba(255,255,255,0.6)",textAlign:"center"}}>{aiStatus}</div>}
+          </div>
+        )}
+      </div>
+
+      {/* Word chips at bottom */}
+      <div style={{background:"rgba(0,0,0,0.2)",padding:"8px 12px",
+        display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none"}}>
+        {allWords.slice(0,12).map(w=>(
+          <button key={w.id} onClick={()=>{setCurWord(w);setLevel(getStudentWordLevel(activeId,w.id));}}
+            style={{flexShrink:0,padding:"6px 14px",borderRadius:20,border:"none",
+            background:curWord?.id===w.id?"#5AAB2A":"rgba(255,255,255,0.15)",
+            color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,
+            fontSize:12,cursor:"pointer"}}>
+            {w.emoji} {w.display}
+          </button>
+        ))}
+      </div>
+
+      {/* Photo modal */}
+      {photoModal&&<PhotoModal entry={photoModal}
+        onSaved={(id,url)=>{handlePhotoSaved(id,url);setPhotoModal(null);}}
+        onClose={()=>setPhotoModal(null)}/>}
+    </div>
+  );
 
   return(
     <div style={{minHeight:"100vh",background:flash?"#FFFDE7":"#EEF5FF",transition:"background 0.3s",display:"flex",flexDirection:"column",fontFamily:"'Nunito',sans-serif"}}>
@@ -4241,7 +4358,8 @@ export default function SaySee(){
                   // "say" mode — straight to AAC listening platform
                   <TeacherApp user={user} words={masterWords} onLogout={logout}
                     daysLeft={daysLeftInTrial(user)}
-                    onGoHome={()=>setHomeMode("home")}/>
+                    onGoHome={()=>setHomeMode("home")}
+                    autoStart={true}/>
                 )}
               </ErrorBoundary>
       }
