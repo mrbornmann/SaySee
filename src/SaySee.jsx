@@ -100,7 +100,14 @@ const REINFORCERS = [
 // ── Supabase connection ───────────────────────────────────────────
 const SUPABASE_URL = "https://peuuimpaylmprjrnnkqi.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBldXVpbXBheWxtcHJqcm5ua3FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk5MzMsImV4cCI6MjA5NjAyNTkzM30.MBQbempSUsYAWlacXLCqe7qVr6ssA4B4uS5QOiJMaF0";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    storageKey: 'saysee-auth',
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  }
+});
 
 // ── Auth helpers ──────────────────────────────────────────────────
 const sbAuth = {
@@ -2112,27 +2119,27 @@ function AuthScreen({accounts,onLogin,onRegister}){
 
           {mode==="login"&&<>
             <div style={{fontFamily:"'Fredoka One',cursive",fontSize:23,color:"#fff",marginBottom:22}}>Welcome back</div>
-            <div style={{marginBottom:13}}>
-              <label style={lStyle}>Email</label>
-              <input
-                value={email} onChange={e=>setEmail(e.target.value)}
-                type="email" placeholder="you@school.edu"
-                autoComplete="email"
-                onKeyDown={e=>e.key==="Enter"&&document.getElementById("pass-input")?.focus()}
-                style={iStyle}/>
-            </div>
-            <div style={{marginBottom:13}}>
-              <label style={lStyle}>Password</label>
-              <input
-                id="pass-input"
-                value={pass} onChange={e=>setPass(e.target.value)}
-                type="password" placeholder="••••••••"
-                autoComplete="current-password"
-                onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } }}
-                style={iStyle}/>
-            </div>
+            <form onSubmit={e=>{e.preventDefault();doLogin();}} style={{width:"100%"}}>
+              <div style={{marginBottom:13}}>
+                <label style={lStyle}>Email</label>
+                <input
+                  value={email} onChange={e=>setEmail(e.target.value)}
+                  type="email" placeholder="you@school.edu"
+                  autoComplete="email"
+                  style={iStyle}/>
+              </div>
+              <div style={{marginBottom:13}}>
+                <label style={lStyle}>Password</label>
+                <input
+                  value={pass} onChange={e=>setPass(e.target.value)}
+                  type="password" placeholder="••••••••"
+                  autoComplete="current-password"
+                  style={iStyle}/>
+              </div>
+              <button type="submit" style={{display:"none"}}>Sign In</button>
+            </form>
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
-            <button onClick={doLogin} style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
+            <button onClick={doLogin} type="button" style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
             <div style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",fontSize:14,color:"rgba(255,255,255,0.45)"}}>
               No account? <span onClick={()=>{setErr("");setMode("register");}} style={{color:"#74B9FF",cursor:"pointer",fontWeight:800}}>Sign up</span>
             </div>
@@ -3074,6 +3081,15 @@ Reply with ONLY the matching word or NO_MATCH.`
 
   useEffect(()=>{ return()=>{ lisRef.current=false; try{recRef.current?.stop();}catch{}; }; },[]);
 
+  // Auto-start mic and close drawer when coming from Say tile
+  useEffect(()=>{
+    if(autoStart){
+      setDrawer(false);
+      // Small delay to let component mount fully
+      setTimeout(()=>{ startMic(); }, 300);
+    }
+  },[autoStart]);
+
   const markLearned=(wid)=>{
     if(!activeId)return;
     setStudents(p=>p.map(s=>s.id===activeId?{...s,progress:{...s.progress,[wid]:true}}:s));
@@ -3110,7 +3126,7 @@ Reply with ONLY the matching word or NO_MATCH.`
   const ac=curWord?.color||(CATS.find(c=>c.id===activeCat)?.color||"#1B65B8");
   const filtered=allWords.filter(w=>w.cat===activeCat);
 
-  if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>setStuMode(false)}/>;
+  if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>{ setStuMode(false); if(onGoHome) onGoHome(); }}/>;
 
   return(
     <div style={{minHeight:"100vh",background:flash?"#FFFDE7":"#EEF5FF",transition:"background 0.3s",display:"flex",flexDirection:"column",fontFamily:"'Nunito',sans-serif"}}>
@@ -4026,11 +4042,14 @@ export default function SaySee(){
   useEffect(()=>{
     const checkSession = async () => {
       try {
+        // Supabase auto-restores session from localStorage with persistSession:true
         const session = await sbAuth.getSession();
-        if (session) {
-          const acct = await sbAuth.getAccount(session.user.id);
+        if (session?.user) {
           const email = session.user.email || '';
           const isAdmin = ['admin@saysee.app','admin@saysee.io','hello@saysee.io'].includes(email.toLowerCase());
+          // Try to get full account from DB
+          let acct = null;
+          try { acct = await sbAuth.getAccount(session.user.id); } catch(e){}
           const userData = acct ? {
             ...acct,
             role: isAdmin ? 'admin' : (acct.role || 'teacher'),
@@ -4038,32 +4057,37 @@ export default function SaySee(){
             maxStudents: acct.max_students || 28,
             name: acct.name || email,
           } : {
-            id:session.user.id, email,
-            name:session.user.user_metadata?.name||email,
+            id: session.user.id, email,
+            name: session.user.user_metadata?.name || email,
             role: isAdmin ? 'admin' : 'teacher',
             plan: isAdmin ? 'admin' : 'monthly',
-            maxStudents:28
+            maxStudents: 28,
           };
           setUser(userData);
+          // Also cache locally as backup
           try { localStorage.setItem('saysee_session', JSON.stringify({user:userData,ts:Date.now()})); } catch(e){}
         } else {
-          // No Supabase session — check 7-day local cache
+          // No Supabase session — check 7-day local cache as fallback
           try {
             const cached = localStorage.getItem('saysee_session');
             if(cached){
               const {user:cu, ts} = JSON.parse(cached);
-              if(Date.now() - ts < 7*24*60*60*1000 && cu) setUser(cu);
-              else localStorage.removeItem('saysee_session');
+              const sevenDays = 7*24*60*60*1000;
+              if(Date.now()-ts < sevenDays && cu?.email) {
+                setUser(cu);
+              } else {
+                localStorage.removeItem('saysee_session');
+              }
             }
           } catch(e){}
         }
       } catch(e) {
-        // Supabase unavailable — try local cache
+        // Supabase unavailable — use local cache
         try {
           const cached = localStorage.getItem('saysee_session');
           if(cached){
             const {user:cu, ts} = JSON.parse(cached);
-            if(Date.now() - ts < 7*24*60*60*1000 && cu) setUser(cu);
+            if(Date.now()-ts < 7*24*60*60*1000 && cu?.email) setUser(cu);
           }
         } catch(e2){}
       }
