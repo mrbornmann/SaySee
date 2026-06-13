@@ -425,6 +425,166 @@ const DEMO_ACCOUNTS = [
 // Demo accounts always bypass Supabase and trial checks
 const DEMO_EMAILS = new Set(DEMO_ACCOUNTS.map(a=>a.email.toLowerCase()));
 
+// ── Developmental Word Library (Age 0-8) ─────────────────────────
+const DEV_AGES = [
+  { id:"0-2", label:"0–2 Years", color:"#E74C3C", desc:"Foundational Core — I Need" },
+  { id:"3-4", label:"3–4 Years", color:"#E67E22", desc:"Categorical Expansion — Tell Me About It" },
+  { id:"5-6", label:"5–6 Years", color:"#27AE60", desc:"Academic Foundations — School Ready" },
+  { id:"7-8", label:"7–8 Years", color:"#1B65B8", desc:"Self-Advocacy & Community — I Am" },
+];
+
+const DEV_WORDS = [
+  // ── Age 0-2: Foundational Core ──────────────────────────────────
+  // Core
+  {id:"dw_yes",    word:"yes",       display:"YES",       emoji:"✅", cat:"core",       age:"0-2", triggers:["yes"]},
+  {id:"dw_no",     word:"no",        display:"NO",        emoji:"❌", cat:"core",       age:"0-2", triggers:["no"]},
+  {id:"dw_more",   word:"more",      display:"MORE",      emoji:"➕", cat:"core",       age:"0-2", triggers:["more"]},
+  {id:"dw_help",   word:"help",      display:"HELP",      emoji:"🙋", cat:"core",       age:"0-2", triggers:["help","help me"]},
+  {id:"dw_please", word:"please",    display:"PLEASE",    emoji:"🙏", cat:"core",       age:"0-2", triggers:["please"]},
+  {id:"dw_mine",   word:"mine",      display:"MINE",      emoji:"👐", cat:"core",       age:"0-2", triggers:["mine"]},
+  {id:"dw_up",     word:"up",        display:"UP",        emoji:"⬆️", cat:"core",       age:"0-2", triggers:["up"]},
+  {id:"dw_down",   word:"down",      display:"DOWN",      emoji:"⬇️", cat:"core",       age:"0-2", triggers:["down"]},
+  {id:"dw_on",     word:"on",        display:"ON",        emoji:"💡", cat:"core",       age:"0-2", triggers:["on","turn on"]},
+  {id:"dw_off",    word:"off",       display:"OFF",       emoji:"🔴", cat:"core",       age:"0-2", triggers:["off","turn off"]},
+  // Daily needs 0-2
+  {id:"dw_eat",    word:"eat",       display:"EAT",       emoji:"🍽️", cat:"needs",      age:"0-2", triggers:["eat","eating","time to eat"]},
+  {id:"dw_drink",  word:"drink",     display:"DRINK",     emoji:"🥤", cat:"needs",      age:"0-2", triggers:["drink","drinking"]},
+  {id:"dw_sleep",  word:"sleep",     display:"SLEEP",     emoji:"😴", cat:"needs",      age:"0-2", triggers:["sleep","nap","bed time","nap time"]},
+  {id:"dw_bath",   word:"bath",      display:"BATH",      emoji:"🛁", cat:"needs",      age:"0-2", triggers:["bath","bath time"]},
+  {id:"dw_potty",  word:"potty",     display:"POTTY",     emoji:"🚽", cat:"needs",      age:"0-2", triggers:["potty","bathroom","restroom"]},
+  {id:"dw_milk",   word:"milk",      display:"MILK",      emoji:"🥛", cat:"food",       age:"0-2", triggers:["milk"]},
+  {id:"dw_water",  word:"water",     display:"WATER",     emoji:"💧", cat:"food",       age:"0-2", triggers:["water"]},
+  {id:"dw_snack",  word:"snack",     display:"SNACK",     emoji:"🍎", cat:"food",       age:"0-2", triggers:["snack","snack time"]},
+  {id:"dw_mom",    word:"mom",       display:"MOM",       emoji:"👩", cat:"people",     age:"0-2", triggers:["mom","mommy","mother"]},
+  {id:"dw_dad",    word:"dad",       display:"DAD",       emoji:"👨", cat:"people",     age:"0-2", triggers:["dad","daddy","father"]},
+  {id:"dw_baby",   word:"baby",      display:"BABY",      emoji:"👶", cat:"people",     age:"0-2", triggers:["baby"]},
+  // ── Age 3-4: Categorical Expansion ──────────────────────────────
+  // Emotions
+  {id:"dw_happy",  word:"happy",     display:"HAPPY",     emoji:"😊", cat:"emotions",   age:"3-4", triggers:["happy","good"]},
+  {id:"dw_sad",    word:"sad",       display:"SAD",       emoji:"😢", cat:"emotions",   age:"3-4", triggers:["sad"]},
+  {id:"dw_angry",  word:"angry",     display:"ANGRY",     emoji:"😠", cat:"emotions",   age:"3-4", triggers:["angry","mad"]},
+  {id:"dw_scared", word:"scared",    display:"SCARED",    emoji:"😨", cat:"emotions",   age:"3-4", triggers:["scared","afraid","fear"]},
+  {id:"dw_tired",  word:"tired",     display:"TIRED",     emoji:"😫", cat:"emotions",   age:"3-4", triggers:["tired","sleepy"]},
+  {id:"dw_excited",word:"excited",   display:"EXCITED",   emoji:"🤩", cat:"emotions",   age:"3-4", triggers:["excited"]},
+  {id:"dw_silly",  word:"silly",     display:"SILLY",     emoji:"🤪", cat:"emotions",   age:"3-4", triggers:["silly"]},
+  // Actions 3-4
+  {id:"dw_run",    word:"run",       display:"RUN",       emoji:"🏃", cat:"actions",    age:"3-4", triggers:["run","running","let's run"]},
+  {id:"dw_jump",   word:"jump",      display:"JUMP",      emoji:"⬆️", cat:"actions",    age:"3-4", triggers:["jump","jumping"]},
+  {id:"dw_play",   word:"play",      display:"PLAY",      emoji:"🎮", cat:"actions",    age:"3-4", triggers:["play","playing","time to play","play time"]},
+  {id:"dw_dance",  word:"dance",     display:"DANCE",     emoji:"💃", cat:"actions",    age:"3-4", triggers:["dance","dancing"]},
+  {id:"dw_draw",   word:"draw",      display:"DRAW",      emoji:"✏️", cat:"actions",    age:"3-4", triggers:["draw","drawing","art time"]},
+  {id:"dw_climb",  word:"climb",     display:"CLIMB",     emoji:"🧗", cat:"actions",    age:"3-4", triggers:["climb","climbing"]},
+  // Animals 3-4
+  {id:"dw_dog",    word:"dog",       display:"DOG",       emoji:"🐶", cat:"animals",    age:"3-4", triggers:["dog","puppy"]},
+  {id:"dw_cat",    word:"cat",       display:"CAT",       emoji:"🐱", cat:"animals",    age:"3-4", triggers:["cat","kitty"]},
+  {id:"dw_bird",   word:"bird",      display:"BIRD",      emoji:"🐦", cat:"animals",    age:"3-4", triggers:["bird"]},
+  {id:"dw_fish",   word:"fish",      display:"FISH",      emoji:"🐟", cat:"animals",    age:"3-4", triggers:["fish"]},
+  {id:"dw_rabbit", word:"rabbit",    display:"RABBIT",    emoji:"🐰", cat:"animals",    age:"3-4", triggers:["rabbit","bunny"]},
+  {id:"dw_cow",    word:"cow",       display:"COW",       emoji:"🐄", cat:"animals",    age:"3-4", triggers:["cow"]},
+  {id:"dw_lion",   word:"lion",      display:"LION",      emoji:"🦁", cat:"animals",    age:"3-4", triggers:["lion"]},
+  {id:"dw_monkey", word:"monkey",    display:"MONKEY",    emoji:"🐒", cat:"animals",    age:"3-4", triggers:["monkey"]},
+  // People 3-4
+  {id:"dw_teacher",word:"teacher",   display:"TEACHER",   emoji:"👩‍🏫",cat:"people",     age:"3-4", triggers:["teacher"]},
+  {id:"dw_friend", word:"friend",    display:"FRIEND",    emoji:"🤝", cat:"people",     age:"3-4", triggers:["friend"]},
+  {id:"dw_grandma",word:"grandma",   display:"GRANDMA",   emoji:"👵", cat:"people",     age:"3-4", triggers:["grandma","grandmother"]},
+  {id:"dw_grandpa",word:"grandpa",   display:"GRANDPA",   emoji:"👴", cat:"people",     age:"3-4", triggers:["grandpa","grandfather"]},
+  {id:"dw_doctor", word:"doctor",    display:"DOCTOR",    emoji:"👨‍⚕️",cat:"people",     age:"3-4", triggers:["doctor"]},
+  // Food 3-4
+  {id:"dw_apple",  word:"apple",     display:"APPLE",     emoji:"🍎", cat:"food",       age:"3-4", triggers:["apple"]},
+  {id:"dw_banana", word:"banana",    display:"BANANA",    emoji:"🍌", cat:"food",       age:"3-4", triggers:["banana"]},
+  {id:"dw_cookie", word:"cookie",    display:"COOKIE",    emoji:"🍪", cat:"food",       age:"3-4", triggers:["cookie"]},
+  {id:"dw_pizza",  word:"pizza",     display:"PIZZA",     emoji:"🍕", cat:"food",       age:"3-4", triggers:["pizza"]},
+  {id:"dw_sandwich",word:"sandwich", display:"SANDWICH",  emoji:"🥪", cat:"food",       age:"3-4", triggers:["sandwich"]},
+  // ── Age 5-6: Academic Foundations ───────────────────────────────
+  // Classroom
+  {id:"dw_pencil", word:"pencil",    display:"PENCIL",    emoji:"✏️", cat:"classroom",  age:"5-6", triggers:["pencil","get your pencil"]},
+  {id:"dw_paper",  word:"paper",     display:"PAPER",     emoji:"📄", cat:"classroom",  age:"5-6", triggers:["paper","get paper"]},
+  {id:"dw_book",   word:"book",      display:"BOOK",      emoji:"📚", cat:"classroom",  age:"5-6", triggers:["book","reading","get your book"]},
+  {id:"dw_backpack",word:"backpack", display:"BACKPACK",  emoji:"🎒", cat:"classroom",  age:"5-6", triggers:["backpack","get your backpack","pack up"]},
+  {id:"dw_scissors",word:"scissors", display:"SCISSORS",  emoji:"✂️", cat:"classroom",  age:"5-6", triggers:["scissors","cut"]},
+  {id:"dw_glue",   word:"glue",      display:"GLUE",      emoji:"🫧", cat:"classroom",  age:"5-6", triggers:["glue"]},
+  {id:"dw_marker", word:"marker",    display:"MARKER",    emoji:"🖊️", cat:"classroom",  age:"5-6", triggers:["marker"]},
+  // Academic
+  {id:"dw_count",  word:"count",     display:"COUNT",     emoji:"🔢", cat:"academic",   age:"5-6", triggers:["count","counting","let's count"]},
+  {id:"dw_read",   word:"read",      display:"READ",      emoji:"📖", cat:"academic",   age:"5-6", triggers:["read","reading time","let's read"]},
+  {id:"dw_write",  word:"write",     display:"WRITE",     emoji:"✍️", cat:"academic",   age:"5-6", triggers:["write","writing","let's write"]},
+  {id:"dw_math",   word:"math",      display:"MATH",      emoji:"➕", cat:"academic",   age:"5-6", triggers:["math","math time"]},
+  // Daily living 5-6
+  {id:"dw_lunchbox",word:"lunchbox", display:"LUNCHBOX",  emoji:"🍱", cat:"needs",      age:"5-6", triggers:["lunchbox","lunch box"]},
+  {id:"dw_bus",    word:"bus",       display:"BUS",       emoji:"🚌", cat:"community",  age:"5-6", triggers:["bus","school bus"]},
+  {id:"dw_seatbelt",word:"seatbelt", display:"SEATBELT",  emoji:"🔒", cat:"safety",     age:"5-6", triggers:["seatbelt","seat belt","buckle up"]},
+  {id:"dw_crosswalk",word:"crosswalk",display:"CROSSWALK",emoji:"🚶",cat:"safety",     age:"5-6", triggers:["crosswalk","cross the street"]},
+  // ── Age 7-8: Self-Advocacy & Community ──────────────────────────
+  // Health/Safety
+  {id:"dw_sick",   word:"sick",      display:"SICK",      emoji:"🤒", cat:"health",     age:"7-8", triggers:["sick","not feeling well","I feel sick"]},
+  {id:"dw_hurt",   word:"hurt",      display:"HURT",      emoji:"🤕", cat:"health",     age:"7-8", triggers:["hurt","I'm hurt","I got hurt"]},
+  {id:"dw_pain",   word:"pain",      display:"PAIN",      emoji:"😣", cat:"health",     age:"7-8", triggers:["pain","it hurts"]},
+  {id:"dw_dizzy",  word:"dizzy",     display:"DIZZY",     emoji:"😵", cat:"health",     age:"7-8", triggers:["dizzy"]},
+  {id:"dw_emergency",word:"emergency",display:"EMERGENCY",emoji:"🆘",cat:"safety",     age:"7-8", triggers:["emergency","help me","call for help"]},
+  // Advanced emotions
+  {id:"dw_frustrated",word:"frustrated",display:"FRUSTRATED",emoji:"😤",cat:"emotions",age:"7-8", triggers:["frustrated","frustrating"]},
+  {id:"dw_lonely", word:"lonely",    display:"LONELY",    emoji:"😔", cat:"emotions",   age:"7-8", triggers:["lonely","alone"]},
+  {id:"dw_worried", word:"worried",  display:"WORRIED",   emoji:"😟", cat:"emotions",   age:"7-8", triggers:["worried","nervous","anxious"]},
+  {id:"dw_calm",   word:"calm",      display:"CALM",      emoji:"😌", cat:"emotions",   age:"7-8", triggers:["calm","calm down","take a breath"]},
+  {id:"dw_proud",  word:"proud",     display:"PROUD",     emoji:"🏆", cat:"emotions",   age:"7-8", triggers:["proud","good job"]},
+  {id:"dw_brave",  word:"brave",     display:"BRAVE",     emoji:"🦁", cat:"emotions",   age:"7-8", triggers:["brave"]},
+  // Community
+  {id:"dw_police", word:"police",    display:"POLICE",    emoji:"👮", cat:"community",  age:"7-8", triggers:["police","police officer"]},
+  {id:"dw_firefighter",word:"firefighter",display:"FIREFIGHTER",emoji:"🚒",cat:"community",age:"7-8",triggers:["firefighter","fire truck"]},
+  {id:"dw_library", word:"library",  display:"LIBRARY",   emoji:"📚", cat:"community",  age:"7-8", triggers:["library"]},
+  {id:"dw_restaurant",word:"restaurant",display:"RESTAURANT",emoji:"🍽️",cat:"community",age:"7-8",triggers:["restaurant","eating out"]},
+  {id:"dw_store",  word:"store",     display:"STORE",     emoji:"🏪", cat:"community",  age:"7-8", triggers:["store","grocery store","market"]},
+  // Universal signs
+  {id:"dw_exit",   word:"exit",      display:"EXIT",      emoji:"🚪", cat:"safety",     age:"7-8", triggers:["exit"]},
+  {id:"dw_entrance",word:"entrance", display:"ENTRANCE",  emoji:"🚶", cat:"safety",     age:"7-8", triggers:["entrance","enter"]},
+  {id:"dw_danger", word:"danger",    display:"DANGER",    emoji:"⚠️", cat:"safety",     age:"7-8", triggers:["danger","dangerous"]},
+];
+
+// ── Reinforcer Survey Structure ───────────────────────────────────
+const REINFORCER_SURVEY = [
+  { id:"edibles", label:"Edibles", emoji:"🍎", subcats:[
+    { id:"crunchy", label:"Crunchy", items:["Potato chips","Tortilla chips","Cheese crackers","Graham crackers","Popcorn","Pretzels"] },
+    { id:"sweet",   label:"Sweet",   items:["Gummy bears","Fruit leather","Chocolate chips","Mini cookies","Lollipops","Dried fruit"] },
+    { id:"fresh",   label:"Fresh",   items:["Apple slices","Grapes","Strawberries","Carrot sticks","Cucumber slices","String cheese"] },
+    { id:"drinks",  label:"Drinks",  items:["Apple juice","Fruit punch","Sparkling water","Fruit smoothie","Chocolate milk"] },
+  ]},
+  { id:"toys", label:"Toys", emoji:"🧸", subcats:[
+    { id:"building", label:"Building", items:["LEGO/DUPLO","Wooden blocks","Magnetic tiles","Lincoln Logs","Bristle blocks"] },
+    { id:"figures",  label:"Figures",  items:["Superhero figures","Animal figures","Stuffed animals","Fashion dolls","Toy soldiers"] },
+    { id:"vehicles", label:"Vehicles", items:["Hot Wheels cars","Remote control car","Construction trucks","Model trains","Fire engines"] },
+    { id:"creative", label:"Creative", items:["Washable markers","Oil pastels","Sticker books","Modeling clay","Watercolor paints"] },
+    { id:"puzzles",  label:"Puzzles",  items:["Jigsaw puzzles","Memory match","Dominoes","Marble run"] },
+  ]},
+  { id:"activities", label:"Activities", emoji:"🎯", subcats:[
+    { id:"tech",       label:"Tech",        items:["Tablet games","Educational apps","Streaming cartoons","Interactive games"] },
+    { id:"handson",    label:"Hands-on",    items:["Free-hand drawing","Craft kits","Building models","Cutting/pasting"] },
+    { id:"imaginative",label:"Imaginative", items:["Dress-up costumes","Play kitchen","Puppet theater","Building forts","Doctor play"] },
+    { id:"reading",    label:"Reading",     items:["Graphic novels","Audiobooks","Pop-up books","Magazines"] },
+  ]},
+  { id:"classroom", label:"Classroom", emoji:"🏫", subcats:[
+    { id:"academic",   label:"Academic",   items:["Computer time","Silent reading","Using whiteboard","Writing with special pens"] },
+    { id:"social",     label:"Social",     items:["Partner activities","Small group projects","Peer reading","Game time with peer"] },
+    { id:"privileges", label:"Privileges", items:["Line leader","Picking music","Special chair","Teacher helper","Desk organizer"] },
+  ]},
+  { id:"indoor", label:"Indoor Activities", emoji:"🏠", subcats:[
+    { id:"active_in",  label:"Active",  items:["Floor dancing","Yoga/stretching","Indoor obstacle course","Balloon volleyball","Simon Says"] },
+    { id:"quiet_in",   label:"Quiet",   items:["Listening to music","Reading books","Puzzles","Coloring/mandala art"] },
+    { id:"social_in",  label:"Social",  items:["Card games","Board games","Collaborative building"] },
+  ]},
+  { id:"sensory", label:"Sensory", emoji:"🌀", subcats:[
+    { id:"tactile",    label:"Tactile",    items:["Play-doh","Modeling clay","Slime/Putty","Sensory bins","Kinetic sand","Stress balls"] },
+    { id:"visual_s",   label:"Visual",     items:["Lava lamps","Fiber optic lights","Spin toys","Glitter bottles","Kaleidoscope"] },
+    { id:"auditory",   label:"Auditory",   items:["Noise-canceling headphones","White noise","Rainsticks","Calming sounds"] },
+    { id:"proprioceptive",label:"Body/Movement",items:["Weighted blankets","Indoor swing","Rocking chair","Mini trampoline","Compression vest"] },
+  ]},
+  { id:"outdoor", label:"Outdoor", emoji:"🌳", subcats:[
+    { id:"active_out", label:"Active",  items:["Tricycle/Bicycle","Scooter","Climbing structures","Slide/Swing","Jump rope","Tag/Chase"] },
+    { id:"nature",     label:"Nature",  items:["Nature scavenger hunt","Collecting rocks","Gardening","Bird watching"] },
+    { id:"water",      label:"Water",   items:["Water table","Sandbox","Sprinklers","Water balloons","Painting with water"] },
+  ]},
+];
+
+
 // ── IP Notice ────────────────────────────────────────────────────
 // © 2026 SaySee LLC. All rights reserved.
 // Patent Pending — U.S. Application No. 64/086,776
@@ -708,38 +868,74 @@ function FirstThenBoard({firstItem, thenItem}){
 function ChoiceBoard({items, selected, onSelect, stage}){
   const cols = items.length<=2?2:items.length<=4?2:3;
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",background:"#F3E5F5",padding:16,gap:16}}>
-      <div style={{background:stage==="workingfor_pick"?"#F5A623":"#8E44AD",borderRadius:14,padding:"8px 28px",boxShadow:`0 4px 20px ${stage==="workingfor_pick"?"#F5A62344":"#8E44AD44"}`}}>
-        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#fff",letterSpacing:2}}>
-          {stage==="workingfor_pick"?"🌟 What are you working for?":stage==="listening"?"Listening for choices...":"Make a Choice"}
+    <div style={{
+      position:"fixed",inset:0,
+      background:"#F3E5F5",
+      display:"flex",flexDirection:"column",
+      alignItems:"center",
+      zIndex:100,
+      padding:16,gap:12,
+      // Force landscape feel
+    }}>
+      {/* Header */}
+      <div style={{background:stage==="workingfor_pick"?"#F5A623":"#8E44AD",
+        borderRadius:14,padding:"8px 28px",
+        boxShadow:`0 4px 20px ${stage==="workingfor_pick"?"#F5A62344":"#8E44AD44"}`,
+        width:"100%",textAlign:"center"}}>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#fff",letterSpacing:2}}>
+          {stage==="workingfor_pick"?"🌟 What are you working for?":
+           stage==="listening"?"Listening for choices...":"Choice Board"}
         </div>
       </div>
+
+      {/* Choice grid - fills screen */}
       {items.length===0?(
-        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,opacity:0.4}}>
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
+          flexDirection:"column",gap:10,opacity:0.4}}>
           <div style={{fontSize:56}}>🎯</div>
-          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#8E44AD"}}>Say the choices</div>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#8E44AD"}}>
+            Say the choices
+          </div>
         </div>
       ):(
-        <div style={{flex:1,display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap:12,width:"100%",maxWidth:500}}>
+        <div style={{
+          flex:1,
+          display:"grid",
+          gridTemplateColumns:`repeat(${cols},1fr)`,
+          gridTemplateRows:`repeat(${Math.ceil(items.length/cols)},1fr)`,
+          gap:10,width:"100%",
+        }}>
           {items.map((item,i)=>(
             <button key={item.id||i} onClick={()=>onSelect(item)} style={{
-              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-              gap:8,padding:16,borderRadius:20,border:"none",cursor:"pointer",
-              background:selected?.id===item.id?(stage==="workingfor_pick"?"#F5A623":"#8E44AD"):"#fff",
-              boxShadow:selected?.id===item.id?(stage==="workingfor_pick"?"0 6px 24px #F5A62355":"0 6px 24px #8E44AD55"):"0 3px 12px rgba(0,0,0,0.1)",
-              transform:selected?.id===item.id?"scale(1.05)":"scale(1)",
+              display:"flex",flexDirection:"column",
+              alignItems:"center",justifyContent:"center",
+              gap:6,padding:10,borderRadius:20,border:"none",
+              cursor:"pointer",
+              background:selected?.id===item.id?
+                (stage==="workingfor_pick"?"#F5A623":"#8E44AD"):"#fff",
+              boxShadow:selected?.id===item.id?
+                `0 6px 24px ${stage==="workingfor_pick"?"#F5A62355":"#8E44AD55"}`:
+                "0 3px 12px rgba(0,0,0,0.1)",
+              transform:selected?.id===item.id?"scale(1.03)":"scale(1)",
               transition:"all 0.2s",
             }}>
-              <div style={{fontSize:"min(14vw,14vh)",lineHeight:1}}>{item.emoji}</div>
-              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(14px,4vw,22px)",color:selected?.id===item.id?"#fff":"#333"}}>
+              <div style={{fontSize:"clamp(28px,8vw,56px)",lineHeight:1}}>{item.emoji}</div>
+              <div style={{fontFamily:"'Fredoka One',cursive",
+                fontSize:"clamp(13px,3.5vw,20px)",
+                color:selected?.id===item.id?"#fff":"#333",
+                textAlign:"center",lineHeight:1.2}}>
                 {(item.display||item.label||item.word||"").toUpperCase()}
               </div>
             </button>
           ))}
         </div>
       )}
+
+      {/* Selection confirmation */}
       {selected&&(
-        <div style={{background:stage==="workingfor_pick"?"#F5A623":"#8E44AD",borderRadius:14,padding:"8px 24px",animation:"popIn 0.4s ease"}}>
+        <div style={{background:stage==="workingfor_pick"?"#F5A623":"#8E44AD",
+          borderRadius:14,padding:"8px 24px",
+          animation:"popIn 0.4s ease",width:"100%",textAlign:"center"}}>
           <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#fff"}}>
             {stage==="workingfor_pick"?"🌟":"✅"} {(selected.display||selected.label||selected.word||"").toUpperCase()}
           </div>
@@ -748,6 +944,7 @@ function ChoiceBoard({items, selected, onSelect, stage}){
     </div>
   );
 }
+
 
 // ── Reinforcer Picker Modal ───────────────────────────────────────
 function ReinforcerPicker({onSelect, onClose}){
@@ -926,6 +1123,518 @@ function TrialExpiredScreen({user, onLogout, setShowPayment, setPaymentPlan}){
         </div>
         <a href="mailto:hello@saysee.io" style={{display:"block",padding:"10px",borderRadius:30,border:"2px solid #EEE",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:13,color:"#AAA",textDecoration:"none",marginBottom:8,textAlign:"center"}}>✉️ hello@saysee.io</a>
         <button onClick={onLogout} style={{background:"none",border:"none",fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#AAA",cursor:"pointer"}}>Sign out</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Home Screen ──────────────────────────────────────────────────
+function HomeScreen({user, onMode, onLogout}){
+  const tiles = [
+    {id:"say",   label:"Say",      emoji:"👄", color:"#1B65B8", desc:"Start listening now"},
+    {id:"see",   label:"See",      emoji:"👁️",  color:"#5AAB2A", desc:"Words & categories"},
+    {id:"teach", label:"Teach",    emoji:"🎓", color:"#8E44AD", desc:"Students & data"},
+    {id:"data",  label:"Data",     emoji:"📊", color:"#E67E22", desc:"Progress & graphs"},
+    {id:"settings",label:"Settings",emoji:"⚙️", color:"#607D8B", desc:"Account & preferences"},
+  ];
+  return(
+    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#1B4F9E 0%,#1B65B8 60%,#2B6CB0 100%)",
+      display:"flex",flexDirection:"column",alignItems:"center",padding:"40px 20px 24px"}}>
+      {/* Logo */}
+      <div style={{marginBottom:32,textAlign:"center"}}>
+        <SaySeeFullLogo size={80}/>
+        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"rgba(255,255,255,0.5)",
+          marginTop:6,letterSpacing:1}}>
+          Welcome back, {user.name?.split(" ")[0]||"Teacher"}
+        </div>
+      </div>
+
+      {/* Main tiles grid */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,width:"100%",maxWidth:420,marginBottom:14}}>
+        {tiles.slice(0,2).map(t=>(
+          <button key={t.id} onClick={()=>onMode(t.id)}
+            style={{padding:"28px 16px",borderRadius:20,border:"none",
+            background:`linear-gradient(135deg,${t.color},${t.color}CC)`,
+            color:"#fff",cursor:"pointer",
+            boxShadow:`0 8px 24px ${t.color}55`,
+            transition:"all 0.2s",display:"flex",flexDirection:"column",
+            alignItems:"center",gap:10}}>
+            <div style={{fontSize:44}}>{t.emoji}</div>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,letterSpacing:1}}>{t.label}</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,
+              color:"rgba(255,255,255,0.7)",textAlign:"center"}}>{t.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,width:"100%",maxWidth:420}}>
+        {tiles.slice(2).map(t=>(
+          <button key={t.id} onClick={()=>onMode(t.id)}
+            style={{padding:"20px 10px",borderRadius:18,border:"none",
+            background:`linear-gradient(135deg,${t.color},${t.color}CC)`,
+            color:"#fff",cursor:"pointer",
+            boxShadow:`0 6px 18px ${t.color}44`,
+            transition:"all 0.2s",display:"flex",flexDirection:"column",
+            alignItems:"center",gap:8}}>
+            <div style={{fontSize:30}}>{t.emoji}</div>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:16}}>{t.label}</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:10,
+              color:"rgba(255,255,255,0.6)",textAlign:"center",lineHeight:1.3}}>{t.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Trial warning if applicable */}
+      {user.plan==="trial"&&(
+        <div style={{marginTop:20,padding:"10px 16px",borderRadius:12,
+          background:"rgba(245,166,35,0.15)",border:"1px solid rgba(245,166,35,0.3)",
+          fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#F5A623",
+          textAlign:"center",maxWidth:420,width:"100%"}}>
+          ⏰ Free trial active — subscribe to keep access
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── See Screen (Word Library) ─────────────────────────────────────
+function SeeScreen({user, words, onBack}){
+  const [activeAge, setActiveAge]     = useState("all");
+  const [activeCat, setActiveCat]     = useState("all");
+  const [search, setSearch]           = useState("");
+  const [showSearch, setShowSearch]   = useState(false);
+  const [expandedWord, setExpandedWord] = useState(null);
+
+  // Combine master words + dev words
+  const allWords = [...words, ...DEV_WORDS];
+
+  // Filter
+  const filtered = allWords.filter(w=>{
+    const matchAge = activeAge==="all" || w.age===activeAge;
+    const matchCat = activeCat==="all" || w.cat===activeCat;
+    const matchSearch = !search || 
+      w.word.toLowerCase().includes(search.toLowerCase()) ||
+      w.display?.toLowerCase().includes(search.toLowerCase());
+    return matchAge && matchCat && matchSearch;
+  });
+
+  // All unique categories
+  const cats = ["all", ...new Set(allWords.map(w=>w.cat).filter(Boolean))];
+
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB",display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{background:"#5AAB2A",padding:"14px 16px",display:"flex",
+        alignItems:"center",gap:12,boxShadow:"0 2px 12px rgba(90,171,42,0.3)"}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#fff",flex:1}}>
+          👁️ See — Word Library
+        </div>
+        <button onClick={()=>setShowSearch(p=>!p)} style={{background:"rgba(255,255,255,0.2)",
+          border:"none",borderRadius:10,padding:"6px 12px",color:"#fff",cursor:"pointer",fontSize:16}}>
+          🔍
+        </button>
+      </div>
+
+      {/* Search bar */}
+      {showSearch&&(
+        <div style={{padding:"10px 16px",background:"#fff",borderBottom:"1px solid #EEF0F4"}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Search any word..."
+            autoFocus
+            style={{width:"100%",padding:"10px 14px",borderRadius:10,
+            border:"2px solid #5AAB2A",fontFamily:"'Nunito',sans-serif",
+            fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+      )}
+
+      {/* Age band filter */}
+      <div style={{background:"#fff",padding:"8px 12px",display:"flex",
+        gap:6,overflowX:"auto",scrollbarWidth:"none",borderBottom:"1px solid #EEF0F4"}}>
+        <button onClick={()=>setActiveAge("all")}
+          style={{flexShrink:0,padding:"5px 14px",borderRadius:20,border:"none",
+          background:activeAge==="all"?"#5AAB2A":"#F0F2F5",
+          color:activeAge==="all"?"#fff":"#666",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:11,cursor:"pointer"}}>All Ages</button>
+        {DEV_AGES.map(a=>(
+          <button key={a.id} onClick={()=>setActiveAge(a.id)}
+            style={{flexShrink:0,padding:"5px 14px",borderRadius:20,border:"none",
+            background:activeAge===a.id?a.color:"#F0F2F5",
+            color:activeAge===a.id?"#fff":"#666",fontFamily:"'Nunito',sans-serif",
+            fontWeight:800,fontSize:11,cursor:"pointer"}}>{a.label}</button>
+        ))}
+      </div>
+
+      {/* Category filter */}
+      <div style={{background:"#fff",padding:"8px 12px",display:"flex",
+        gap:6,overflowX:"auto",scrollbarWidth:"none",borderBottom:"2px solid #EEF0F4"}}>
+        {cats.map(c=>(
+          <button key={c} onClick={()=>setActiveCat(c)}
+            style={{flexShrink:0,padding:"5px 14px",borderRadius:20,border:"none",
+            background:activeCat===c?"#1B65B8":"#F0F2F5",
+            color:activeCat===c?"#fff":"#666",fontFamily:"'Nunito',sans-serif",
+            fontWeight:800,fontSize:11,cursor:"pointer",textTransform:"capitalize"}}>{c}</button>
+        ))}
+      </div>
+
+      {/* Word grid */}
+      <div style={{flex:1,padding:12,overflowY:"auto"}}>
+        <div style={{fontSize:11,color:"#AAA",fontFamily:"'Nunito',sans-serif",
+          marginBottom:8,fontWeight:700}}>{filtered.length} words</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))",gap:8}}>
+          {filtered.map(w=>(
+            <button key={w.id} onClick={()=>setExpandedWord(expandedWord?.id===w.id?null:w)}
+              style={{padding:"12px 8px",borderRadius:14,border:"none",
+              background:expandedWord?.id===w.id?"#1B65B8":"#fff",
+              cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",
+              display:"flex",flexDirection:"column",alignItems:"center",gap:4,
+              transition:"all 0.2s"}}>
+              <div style={{fontSize:28}}>{w.emoji}</div>
+              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:12,
+                color:expandedWord?.id===w.id?"#fff":"#333",textAlign:"center",lineHeight:1.2}}>
+                {w.display||w.word}
+              </div>
+              {w.age&&(
+                <div style={{fontSize:9,color:expandedWord?.id===w.id?"rgba(255,255,255,0.6)":"#AAA",
+                  fontFamily:"'Nunito',sans-serif",fontWeight:700}}>
+                  {w.age}yr
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Word detail panel */}
+      {expandedWord&&(
+        <div style={{position:"fixed",bottom:0,left:0,right:0,
+          background:"#fff",borderRadius:"20px 20px 0 0",
+          padding:20,boxShadow:"0 -8px 30px rgba(0,0,0,0.15)",zIndex:200}}>
+          <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:48}}>{expandedWord.emoji}</div>
+            <div>
+              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#1B65B8"}}>
+                {expandedWord.display||expandedWord.word}
+              </div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",textTransform:"capitalize"}}>
+                {expandedWord.cat} · {expandedWord.age ? `Ages ${expandedWord.age}` : "All ages"}
+              </div>
+            </div>
+          </div>
+          {/* 4 levels preview */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}>
+            {["📷 Photo","🎨 Color","✏️ B&W","🔤 Text"].map((lbl,i)=>(
+              <div key={i} style={{padding:"10px 6px",borderRadius:10,
+                background:["#EAF3DE","#EEF5FF","#F8F9FC","#FFF8EC"][i],
+                textAlign:"center",border:`1px solid ${["#C8E6B0","#BDD7F5","#E8ECF0","#FEEBC8"][i]}`}}>
+                <div style={{fontSize:14,marginBottom:4}}>{lbl.split(" ")[0]}</div>
+                <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,color:"#888",fontWeight:700}}>
+                  {["Level 1","Level 2","Level 3","Level 4"][i]}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
+            Triggers: {(expandedWord.triggers||[expandedWord.word]).join(", ")}
+          </div>
+          <button onClick={()=>setExpandedWord(null)}
+            style={{position:"absolute",top:16,right:16,background:"#F0F2F5",
+            border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:16}}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Reinforcer Survey Screen ──────────────────────────────────────
+function ReinforcerSurveyScreen({user, onBack, onSave}){
+  const [selected, setSelected] = useState(mem.get(`reinforcers_${user.id}`,{}));
+  const [customInputs, setCustomInputs] = useState({});
+  const [expandedCat, setExpandedCat] = useState("edibles");
+
+  const toggle = (catId, subcatId, item) => {
+    const key = `${catId}_${subcatId}_${item}`;
+    setSelected(p=>{
+      const updated = {...p, [key]: !p[key]};
+      mem.set(`reinforcers_${user.id}`, updated);
+      return updated;
+    });
+  };
+
+  const addCustom = (catId, subcatId) => {
+    const key = `custom_${catId}_${subcatId}`;
+    const val = customInputs[key]?.trim();
+    if(!val) return;
+    const itemKey = `${catId}_${subcatId}_${val}`;
+    setSelected(p=>{
+      const updated = {...p, [itemKey]: true};
+      mem.set(`reinforcers_${user.id}`, updated);
+      return updated;
+    });
+    setCustomInputs(p=>({...p,[key]:""}));
+  };
+
+  const selectedCount = Object.values(selected).filter(Boolean).length;
+
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB",display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{background:"#F5A623",padding:"14px 16px",display:"flex",
+        alignItems:"center",gap:12,boxShadow:"0 2px 12px rgba(245,166,35,0.3)"}}>
+        <button onClick={()=>{onSave(selected);onBack();}}
+          style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:10,
+          padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Save & Back</button>
+        <div style={{flex:1,fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>
+          🌟 Reinforcer Survey
+        </div>
+        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"rgba(255,255,255,0.8)",fontWeight:700}}>
+          {selectedCount} selected
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:12}}>
+        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#888",
+          marginBottom:12,lineHeight:1.6,padding:"10px 14px",background:"#fff",
+          borderRadius:12,border:"1px solid #EEF0F4"}}>
+          Check items your student prefers. These will appear on the Choice Board and Working For board.
+          You can add custom items in each category.
+        </div>
+
+        {REINFORCER_SURVEY.map(cat=>(
+          <div key={cat.id} style={{marginBottom:10,borderRadius:16,overflow:"hidden",
+            boxShadow:"0 2px 8px rgba(0,0,0,0.07)"}}>
+            {/* Category header */}
+            <button onClick={()=>setExpandedCat(expandedCat===cat.id?null:cat.id)}
+              style={{width:"100%",padding:"14px 16px",background:"#fff",border:"none",
+              display:"flex",alignItems:"center",gap:10,cursor:"pointer",
+              borderBottom:expandedCat===cat.id?"2px solid #F5A623":"none"}}>
+              <div style={{fontSize:24}}>{cat.emoji}</div>
+              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#1A1A2E",flex:1,textAlign:"left"}}>
+                {cat.label}
+              </div>
+              <div style={{fontSize:18,color:"#AAA"}}>{expandedCat===cat.id?"▲":"▼"}</div>
+            </button>
+
+            {expandedCat===cat.id&&cat.subcats.map(sub=>(
+              <div key={sub.id} style={{padding:"12px 16px",background:"#FAFBFC",
+                borderBottom:"1px solid #EEF0F4"}}>
+                <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
+                  color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>
+                  {sub.label}
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:10}}>
+                  {sub.items.map(item=>{
+                    const key = `${cat.id}_${sub.id}_${item}`;
+                    const isSelected = !!selected[key];
+                    return(
+                      <button key={item} onClick={()=>toggle(cat.id, sub.id, item)}
+                        style={{padding:"6px 14px",borderRadius:20,border:"none",
+                        background:isSelected?"#F5A623":"#EEF0F4",
+                        color:isSelected?"#fff":"#555",
+                        fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",
+                        transition:"all 0.15s"}}>
+                        {isSelected?"✓ ":""}{item}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Custom item input */}
+                <div style={{display:"flex",gap:8}}>
+                  <input
+                    value={customInputs[`custom_${cat.id}_${sub.id}`]||""}
+                    onChange={e=>setCustomInputs(p=>({...p,[`custom_${cat.id}_${sub.id}`]:e.target.value}))}
+                    onKeyDown={e=>e.key==="Enter"&&addCustom(cat.id,sub.id)}
+                    placeholder="Add custom item..."
+                    style={{flex:1,padding:"6px 12px",borderRadius:20,
+                    border:"1px solid #DDD",fontFamily:"'Nunito',sans-serif",fontSize:12,outline:"none"}}/>
+                  <button onClick={()=>addCustom(cat.id,sub.id)}
+                    style={{padding:"6px 14px",borderRadius:20,border:"none",
+                    background:"#F5A623",color:"#fff",fontFamily:"'Nunito',sans-serif",
+                    fontWeight:800,fontSize:12,cursor:"pointer"}}>Add</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Teach Screen (Student Data Dashboard) ────────────────────────
+function TeachScreen({user, students, trialData, onBack, onManageStudents}){
+  const [selectedStu, setSelectedStu] = useState(null);
+
+  const getWordStats = (stuId=null) => {
+    const wordCounts = {};
+    const entries = stuId
+      ? Object.entries(trialData||{}).filter(([k])=>k.startsWith(stuId+"_"))
+      : Object.entries(trialData||{});
+    entries.forEach(([key,val])=>{
+      const wordId = key.split("_").slice(1).join("_");
+      if(!wordCounts[wordId]) wordCounts[wordId] = 0;
+      wordCounts[wordId] += (val.correct||0);
+    });
+    return Object.entries(wordCounts)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,10)
+      .map(([wid,count])=>({wid,count}));
+  };
+
+  const getAvgResponseTime = (stuId=null) => {
+    const entries = stuId
+      ? Object.entries(trialData||{}).filter(([k])=>k.startsWith(stuId+"_"))
+      : Object.entries(trialData||{});
+    if(!entries.length) return "N/A";
+    const times = entries.map(([,v])=>v.avgTime||0).filter(t=>t>0);
+    if(!times.length) return "N/A";
+    return (times.reduce((a,b)=>a+b,0)/times.length/1000).toFixed(1)+"s";
+  };
+
+  const getCorrectionPraise = (stuId=null) => {
+    const entries = stuId
+      ? Object.entries(trialData||{}).filter(([k])=>k.startsWith(stuId+"_"))
+      : Object.entries(trialData||{});
+    const corrections = entries.reduce((a,[,v])=>a+(v.incorrect||0),0);
+    const praise      = entries.reduce((a,[,v])=>a+(v.correct||0),0);
+    return { corrections, praise };
+  };
+
+  const topWords    = getWordStats(selectedStu?.id);
+  const avgTime     = getAvgResponseTime(selectedStu?.id);
+  const { corrections, praise } = getCorrectionPraise(selectedStu?.id);
+
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB",display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{background:"#8E44AD",padding:"14px 16px",display:"flex",
+        alignItems:"center",gap:12,boxShadow:"0 2px 12px rgba(142,68,173,0.3)"}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#fff",flex:1}}>
+          🎓 Teach
+        </div>
+      </div>
+
+      <div style={{flex:1,display:"flex",overflowY:"auto"}}>
+        {/* Student list - left column */}
+        <div style={{width:120,background:"#fff",borderRight:"1px solid #EEF0F4",
+          overflowY:"auto",flexShrink:0}}>
+          <button onClick={()=>setSelectedStu(null)}
+            style={{width:"100%",padding:"12px 8px",background:!selectedStu?"#8E44AD":"transparent",
+            border:"none",cursor:"pointer",borderBottom:"1px solid #EEF0F4",
+            fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
+            color:!selectedStu?"#fff":"#666"}}>
+            📊 Class
+          </button>
+          {students.map(s=>(
+            <button key={s.id} onClick={()=>setSelectedStu(s)}
+              style={{width:"100%",padding:"12px 8px",
+              background:selectedStu?.id===s.id?"#F3E5F5":"transparent",
+              border:"none",cursor:"pointer",borderBottom:"1px solid #EEF0F4",
+              display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{fontSize:24}}>{s.avatar||"🧑"}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:10,
+                color:selectedStu?.id===s.id?"#8E44AD":"#555",textAlign:"center",
+                wordBreak:"break-word",lineHeight:1.2}}>{s.name}</div>
+            </button>
+          ))}
+          <button onClick={onManageStudents}
+            style={{width:"100%",padding:"10px 8px",background:"transparent",
+            border:"none",cursor:"pointer",fontFamily:"'Nunito',sans-serif",
+            fontSize:10,color:"#5AAB2A",fontWeight:800}}>
+            + Add Student
+          </button>
+        </div>
+
+        {/* Data panel - right */}
+        <div style={{flex:1,padding:14,overflowY:"auto"}}>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#8E44AD",marginBottom:14}}>
+            {selectedStu ? selectedStu.name : "Class Overview"}
+          </div>
+
+          {/* Words most responded to */}
+          <div style={{background:"#fff",borderRadius:14,padding:14,marginBottom:12,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
+              color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:10}}>
+              Words Most Responded To
+            </div>
+            {topWords.length>0?(
+              topWords.map((w,i)=>(
+                <div key={w.wid} style={{display:"flex",justifyContent:"space-between",
+                  padding:"5px 0",borderBottom:"1px solid #F0F2F5"}}>
+                  <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555"}}>
+                    {i+1}. {w.wid.replace(/_/g," ")}
+                  </div>
+                  <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,
+                    color:"#8E44AD"}}>{w.count}</div>
+                </div>
+              ))
+            ):(
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#CCC",textAlign:"center",
+                padding:"10px 0"}}>No data yet — start a session!</div>
+            )}
+          </div>
+
+          {/* Response time */}
+          <div style={{background:"#fff",borderRadius:14,padding:14,marginBottom:12,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
+              color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>
+              Average Response Time
+            </div>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:32,color:"#1B65B8"}}>
+              {avgTime}
+            </div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#AAA",marginTop:2}}>
+              Time from instruction to correct response
+            </div>
+          </div>
+
+          {/* Correction & Praise */}
+          <div style={{background:"#fff",borderRadius:14,padding:14,marginBottom:12,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
+              color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:10}}>
+              Corrections & Praise
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div style={{background:"#FFF8EC",borderRadius:10,padding:12,textAlign:"center"}}>
+                <div style={{fontSize:24,marginBottom:4}}>🔄</div>
+                <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#E67E22"}}>
+                  {corrections}
+                </div>
+                <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#888"}}>
+                  Corrections
+                </div>
+              </div>
+              <div style={{background:"#EAF3DE",borderRadius:10,padding:12,textAlign:"center"}}>
+                <div style={{fontSize:24,marginBottom:4}}>🌟</div>
+                <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#5AAB2A"}}>
+                  {praise}
+                </div>
+                <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#888"}}>
+                  Praise
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Download PDF button */}
+          <button onClick={()=>{
+            alert("PDF download coming soon! Contact hello@saysee.io to request a progress report.");
+          }} style={{width:"100%",padding:"12px",borderRadius:14,border:"2px solid #1B65B8",
+            background:"transparent",color:"#1B65B8",fontFamily:"'Nunito',sans-serif",
+            fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",
+            alignItems:"center",justifyContent:"center",gap:8}}>
+            📥 Download Progress Report PDF
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1396,7 +2105,7 @@ function AdminWordForm({word,onSave,onDelete,onClose}){
 }
 
 // ── Teacher app ───────────────────────────────────────────────
-function TeacherApp({user,words,onLogout,daysLeft=null}){
+function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome}){
   // ── In-app Stripe payment ───────────────────────────────────────
   const [showStripeInApp,setShowStripeInApp] = useState(false);
   const [stripeInAppPlan,setStripeInAppPlan] = useState("monthly");
@@ -1752,12 +2461,31 @@ Reply with ONLY the matching word or NO_MATCH.`
             }
 
             // ── 1d. First-Then ──
-            const firstPhrases = ["first","first you need to","first we","first let's"];
-            const thenPhrases  = ["then","then you get","then you can","and then"];
-            if(firstPhrases.some(p=>t.startsWith(p)) || t==="first"){
+            // Handle full sentence: "first sit down then you can have a snack"
+            const hasFirst = t.includes("first");
+            const hasThen  = t.includes("then");
+
+            if(hasFirst && hasThen){
+              // Full sentence detected — parse both parts at once
+              setAppMode("firstthen");
+              const firstPart = t.split(/\bthen\b/i)[0].replace(/^first\s*/i,"").trim();
+              const thenPart  = t.split(/\bthen\b/i)[1]?.replace(/^(you can|you get|you may|have|get)\s*/i,"").trim()||"";
+              const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>firstPart.includes(tr)));
+              if(taskMatch) setFirstItem(taskMatch);
+              const rMatch = REINFORCERS.find(r=>thenPart.includes(r.label.toLowerCase())||thenPart.includes(r.id));
+              if(rMatch){ setThenItem({...rMatch,isThenReinforcer:true}); }
+              else {
+                const wordMatch2 = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>thenPart.includes(tr)));
+                if(wordMatch2) setThenItem(wordMatch2);
+              }
+              setFirstThenStage("complete");
+              return;
+            }
+
+            if(hasFirst && !hasThen){
               setAppMode("firstthen");
               setFirstThenStage("first");
-              // Listen for task after "first"
+              setThenItem(null);
               const afterFirst = t.replace(/^first\s*/i,"").trim();
               if(afterFirst.length > 1){
                 const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterFirst.includes(tr)));
@@ -1765,13 +2493,13 @@ Reply with ONLY the matching word or NO_MATCH.`
               }
               return;
             }
-            if((thenPhrases.some(p=>t.startsWith(p)) || t==="then") && appModeRef.current==="firstthen"){
+
+            if(hasThen && appModeRef.current==="firstthen"){
               setFirstThenStage("then");
-              const afterThen = t.replace(/^then\s*/i,"").trim();
+              const afterThen = t.replace(/.*?\bthen\b\s*/i,"").replace(/^(you can|you get|you may|have|get)\s*/i,"").trim();
               if(afterThen.length > 1){
-                // Check reinforcers first
                 const rMatch = REINFORCERS.find(r=>afterThen.includes(r.label.toLowerCase())||afterThen.includes(r.id));
-                if(rMatch){ setThenItem({...rMatch, isThenReinforcer:true}); setFirstThenStage("complete"); }
+                if(rMatch){ setThenItem({...rMatch,isThenReinforcer:true}); setFirstThenStage("complete"); }
                 else {
                   const wordMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterThen.includes(tr)));
                   if(wordMatch){ setThenItem(wordMatch); setFirstThenStage("complete"); }
@@ -1909,8 +2637,12 @@ Reply with ONLY the matching word or NO_MATCH.`
   };
 
   const handlePhotoSaved=async (wordId, dataUrl)=>{
-    // Save locally immediately for instant display
-    setPhotos(p=>({...p,[wordId]:dataUrl}));
+    // Save locally immediately for instant display — key by wordId
+    setPhotos(p=>{
+      const updated = {...p,[wordId]:dataUrl};
+      mem.set(`photos_${user.id}`, updated); // persist entire photo map
+      return updated;
+    });
     mem.set(`photo_${wordId}_${user.id}`, dataUrl);
 
     // Upload to Supabase Storage for permanent persistence
@@ -2035,7 +2767,7 @@ Reply with ONLY the matching word or NO_MATCH.`
                 <div style={{position:"absolute",width:160,height:160,borderRadius:"50%",background:"#5AAB2A",opacity:0.12,animation:"listenPulse 2s ease-in-out infinite 0.3s"}}/>
                 <div style={{position:"absolute",width:120,height:120,borderRadius:"50%",background:"#5AAB2A",opacity:0.18,animation:"listenPulse 2s ease-in-out infinite 0.6s"}}/>
                 {/* Center mic circle */}
-                <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#5AAB2A,#3d8a1e)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,boxShadow:"0 4px 20px #5AAB2A55",zIndex:1}}>🎤</div>
+                <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#5AAB2A,#3d8a1e)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,boxShadow:"0 4px 20px #5AAB2A55",zIndex:1}}>👄</div>
               </div>
             ) : (
               <div style={{textAlign:"center",opacity:0.4}}>
@@ -2845,6 +3577,7 @@ export default function SaySee(){
   const [masterWords,setMasterWords] = useState([...MASTER_WORDS]);
   const [showPayment,setShowPayment]   = useState(false);
   const [paymentPlan,setPaymentPlan]   = useState('monthly');
+  const [homeMode,setHomeMode]         = useState('home'); // home|say|see|teach|data|settings|reinforcers
 
   // Check for existing session on load
   useEffect(()=>{
@@ -2985,7 +3718,29 @@ export default function SaySee(){
                   </div>
                 )}
               </>
-              :<ErrorBoundary><TeacherApp user={user} words={masterWords} onLogout={logout} daysLeft={daysLeftInTrial(user)}/></ErrorBoundary>
+              :<ErrorBoundary>
+                {homeMode==="home"?(
+                  <HomeScreen user={user} onLogout={logout}
+                    onMode={mode=>{
+                      if(mode==="settings") setHomeMode("say"); // go to AAC with drawer open
+                      else setHomeMode(mode);
+                    }}/>
+                ):homeMode==="see"?(
+                  <SeeScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}/>
+                ):homeMode==="teach"?(
+                  <TeachScreen user={user} students={[]} trialData={{}}
+                    onBack={()=>setHomeMode("home")}
+                    onManageStudents={()=>setHomeMode("say")}/>
+                ):homeMode==="reinforcers"?(
+                  <ReinforcerSurveyScreen user={user}
+                    onBack={()=>setHomeMode("home")}
+                    onSave={()=>{}}/>
+                ):(
+                  <TeacherApp user={user} words={masterWords} onLogout={logout}
+                    daysLeft={daysLeftInTrial(user)}
+                    onGoHome={()=>setHomeMode("home")}/>
+                )}
+              </ErrorBoundary>
       }
     </>
   );
