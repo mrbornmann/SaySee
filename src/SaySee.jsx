@@ -1640,6 +1640,433 @@ function TeachScreen({user, students, trialData, onBack, onManageStudents}){
   );
 }
 
+// ── Data Screen ──────────────────────────────────────────────────
+function DataScreen({user, onBack}){
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB",display:"flex",flexDirection:"column"}}>
+      <div style={{background:"#E67E22",padding:"14px 16px",display:"flex",
+        alignItems:"center",gap:12,boxShadow:"0 2px 12px rgba(230,126,34,0.3)"}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#fff",flex:1}}>
+          📊 Data & Reports
+        </div>
+      </div>
+      <div style={{padding:16,flex:1}}>
+        {/* Quick stats tiles */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+          {[
+            {label:"Sessions Today",  val:"—",  emoji:"📅", color:"#1B65B8"},
+            {label:"Words Practiced", val:"—",  emoji:"📝", color:"#5AAB2A"},
+            {label:"Avg Response",    val:"—",  emoji:"⏱️",  color:"#8E44AD"},
+            {label:"Praise Given",    val:"—",  emoji:"🌟", color:"#F5A623"},
+          ].map(t=>(
+            <div key={t.label} style={{background:"#fff",borderRadius:16,padding:16,
+              boxShadow:"0 2px 8px rgba(0,0,0,0.07)",display:"flex",flexDirection:"column",gap:4}}>
+              <div style={{fontSize:28}}>{t.emoji}</div>
+              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:26,color:t.color}}>{t.val}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#888",fontWeight:700}}>{t.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Action tiles */}
+        {[
+          {label:"View Progress Graphs",    emoji:"📈", desc:"Visual class and student progress", color:"#1B65B8"},
+          {label:"Download Progress Report",emoji:"📥", desc:"Export PDF for any student",        color:"#5AAB2A"},
+          {label:"Session History",         emoji:"📋", desc:"View past sessions by date",        color:"#8E44AD"},
+          {label:"Share Report",            emoji:"📤", desc:"Send to parent or district",        color:"#E67E22"},
+        ].map(t=>(
+          <button key={t.label} onClick={()=>alert(`${t.label} — coming soon! Contact hello@saysee.io`)}
+            style={{width:"100%",padding:"16px",borderRadius:14,border:"none",
+            background:"#fff",cursor:"pointer",marginBottom:10,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.07)",
+            display:"flex",alignItems:"center",gap:14,textAlign:"left"}}>
+            <div style={{fontSize:28,width:44,height:44,borderRadius:12,
+              background:`${t.color}15`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {t.emoji}
+            </div>
+            <div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,color:"#1A1A2E"}}>
+                {t.label}
+              </div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:2}}>
+                {t.desc}
+              </div>
+            </div>
+            <div style={{marginLeft:"auto",color:"#CCC",fontSize:18}}>›</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Settings Screen ───────────────────────────────────────────────
+function SettingsScreen({user, onBack, onLogout, onNavigate}){
+  const [section, setSection] = useState(null); // null=main|profile|students|subscription
+
+  if(section==="profile") return <ProfileSection user={user} onBack={()=>setSection(null)}/>;
+  if(section==="students") return <StudentsSection user={user} onBack={()=>setSection(null)}/>;
+  if(section==="subscription") return <SubscriptionSection user={user} onBack={()=>setSection(null)}/>;
+
+  const tiles = [
+    {id:"profile",      label:"Edit Profile",      emoji:"👤", desc:"Name, email, avatar",          color:"#1B65B8"},
+    {id:"students",     label:"Student Profiles",  emoji:"🧑‍🎓",desc:"Add students, photos, ages",    color:"#5AAB2A"},
+    {id:"see",          label:"Word Library",       emoji:"👁️",  desc:"Categories, words, levels",    color:"#8E44AD"},
+    {id:"reinforcers",  label:"Reinforcer Survey",  emoji:"🌟", desc:"Set preferred rewards",         color:"#F5A623"},
+    {id:"subscription", label:"Subscription",       emoji:"💳", desc:"Plan, billing, status",         color:"#E67E22"},
+  ];
+
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB",display:"flex",flexDirection:"column"}}>
+      <div style={{background:"#607D8B",padding:"14px 16px",display:"flex",
+        alignItems:"center",gap:12,boxShadow:"0 2px 12px rgba(96,125,139,0.3)"}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#fff",flex:1}}>
+          ⚙️ Settings
+        </div>
+      </div>
+
+      <div style={{padding:16,flex:1}}>
+        {/* User info card */}
+        <div style={{background:"#fff",borderRadius:16,padding:16,marginBottom:16,
+          boxShadow:"0 2px 8px rgba(0,0,0,0.07)",display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:52,height:52,borderRadius:"50%",background:"#EEF5FF",
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>
+            👤
+          </div>
+          <div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:15,color:"#1A1A2E"}}>
+              {user.name||"Teacher"}
+            </div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
+              {user.email}
+            </div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,fontWeight:700,
+              color:user.plan==="monthly"||user.plan==="annual"||user.plan==="school"?"#5AAB2A":"#E67E22",
+              marginTop:2,textTransform:"capitalize"}}>
+              {user.plan||"trial"} plan
+            </div>
+          </div>
+        </div>
+
+        {/* Setting tiles */}
+        {tiles.map(t=>(
+          <button key={t.id}
+            onClick={()=>{
+              if(t.id==="see"||t.id==="reinforcers") onNavigate(t.id);
+              else setSection(t.id);
+            }}
+            style={{width:"100%",padding:"14px 16px",borderRadius:14,border:"none",
+            background:"#fff",cursor:"pointer",marginBottom:10,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.07)",
+            display:"flex",alignItems:"center",gap:14,textAlign:"left"}}>
+            <div style={{fontSize:26,width:44,height:44,borderRadius:12,
+              background:`${t.color}15`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {t.emoji}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,color:"#1A1A2E"}}>
+                {t.label}
+              </div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:2}}>
+                {t.desc}
+              </div>
+            </div>
+            <div style={{color:"#CCC",fontSize:18}}>›</div>
+          </button>
+        ))}
+
+        {/* Logout */}
+        <button onClick={onLogout}
+          style={{width:"100%",padding:"14px",borderRadius:14,border:"2px solid #E74C3C",
+          background:"transparent",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:14,cursor:"pointer",marginTop:8}}>
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Profile Section ───────────────────────────────────────────────
+function ProfileSection({user, onBack}){
+  const [name, setName] = useState(user.name||"");
+  const [saved, setSaved] = useState(false);
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB"}}>
+      <div style={{background:"#607D8B",padding:"14px 16px",display:"flex",
+        alignItems:"center",gap:12}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>Edit Profile</div>
+      </div>
+      <div style={{padding:16}}>
+        <div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 2px 8px rgba(0,0,0,0.07)"}}>
+          <div style={{textAlign:"center",marginBottom:20}}>
+            <div style={{fontSize:64,marginBottom:8}}>👤</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
+              {user.email}
+            </div>
+          </div>
+          <label style={{fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:700,
+            color:"#888",display:"block",marginBottom:6}}>Display Name</label>
+          <input value={name} onChange={e=>setName(e.target.value)}
+            style={{width:"100%",padding:"12px",borderRadius:10,border:"2px solid #EEF0F4",
+            fontFamily:"'Nunito',sans-serif",fontSize:14,outline:"none",
+            boxSizing:"border-box",marginBottom:16}}/>
+          <div style={{background:"#F8F9FC",borderRadius:10,padding:12,marginBottom:16}}>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",
+              fontWeight:700,marginBottom:4}}>Role</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:14,color:"#555",
+              textTransform:"capitalize"}}>{user.role||"teacher"}</div>
+          </div>
+          {saved&&<div style={{color:"#5AAB2A",fontFamily:"'Nunito',sans-serif",
+            fontSize:13,fontWeight:700,textAlign:"center",marginBottom:10}}>✅ Profile saved!</div>}
+          <button onClick={()=>setSaved(true)}
+            style={{width:"100%",padding:"12px",borderRadius:30,border:"none",
+            background:"#1B65B8",color:"#fff",fontFamily:"'Nunito',sans-serif",
+            fontWeight:800,fontSize:14,cursor:"pointer"}}>Save Profile</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Students Section (in Settings) ───────────────────────────────
+function StudentsSection({user, onBack}){
+  const [students, setStudents] = useState(mem.get(`stu_${user.id}`)||[]);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newAge, setNewAge] = useState("");
+  const [newAvatar, setNewAvatar] = useState("🧑");
+  const [editStu, setEditStu] = useState(null);
+
+  const avatars = ["🧑","👦","👧","🧒","👶","🐻","🐼","🦊","🐸","🦁","🐯","🦄","🐙","🦋","🐬"];
+  const ageToDevBand = (age) => {
+    const a = parseInt(age);
+    if(a<=2) return "0-2";
+    if(a<=4) return "3-4";
+    if(a<=6) return "5-6";
+    return "7-8";
+  };
+
+  const addStudent = async () => {
+    if(!newName.trim()) return;
+    const stu = {
+      id:`s_${Date.now()}`,
+      name:newName.trim(),
+      avatar:newAvatar,
+      age:newAge,
+      devBand:ageToDevBand(newAge),
+      color:"#1B65B8",
+      level:1,
+    };
+    const updated = [...students, stu];
+    setStudents(updated);
+    mem.set(`stu_${user.id}`, updated);
+    try { await sbAuth.saveStudent(stu, user.id); } catch(e){}
+    setNewName(""); setNewAge(""); setNewAvatar("🧑");
+    setAdding(false);
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB"}}>
+      <div style={{background:"#5AAB2A",padding:"14px 16px",display:"flex",
+        alignItems:"center",gap:12}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff",flex:1}}>
+          Student Profiles
+        </div>
+        <button onClick={()=>setAdding(true)}
+          style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:10,
+          padding:"6px 14px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>+ Add</button>
+      </div>
+
+      <div style={{padding:16}}>
+        {/* Add student form */}
+        {adding&&(
+          <div style={{background:"#fff",borderRadius:16,padding:16,marginBottom:14,
+            boxShadow:"0 4px 16px rgba(0,0,0,0.1)"}}>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#5AAB2A",marginBottom:12}}>
+              New Student
+            </div>
+            <input value={newName} onChange={e=>setNewName(e.target.value)}
+              placeholder="Student first name or nickname *"
+              style={{width:"100%",padding:"11px",borderRadius:10,border:"2px solid #EEF0F4",
+              fontFamily:"'Nunito',sans-serif",fontSize:14,outline:"none",
+              boxSizing:"border-box",marginBottom:10}}/>
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              <input value={newAge} onChange={e=>setNewAge(e.target.value)}
+                placeholder="Age (optional)" type="number" min="1" max="18"
+                style={{flex:1,padding:"11px",borderRadius:10,border:"2px solid #EEF0F4",
+                fontFamily:"'Nunito',sans-serif",fontSize:14,outline:"none"}}/>
+              {newAge&&(
+                <div style={{padding:"11px 14px",borderRadius:10,background:"#EAF3DE",
+                  fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:700,color:"#3D8A1A",
+                  display:"flex",alignItems:"center"}}>
+                  {ageToDevBand(newAge)} yr words
+                </div>
+              )}
+            </div>
+            {/* Avatar picker */}
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",
+              fontWeight:700,marginBottom:8}}>Choose Avatar</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:12}}>
+              {avatars.map(a=>(
+                <button key={a} onClick={()=>setNewAvatar(a)}
+                  style={{fontSize:24,width:40,height:40,borderRadius:10,border:"none",
+                  background:newAvatar===a?"#5AAB2A22":"#F0F2F5",cursor:"pointer",
+                  boxShadow:newAvatar===a?"0 0 0 2px #5AAB2A":"none"}}>
+                  {a}
+                </button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setAdding(false)}
+                style={{flex:1,padding:"10px",borderRadius:10,border:"2px solid #EEF0F4",
+                background:"transparent",fontFamily:"'Nunito',sans-serif",fontWeight:800,
+                fontSize:13,cursor:"pointer",color:"#888"}}>Cancel</button>
+              <button onClick={addStudent}
+                style={{flex:2,padding:"10px",borderRadius:10,border:"none",
+                background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",
+                fontWeight:800,fontSize:13,cursor:"pointer"}}>Save Student</button>
+            </div>
+          </div>
+        )}
+
+        {/* Student list */}
+        {students.length===0&&!adding&&(
+          <div style={{textAlign:"center",padding:"40px 20px",color:"#CCC",
+            fontFamily:"'Nunito',sans-serif",fontSize:14}}>
+            No students yet — tap + Add to get started
+          </div>
+        )}
+        {students.map(s=>(
+          <div key={s.id} style={{background:"#fff",borderRadius:14,padding:14,
+            marginBottom:10,boxShadow:"0 2px 8px rgba(0,0,0,0.06)",
+            display:"flex",alignItems:"center",gap:12}}>
+            <div style={{fontSize:36}}>{s.avatar||"🧑"}</div>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,
+                color:"#1A1A2E"}}>{s.name}</div>
+              {s.age&&(
+                <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:2}}>
+                  Age {s.age} · {s.devBand||ageToDevBand(s.age)} yr words
+                </div>
+              )}
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#5AAB2A",
+                fontWeight:700,marginTop:2}}>Level {s.level||1}</div>
+            </div>
+            <button onClick={()=>setEditStu(editStu?.id===s.id?null:s)}
+              style={{background:"#F0F2F5",border:"none",borderRadius:8,
+              padding:"6px 12px",cursor:"pointer",fontSize:14}}>✏️</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Subscription Section (in Settings) ───────────────────────────
+function SubscriptionSection({user, onBack}){
+  const [showStripe, setShowStripe] = useState(false);
+  const [stripePlan, setStripePlan] = useState("monthly");
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB"}}>
+      <div style={{background:"#E67E22",padding:"14px 16px",display:"flex",
+        alignItems:"center",gap:12}}>
+        <button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>
+          Subscription
+        </div>
+      </div>
+      <div style={{padding:16}}>
+        {/* Current plan */}
+        <div style={{background:"#fff",borderRadius:16,padding:16,marginBottom:14,
+          boxShadow:"0 2px 8px rgba(0,0,0,0.07)"}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",
+            fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>
+            Current Plan
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,
+              color:user.plan==="monthly"||user.plan==="annual"||user.plan==="school"?"#5AAB2A":"#E67E22",
+              textTransform:"capitalize"}}>
+              {user.plan==="monthly"?"Monthly ✅":
+               user.plan==="annual"?"Annual ✅":
+               user.plan==="school"?"School Site ✅":
+               user.plan==="admin"?"Admin ✅":"Free Trial ⏰"}
+            </div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
+              {user.plan==="monthly"?"$28/month":
+               user.plan==="annual"?"$252/year":
+               user.plan==="school"?"Custom":""}
+            </div>
+          </div>
+          {user.plan==="monthly"&&<div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:4}}>Up to 28 students · Cancel anytime</div>}
+          {user.plan==="annual"&&<div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:4}}>Up to 28 students · Best value</div>}
+          {(user.plan==="trial"||!user.plan)&&(
+            <div style={{marginTop:10}}>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#E67E22",
+                fontWeight:700,marginBottom:10}}>Subscribe to keep full access:</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{setStripePlan("monthly");setShowStripe(true);}}
+                  style={{flex:1,padding:"10px",borderRadius:10,border:"2px solid #1B65B8",
+                  background:"transparent",color:"#1B65B8",fontFamily:"'Nunito',sans-serif",
+                  fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                  Monthly<br/>$28/mo
+                </button>
+                <button onClick={()=>{setStripePlan("annual");setShowStripe(true);}}
+                  style={{flex:1,padding:"10px",borderRadius:10,border:"none",
+                  background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",
+                  fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                  Annual ⭐<br/>$252/yr
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Change plan request */}
+        <div style={{background:"#fff",borderRadius:16,padding:16,
+          boxShadow:"0 2px 8px rgba(0,0,0,0.07)"}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#888",
+            lineHeight:1.7,marginBottom:10}}>
+            To upgrade, downgrade, or cancel your subscription contact us — we'll take care of it within 24 hours.
+          </div>
+          <a href="mailto:hello@saysee.io?subject=Subscription Change Request"
+            style={{display:"block",padding:"12px",borderRadius:10,background:"#1B65B8",
+            color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,
+            textDecoration:"none",textAlign:"center"}}>
+            ✉️ Contact Us to Make Changes
+          </a>
+        </div>
+      </div>
+
+      {/* Stripe payment modal */}
+      {showStripe&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",
+          display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+          <PaymentForm user={user} plan={stripePlan}
+            onSuccess={()=>setShowStripe(false)}
+            onCancel={()=>setShowStripe(false)}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Auth screen ───────────────────────────────────────────────
 function AuthScreen({accounts,onLogin,onRegister}){
   const [mode,setMode]=useState("login");
@@ -1685,9 +2112,25 @@ function AuthScreen({accounts,onLogin,onRegister}){
 
           {mode==="login"&&<>
             <div style={{fontFamily:"'Fredoka One',cursive",fontSize:23,color:"#fff",marginBottom:22}}>Welcome back</div>
-            {[["Email","email",email,setEmail,"you@school.edu"],["Password","password",pass,setPass,"••••••••"]].map(([l,t,v,s,p])=>(
-              <div key={l} style={{marginBottom:13}}><label style={lStyle}>{l}</label><input value={v} onChange={e=>s(e.target.value)} type={t} placeholder={p} style={iStyle}/></div>
-            ))}
+            <div style={{marginBottom:13}}>
+              <label style={lStyle}>Email</label>
+              <input
+                value={email} onChange={e=>setEmail(e.target.value)}
+                type="email" placeholder="you@school.edu"
+                autoComplete="email"
+                onKeyDown={e=>e.key==="Enter"&&document.getElementById("pass-input")?.focus()}
+                style={iStyle}/>
+            </div>
+            <div style={{marginBottom:13}}>
+              <label style={lStyle}>Password</label>
+              <input
+                id="pass-input"
+                value={pass} onChange={e=>setPass(e.target.value)}
+                type="password" placeholder="••••••••"
+                autoComplete="current-password"
+                onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } }}
+                style={iStyle}/>
+            </div>
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
             <button onClick={doLogin} style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
             <div style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",fontSize:14,color:"rgba(255,255,255,0.45)"}}>
@@ -3586,10 +4029,44 @@ export default function SaySee(){
         const session = await sbAuth.getSession();
         if (session) {
           const acct = await sbAuth.getAccount(session.user.id);
-          if (acct) setUser(acct);
-          else setUser({ id:session.user.id, email:session.user.email, name:session.user.user_metadata?.name||session.user.email, role:session.user.user_metadata?.role||"teacher", plan:session.user.user_metadata?.plan||"monthly", maxStudents:28 });
+          const email = session.user.email || '';
+          const isAdmin = ['admin@saysee.app','admin@saysee.io','hello@saysee.io'].includes(email.toLowerCase());
+          const userData = acct ? {
+            ...acct,
+            role: isAdmin ? 'admin' : (acct.role || 'teacher'),
+            plan: isAdmin ? 'admin' : (acct.plan || 'monthly'),
+            maxStudents: acct.max_students || 28,
+            name: acct.name || email,
+          } : {
+            id:session.user.id, email,
+            name:session.user.user_metadata?.name||email,
+            role: isAdmin ? 'admin' : 'teacher',
+            plan: isAdmin ? 'admin' : 'monthly',
+            maxStudents:28
+          };
+          setUser(userData);
+          try { localStorage.setItem('saysee_session', JSON.stringify({user:userData,ts:Date.now()})); } catch(e){}
+        } else {
+          // No Supabase session — check 7-day local cache
+          try {
+            const cached = localStorage.getItem('saysee_session');
+            if(cached){
+              const {user:cu, ts} = JSON.parse(cached);
+              if(Date.now() - ts < 7*24*60*60*1000 && cu) setUser(cu);
+              else localStorage.removeItem('saysee_session');
+            }
+          } catch(e){}
         }
-      } catch(e) { console.log("Session check failed - using demo mode"); }
+      } catch(e) {
+        // Supabase unavailable — try local cache
+        try {
+          const cached = localStorage.getItem('saysee_session');
+          if(cached){
+            const {user:cu, ts} = JSON.parse(cached);
+            if(Date.now() - ts < 7*24*60*60*1000 && cu) setUser(cu);
+          }
+        } catch(e2){}
+      }
       setLoading(false);
     };
     checkSession();
@@ -3641,23 +4118,22 @@ export default function SaySee(){
       const { user:u } = await sbAuth.signIn(email, password);
       const acct = await sbAuth.getAccount(u.id);
       const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
-      if(acct) {
-        setUser({
-          ...acct,
-          role:       isAdmin ? 'admin'   : (acct.role   || 'teacher'),
-          plan:       isAdmin ? 'admin'   : (acct.plan   || 'monthly'),
-          maxStudents: acct.max_students  || 28,
-          name:       acct.name           || email,
-        });
-      } else {
-        setUser({
-          id: u.id, email: u.email,
-          name: u.user_metadata?.name || email,
-          role: isAdmin ? 'admin'  : (u.user_metadata?.role || 'teacher'),
-          plan: isAdmin ? 'admin'  : 'monthly',
-          maxStudents: 28,
-        });
-      }
+      const loginUser = acct ? {
+        ...acct,
+        role:       isAdmin ? 'admin'   : (acct.role   || 'teacher'),
+        plan:       isAdmin ? 'admin'   : (acct.plan   || 'monthly'),
+        maxStudents: acct.max_students  || 28,
+        name:       acct.name           || email,
+      } : {
+        id: u.id, email: u.email,
+        name: u.user_metadata?.name || email,
+        role: isAdmin ? 'admin'  : (u.user_metadata?.role || 'teacher'),
+        plan: isAdmin ? 'admin'  : 'monthly',
+        maxStudents: 28,
+      };
+      setUser(loginUser);
+      // Save 7-day session
+      try { localStorage.setItem('saysee_session', JSON.stringify({user:loginUser,ts:Date.now()})); } catch(e){}
     } catch(e) {
       setErr(e.message||"Invalid email or password.");
     }
@@ -3721,21 +4197,24 @@ export default function SaySee(){
               :<ErrorBoundary>
                 {homeMode==="home"?(
                   <HomeScreen user={user} onLogout={logout}
-                    onMode={mode=>{
-                      if(mode==="settings") setHomeMode("say"); // go to AAC with drawer open
-                      else setHomeMode(mode);
-                    }}/>
+                    onMode={mode=>setHomeMode(mode)}/>
                 ):homeMode==="see"?(
                   <SeeScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}/>
                 ):homeMode==="teach"?(
                   <TeachScreen user={user} students={[]} trialData={{}}
                     onBack={()=>setHomeMode("home")}
                     onManageStudents={()=>setHomeMode("say")}/>
+                ):homeMode==="data"?(
+                  <DataScreen user={user} onBack={()=>setHomeMode("home")}/>
+                ):homeMode==="settings"?(
+                  <SettingsScreen user={user} onBack={()=>setHomeMode("home")}
+                    onLogout={logout} onNavigate={m=>setHomeMode(m)}/>
                 ):homeMode==="reinforcers"?(
                   <ReinforcerSurveyScreen user={user}
                     onBack={()=>setHomeMode("home")}
                     onSave={()=>{}}/>
                 ):(
+                  // "say" mode — straight to AAC listening platform
                   <TeacherApp user={user} words={masterWords} onLogout={logout}
                     daysLeft={daysLeftInTrial(user)}
                     onGoHome={()=>setHomeMode("home")}/>
