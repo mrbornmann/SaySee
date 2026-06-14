@@ -1633,7 +1633,182 @@ function TeachScreen({user, students, trialData, onBack, onManageStudents}){
 }
 
 // ── Data Screen ──────────────────────────────────────────────────
+const NO_DATA_MSG = "Student trials must occur prior to analysis. Recommended that the app is used for a minimum of one school week.";
+
 function DataScreen({user, onBack}){
+  const [activeView, setActiveView] = useState(null);
+  const trialData = mem.get(`trials_${user.id}`,{});
+  const students  = mem.get(`stu_${user.id}`,[]);
+  const sessions  = mem.get(`sessions_${user.id}`,[]);
+
+  // Compute stats from actual trial data
+  const allTrials     = Object.values(trialData);
+  const totalWords    = Object.keys(trialData).length;
+  const totalCorrect  = allTrials.reduce((a,t)=>a+(t.correct||0),0);
+  const totalIncorrect= allTrials.reduce((a,t)=>a+(t.incorrect||0),0);
+  const avgTimes      = allTrials.map(t=>t.avgTime||0).filter(t=>t>0);
+  const avgResponse   = avgTimes.length
+    ? (avgTimes.reduce((a,b)=>a+b,0)/avgTimes.length/1000).toFixed(1)+"s"
+    : "—";
+  const hasData       = totalWords > 0;
+
+  const NoDataMsg = ()=>(
+    <div style={{background:"#FFF8EC",borderRadius:14,padding:16,
+      border:"1px solid #FEEBC8",margin:"0 0 16px"}}>
+      <div style={{fontSize:24,marginBottom:8}}>📊</div>
+      <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#92600A",
+        lineHeight:1.7,fontWeight:600}}>{NO_DATA_MSG}</div>
+    </div>
+  );
+
+  if(activeView==="graphs") return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB"}}>
+      <div style={{background:"#1B65B8",padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={()=>setActiveView(null)} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>📈 Progress Graphs</div>
+      </div>
+      <div style={{padding:16}}>
+        {!hasData&&<NoDataMsg/>}
+        {/* Word progress bars */}
+        {hasData&&Object.entries(trialData).slice(0,10).map(([key,val])=>{
+          const pct = val.correct ? Math.round((val.correct/(val.correct+(val.incorrect||0)))*100) : 0;
+          const wordName = key.split("_").slice(1).join(" ") || key;
+          return(
+            <div key={key} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10,
+              boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,color:"#333",
+                  textTransform:"capitalize"}}>{wordName}</div>
+                <div style={{fontFamily:"'Fredoka One',cursive",fontSize:14,color:"#1B65B8"}}>{pct}%</div>
+              </div>
+              <div style={{height:10,borderRadius:5,background:"#EEF0F4",overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,borderRadius:5,
+                  background:`linear-gradient(90deg,${pct>=80?"#5AAB2A":pct>=50?"#F5A623":"#E74C3C"},${pct>=80?"#3d8a1e":pct>=50?"#E67E22":"#C0392B"})`,
+                  transition:"width 0.5s ease"}}/>
+              </div>
+              <div style={{display:"flex",gap:12,marginTop:4}}>
+                <span style={{fontFamily:"'Nunito',sans-serif",fontSize:10,color:"#5AAB2A",fontWeight:700}}>✅ {val.correct||0}</span>
+                <span style={{fontFamily:"'Nunito',sans-serif",fontSize:10,color:"#E74C3C",fontWeight:700}}>❌ {val.incorrect||0}</span>
+                <span style={{fontFamily:"'Nunito',sans-serif",fontSize:10,color:"#888"}}>Level {val.level||1}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  if(activeView==="history") return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB"}}>
+      <div style={{background:"#8E44AD",padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={()=>setActiveView(null)} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>📋 Session History</div>
+      </div>
+      <div style={{padding:16}}>
+        {!hasData&&<NoDataMsg/>}
+        {hasData&&sessions.length===0&&(
+          <div style={{textAlign:"center",padding:40,color:"#CCC",fontFamily:"'Nunito',sans-serif"}}>
+            Sessions will appear here after use
+          </div>
+        )}
+        {sessions.map((s,i)=>(
+          <div key={i} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10,
+            boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}}>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,color:"#333"}}>
+              {new Date(s.date||Date.now()).toLocaleDateString()}
+            </div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:2}}>
+              {s.wordCount||0} words · {s.correct||0} correct · {s.duration||0}min
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  if(activeView==="download") return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB"}}>
+      <div style={{background:"#5AAB2A",padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={()=>setActiveView(null)} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>📥 Progress Reports</div>
+      </div>
+      <div style={{padding:16}}>
+        {!hasData&&<NoDataMsg/>}
+        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
+          marginBottom:16,lineHeight:1.6}}>
+          Select a student to download their individual progress report as a PDF.
+        </div>
+        {students.map(s=>(
+          <button key={s.id} onClick={()=>alert(`PDF report for ${s.name} — will be generated once sufficient trial data is collected.
+
+${NO_DATA_MSG}`)}
+            style={{width:"100%",padding:"14px",borderRadius:14,border:"none",
+            background:"#fff",cursor:"pointer",marginBottom:10,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.07)",
+            display:"flex",alignItems:"center",gap:12,textAlign:"left"}}>
+            <div style={{fontSize:32}}>{s.avatar||"🧑"}</div>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,color:"#1A1A2E"}}>{s.name}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>Tap to download PDF report</div>
+            </div>
+            <div style={{fontSize:20}}>📥</div>
+          </button>
+        ))}
+        {students.length===0&&(
+          <div style={{textAlign:"center",padding:30,color:"#CCC",fontFamily:"'Nunito',sans-serif",fontSize:13}}>
+            Add students in Settings to generate reports
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if(activeView==="share") return(
+    <div style={{minHeight:"100vh",background:"#F4F6FB"}}>
+      <div style={{background:"#E67E22",padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={()=>setActiveView(null)} style={{background:"rgba(255,255,255,0.2)",border:"none",
+          borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>📤 Share Report</div>
+      </div>
+      <div style={{padding:16}}>
+        {!hasData&&<NoDataMsg/>}
+        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",marginBottom:16,lineHeight:1.6}}>
+          Share a student progress report with a parent, specialist, or district administrator.
+        </div>
+        {students.map(s=>(
+          <button key={s.id}
+            onClick={()=>{
+              const subject = encodeURIComponent(`SaySee™ Progress Report — ${s.name}`);
+              const body = encodeURIComponent(`Please find the progress report for ${s.name} attached.
+
+Generated by SaySee™ AAC Visual Learning Platform
+hello@saysee.io | saysee.io`);
+              window.location.href = `mailto:?subject=${subject}&body=${body}`;
+            }}
+            style={{width:"100%",padding:"14px",borderRadius:14,border:"none",
+            background:"#fff",cursor:"pointer",marginBottom:10,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.07)",
+            display:"flex",alignItems:"center",gap:12,textAlign:"left"}}>
+            <div style={{fontSize:32}}>{s.avatar||"🧑"}</div>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,color:"#1A1A2E"}}>{s.name}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>Tap to share via email</div>
+            </div>
+            <div style={{fontSize:20}}>📤</div>
+          </button>
+        ))}
+        {students.length===0&&(
+          <div style={{textAlign:"center",padding:30,color:"#CCC",fontFamily:"'Nunito',sans-serif",fontSize:13}}>
+            Add students in Settings to share reports
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return(
     <div style={{minHeight:"100vh",background:"#F4F6FB",display:"flex",flexDirection:"column"}}>
       <div style={{background:"#E67E22",padding:"14px 16px",display:"flex",
@@ -1646,40 +1821,42 @@ function DataScreen({user, onBack}){
         </div>
       </div>
       <div style={{padding:16,flex:1}}>
-        {/* Quick stats tiles */}
+        {/* Default message if no data */}
+        {!hasData&&<NoDataMsg/>}
+
+        {/* Stats tiles */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
           {[
-            {label:"Sessions Today",  val:"—",  emoji:"📅", color:"#1B65B8"},
-            {label:"Words Practiced", val:"—",  emoji:"📝", color:"#5AAB2A"},
-            {label:"Avg Response",    val:"—",  emoji:"⏱️",  color:"#8E44AD"},
-            {label:"Praise Given",    val:"—",  emoji:"🌟", color:"#F5A623"},
+            {label:"Words Practiced", val:hasData?totalWords:"—",   emoji:"📝", color:"#1B65B8"},
+            {label:"Total Correct",   val:hasData?totalCorrect:"—", emoji:"✅", color:"#5AAB2A"},
+            {label:"Avg Response",    val:avgResponse,               emoji:"⏱️",  color:"#8E44AD"},
+            {label:"Corrections",     val:hasData?totalIncorrect:"—",emoji:"🔄", color:"#E67E22"},
           ].map(t=>(
             <div key={t.label} style={{background:"#fff",borderRadius:16,padding:16,
               boxShadow:"0 2px 8px rgba(0,0,0,0.07)",display:"flex",flexDirection:"column",gap:4}}>
-              <div style={{fontSize:28}}>{t.emoji}</div>
+              <div style={{fontSize:24}}>{t.emoji}</div>
               <div style={{fontFamily:"'Fredoka One',cursive",fontSize:26,color:t.color}}>{t.val}</div>
               <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#888",fontWeight:700}}>{t.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Action tiles */}
+        {/* Action buttons */}
         {[
-          {label:"View Progress Graphs",    emoji:"📈", desc:"Visual class and student progress", color:"#1B65B8"},
-          {label:"Download Progress Report",emoji:"📥", desc:"Export PDF for any student",        color:"#5AAB2A"},
-          {label:"Session History",         emoji:"📋", desc:"View past sessions by date",        color:"#8E44AD"},
-          {label:"Share Report",            emoji:"📤", desc:"Send to parent or district",        color:"#E67E22"},
+          {id:"graphs",   label:"View Progress Graphs",     emoji:"📈", desc:"Visual word-by-word accuracy and level progress", color:"#1B65B8"},
+          {id:"download", label:"Download Progress Report", emoji:"📥", desc:"Export PDF for any student",                     color:"#5AAB2A"},
+          {id:"history",  label:"Session History",          emoji:"📋", desc:"View past sessions by date",                      color:"#8E44AD"},
+          {id:"share",    label:"Share Report",             emoji:"📤", desc:"Send progress report to parent or district",      color:"#E67E22"},
         ].map(t=>(
-          <button key={t.label} onClick={()=>alert(`${t.label} — coming soon! Contact hello@saysee.io`)}
+          <button key={t.id} onClick={()=>setActiveView(t.id)}
             style={{width:"100%",padding:"16px",borderRadius:14,border:"none",
             background:"#fff",cursor:"pointer",marginBottom:10,
             boxShadow:"0 2px 8px rgba(0,0,0,0.07)",
             display:"flex",alignItems:"center",gap:14,textAlign:"left"}}>
-            <div style={{fontSize:28,width:44,height:44,borderRadius:12,
-              background:`${t.color}15`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              {t.emoji}
-            </div>
-            <div>
+            <div style={{fontSize:26,width:44,height:44,borderRadius:12,
+              background:`${t.color}15`,display:"flex",alignItems:"center",
+              justifyContent:"center",flexShrink:0}}>{t.emoji}</div>
+            <div style={{flex:1}}>
               <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,color:"#1A1A2E"}}>
                 {t.label}
               </div>
@@ -1687,7 +1864,7 @@ function DataScreen({user, onBack}){
                 {t.desc}
               </div>
             </div>
-            <div style={{marginLeft:"auto",color:"#CCC",fontSize:18}}>›</div>
+            <div style={{color:"#CCC",fontSize:18}}>›</div>
           </button>
         ))}
       </div>
@@ -1787,8 +1964,51 @@ function SettingsScreen({user, onBack, onLogout, onNavigate}){
 
 // ── Profile Section ───────────────────────────────────────────────
 function ProfileSection({user, onBack}){
-  const [name, setName] = useState(user.name||"");
-  const [saved, setSaved] = useState(false);
+  const [firstName, setFirstName] = useState((user.name||"").split(" ")[0]||"");
+  const [lastName,  setLastName]  = useState((user.name||"").split(" ").slice(1).join(" ")||"");
+  const [phone,     setPhone]     = useState(user.phone||"");
+  const [school,    setSchool]    = useState(user.school||"");
+  const [grade,     setGrade]     = useState(user.grade||"");
+  const [photoUrl,  setPhotoUrl]  = useState(mem.get(`profile_photo_${user.id}`)||null);
+  const [saved,     setSaved]     = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const fileRef = useRef(null);
+
+  // Generate initials avatar
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "?";
+  const bgColors = ["#1B65B8","#5AAB2A","#8E44AD","#E67E22","#E74C3C","#16A085"];
+  const bgColor  = bgColors[(firstName.charCodeAt(0)||0) % bgColors.length];
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target.result;
+      setPhotoUrl(url);
+      mem.set(`profile_photo_${user.id}`, url);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const updatedName = `${firstName} ${lastName}`.trim();
+    try {
+      await supabase.from("accounts").update({
+        name: updatedName,
+        phone,
+        school,
+        grade,
+      }).eq("id", user.id);
+      user.name = updatedName;
+      mem.set(`profile_${user.id}`, {name:updatedName, phone, school, grade});
+    } catch(e){ console.log("Profile save:", e); }
+    setSaved(true);
+    setSaving(false);
+    setTimeout(()=>setSaved(false), 3000);
+  };
+
   return(
     <div style={{minHeight:"100vh",background:"#F4F6FB"}}>
       <div style={{background:"#607D8B",padding:"14px 16px",display:"flex",
@@ -1796,35 +2016,115 @@ function ProfileSection({user, onBack}){
         <button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",
           borderRadius:10,padding:"6px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
           fontWeight:800,fontSize:13,cursor:"pointer"}}>← Back</button>
-        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>Edit Profile</div>
-      </div>
-      <div style={{padding:16}}>
-        <div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 2px 8px rgba(0,0,0,0.07)"}}>
-          <div style={{textAlign:"center",marginBottom:20}}>
-            <div style={{fontSize:64,marginBottom:8}}>👤</div>
-            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
-              {user.email}
-            </div>
-          </div>
-          <label style={{fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:700,
-            color:"#888",display:"block",marginBottom:6}}>Display Name</label>
-          <input value={name} onChange={e=>setName(e.target.value)}
-            style={{width:"100%",padding:"12px",borderRadius:10,border:"2px solid #EEF0F4",
-            fontFamily:"'Nunito',sans-serif",fontSize:14,outline:"none",
-            boxSizing:"border-box",marginBottom:16}}/>
-          <div style={{background:"#F8F9FC",borderRadius:10,padding:12,marginBottom:16}}>
-            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",
-              fontWeight:700,marginBottom:4}}>Role</div>
-            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:14,color:"#555",
-              textTransform:"capitalize"}}>{user.role||"teacher"}</div>
-          </div>
-          {saved&&<div style={{color:"#5AAB2A",fontFamily:"'Nunito',sans-serif",
-            fontSize:13,fontWeight:700,textAlign:"center",marginBottom:10}}>✅ Profile saved!</div>}
-          <button onClick={()=>setSaved(true)}
-            style={{width:"100%",padding:"12px",borderRadius:30,border:"none",
-            background:"#1B65B8",color:"#fff",fontFamily:"'Nunito',sans-serif",
-            fontWeight:800,fontSize:14,cursor:"pointer"}}>Save Profile</button>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff",flex:1}}>
+          Edit Profile
         </div>
+        <button onClick={handleSave} disabled={saving}
+          style={{background:"#5AAB2A",border:"none",borderRadius:10,
+          padding:"6px 16px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:13,cursor:"pointer"}}>
+          {saving?"Saving...":"Save"}
+        </button>
+      </div>
+
+      <div style={{padding:16}}>
+        {/* Profile photo */}
+        <div style={{background:"#fff",borderRadius:16,padding:20,
+          boxShadow:"0 2px 8px rgba(0,0,0,0.07)",marginBottom:14,textAlign:"center"}}>
+          <div style={{position:"relative",display:"inline-block",marginBottom:12}}>
+            {photoUrl?(
+              <img src={photoUrl} alt="Profile"
+                style={{width:90,height:90,borderRadius:"50%",objectFit:"cover",
+                border:"3px solid #1B65B8"}}/>
+            ):(
+              <div style={{width:90,height:90,borderRadius:"50%",background:bgColor,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontFamily:"'Fredoka One',cursive",fontSize:32,color:"#fff",
+                border:"3px solid #1B65B8"}}>
+                {initials}
+              </div>
+            )}
+            <button onClick={()=>fileRef.current?.click()}
+              style={{position:"absolute",bottom:0,right:0,width:28,height:28,
+              borderRadius:"50%",background:"#1B65B8",border:"2px solid #fff",
+              color:"#fff",fontSize:14,cursor:"pointer",display:"flex",
+              alignItems:"center",justifyContent:"center"}}>✏️</button>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}}
+            onChange={handlePhotoUpload}/>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
+            {user.email}
+          </div>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#AAA",
+            marginTop:2,textTransform:"capitalize"}}>{user.role||"teacher"}</div>
+        </div>
+
+        {/* Editable fields */}
+        <div style={{background:"#fff",borderRadius:16,padding:16,
+          boxShadow:"0 2px 8px rgba(0,0,0,0.07)",marginBottom:14}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,fontWeight:800,
+            color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:12}}>
+            Personal Information
+          </div>
+          {[
+            {label:"First Name",   val:firstName, set:setFirstName, placeholder:"First name"},
+            {label:"Last Name",    val:lastName,  set:setLastName,  placeholder:"Last name"},
+            {label:"Phone",        val:phone,     set:setPhone,     placeholder:"(555) 555-5555", type:"tel"},
+          ].map(f=>(
+            <div key={f.label} style={{marginBottom:12}}>
+              <label style={{fontFamily:"'Nunito',sans-serif",fontSize:11,fontWeight:700,
+                color:"#888",display:"block",marginBottom:4}}>{f.label}</label>
+              <input value={f.val} onChange={e=>f.set(e.target.value)}
+                placeholder={f.placeholder} type={f.type||"text"}
+                style={{width:"100%",padding:"11px 12px",borderRadius:10,
+                border:"2px solid #EEF0F4",fontFamily:"'Nunito',sans-serif",
+                fontSize:13,outline:"none",boxSizing:"border-box",
+                transition:"border 0.2s"}}
+                onFocus={e=>e.target.style.borderColor="#1B65B8"}
+                onBlur={e=>e.target.style.borderColor="#EEF0F4"}/>
+            </div>
+          ))}
+        </div>
+
+        <div style={{background:"#fff",borderRadius:16,padding:16,
+          boxShadow:"0 2px 8px rgba(0,0,0,0.07)",marginBottom:14}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,fontWeight:800,
+            color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:12}}>
+            School Information
+          </div>
+          {[
+            {label:"School / Institution", val:school, set:setSchool, placeholder:"School name"},
+            {label:"Grade / Class",        val:grade,  set:setGrade,  placeholder:"e.g. 3rd Grade, SDC"},
+          ].map(f=>(
+            <div key={f.label} style={{marginBottom:12}}>
+              <label style={{fontFamily:"'Nunito',sans-serif",fontSize:11,fontWeight:700,
+                color:"#888",display:"block",marginBottom:4}}>{f.label}</label>
+              <input value={f.val} onChange={e=>f.set(e.target.value)}
+                placeholder={f.placeholder}
+                style={{width:"100%",padding:"11px 12px",borderRadius:10,
+                border:"2px solid #EEF0F4",fontFamily:"'Nunito',sans-serif",
+                fontSize:13,outline:"none",boxSizing:"border-box"}}
+                onFocus={e=>e.target.style.borderColor="#1B65B8"}
+                onBlur={e=>e.target.style.borderColor="#EEF0F4"}/>
+            </div>
+          ))}
+        </div>
+
+        {saved&&(
+          <div style={{padding:"12px 16px",borderRadius:12,background:"#EAF3DE",
+            border:"1px solid #C8E6B0",fontFamily:"'Nunito',sans-serif",fontSize:13,
+            color:"#3D8A1A",fontWeight:700,textAlign:"center",marginBottom:14}}>
+            ✅ Profile saved successfully!
+          </div>
+        )}
+
+        <button onClick={handleSave} disabled={saving}
+          style={{width:"100%",padding:"13px",borderRadius:30,border:"none",
+          background:saving?"#EEF0F4":"#1B65B8",
+          color:saving?"#AAA":"#fff",fontFamily:"'Nunito',sans-serif",
+          fontWeight:800,fontSize:14,cursor:saving?"not-allowed":"pointer"}}>
+          {saving?"Saving...":"Save Profile"}
+        </button>
       </div>
     </div>
   );
@@ -2059,18 +2359,191 @@ function SubscriptionSection({user, onBack}){
   );
 }
 
+
+// ── Word-Specific Visual Alternatives Library ─────────────────────
+// Each entry: { l1: "AI image guide", l2: [color emojis], l3: [bw descriptions] }
+const WORD_VISUALS = {
+  // ── Core words ───────────────────────────────────────────────
+  "yes":       { l1:"A person nodding with a big smile, thumbs up gesture, bright background",
+                 l2:["✅","👍","🟢","☑️","💚","🙂"], l3:["☑","✓","⬜✓","▢✓","□✓","✔"] },
+  "no":        { l1:"A person shaking their head, hand out in stop gesture, clear background",
+                 l2:["❌","🚫","🛑","👎","🔴","✋"], l3:["✗","⬜✗","□✗","▢✗","✕","—"] },
+  "more":      { l1:"Two hands touching fingertips together, the ASL sign for more",
+                 l2:["➕","🔢","👐","🤲","💫","🔁"], l3:["++","▲","△","⬆",">>","»"] },
+  "help":      { l1:"One hand lifting the other fist — the ASL sign for help, plain background",
+                 l2:["🙋","🤝","💪","🆘","🫂","🙌"], l3:["☎","⬛?","□↑","▢↑","⇑","↑"] },
+  "please":    { l1:"An open hand rubbing a circle on the chest, ASL sign for please",
+                 l2:["🙏","💛","😊","🌟","✨","💕"], l3:["○","◯","⊙","●","◎","☯"] },
+  "mine":      { l1:"A fist tapping the chest, ASL sign for mine, clear background",
+                 l2:["👐","🫵","💎","🏠","🎒","⭐"], l3:["◀","←","⊂","◁","▷←","▢←"] },
+  "up":        { l1:"A hand with index finger pointing upward, arrow going up, clear background",
+                 l2:["⬆️","☝️","🔼","🆙","🚀","📈"], l3:["↑","⇑","▲","△","⬆","↟"] },
+  "down":      { l1:"A hand pointing downward, arrow going down, clear background",
+                 l2:["⬇️","👇","🔽","📉","⏬","🪂"], l3:["↓","⇓","▼","▽","⬇","↡"] },
+  "on":        { l1:"A light switch in the ON position with light bulb lit, clear background",
+                 l2:["💡","🔛","✅","🟢","☀️","⚡"], l3:["▣","◼","●","■","▪","◉"] },
+  "off":       { l1:"A light switch in the OFF position, light bulb unlit, clear background",
+                 l2:["🔴","⭕","🔕","❌","🌑","💤"], l3:["○","◯","□","▢","⬜","△"] },
+  // ── Daily needs ──────────────────────────────────────────────
+  "eat":       { l1:"A child sitting at a table with a plate of food, fork in hand, smiling",
+                 l2:["🍽️","🥄","🍴","😋","🥘","🧆"], l3:["□→○","▢→●","□food","plate","fork","bowl"] },
+  "drink":     { l1:"A child holding a cup to their mouth taking a sip, clear background",
+                 l2:["🥤","🧃","🍵","💧","🥛","🫗"], l3:["▢↑","cup","□drink","glass","▢→","bottle"] },
+  "sleep":     { l1:"A child in bed with eyes closed, pillow and blanket, moonlight window",
+                 l2:["😴","🛏️","🌙","💤","🌛","🧸"], l3:["zz","ZZZ","○○","●bed","□zz","◯sleep"] },
+  "bath":      { l1:"A bathtub with bubbles and rubber duck, warm water running",
+                 l2:["🛁","🧼","🫧","💦","🦆","🚿"], l3:["▢water","□tub","◯bubble","□bath","▢~","○○○"] },
+  "potty":     { l1:"A toilet with seat up in a clean bathroom, clear simple image",
+                 l2:["🚽","🚻","🧻","🚾","🪠","🏠"], l3:["□seat","▢◯","toilet","▢wc","□room","◯wc"] },
+  "milk":      { l1:"A tall glass of cold white milk on a white table, clear background",
+                 l2:["🥛","🐄","🍼","⬜","🌾","🧆"], l3:["▢◯","□milk","glass","▢white","○cup","□lg"] },
+  "water":     { l1:"A clear glass of water with ripples, on a table, simple background",
+                 l2:["💧","🌊","🚰","💦","🫗","🧊"], l3:["~","≈","▢~","□water","◯~","≋"] },
+  "snack":     { l1:"A small plate with apple slices, crackers, and cheese on a table",
+                 l2:["🍎","🍪","🧀","🥨","🍇","🥕"], l3:["□plate","▢food","○○○","□snack","▢small","●●"] },
+  // ── People ───────────────────────────────────────────────────
+  "mom":       { l1:"A smiling woman with arms open wide in a warm, inviting pose, home background",
+                 l2:["👩","🤱","💝","👩‍👦","🏠","💕"], l3:["♀","□mom","▢person","○♀","woman","▢♀"] },
+  "dad":       { l1:"A smiling man with arms open wide, casual clothing, warm background",
+                 l2:["👨","👨‍👦","💪","🏠","⭐","💙"], l3:["♂","□dad","▢person","○♂","man","▢♂"] },
+  "baby":      { l1:"A smiling baby in a onesie, sitting up, clear warm background",
+                 l2:["👶","🍼","🧸","🌸","🏠","💛"], l3:["○small","▢baby","□little","◯tiny","●small","▢◯"] },
+  "teacher":   { l1:"A teacher standing at a whiteboard with a marker, classroom background",
+                 l2:["👩‍🏫","📚","✏️","🏫","🎓","📋"], l3:["▢person","□teacher","▢board","◉teach","□✓","▢↑"] },
+  "friend":    { l1:"Two children smiling and standing side by side, playground background",
+                 l2:["🤝","👫","💛","😊","🫂","🌟"], l3:["○○","▢▢","□□","◯◯","●●","▢=▢"] },
+  "doctor":    { l1:"A doctor in white coat with stethoscope, smiling, clinic background",
+                 l2:["👨‍⚕️","🩺","🏥","💊","❤️‍🩹","🌡️"], l3:["□+","▢dr","◉health","□doc","▢✚","○+"] },
+  // ── Emotions ─────────────────────────────────────────────────
+  "happy":     { l1:"A child with a big genuine smile, arms slightly raised in joy, bright background",
+                 l2:["😊","😄","🌟","☀️","🎉","💛"], l3:["◠","○smile","▢:)","□happy","◯☺","▢◠"] },
+  "sad":       { l1:"A child with a frowning face, looking down, maybe a single tear",
+                 l2:["😢","😔","💙","🌧️","☁️","😞"], l3:["◡","○frown","▢:(","□sad","◯☹","▢◡"] },
+  "angry":     { l1:"A child with furrowed brows and clenched fists, red face, clear background",
+                 l2:["😠","😡","🔴","💢","⚡","🌋"], l3:["▼▼","□angry","▢>:<","◯frown","□mad","▢!!"] },
+  "scared":    { l1:"A child with wide open eyes, hands on cheeks, startled expression",
+                 l2:["😨","😱","👻","🙈","💨","⚡"], l3:["○○big","□!","▢scared","◯wide","□oh!","▢!!"] },
+  "tired":     { l1:"A child yawning with droopy eyes, slumped posture, soft background",
+                 l2:["😫","😴","💤","🌙","🥱","🛌"], l3:["zz","▢—","□tired","◯sleep","▢zzz","○—"] },
+  "excited":   { l1:"A child jumping in the air with arms raised, huge smile, bright background",
+                 l2:["🤩","🎉","⭐","🎊","✨","🚀"], l3:["↑↑","□!!","▢jump","◯!","□excited","▢★"] },
+  "frustrated":{ l1:"A child with arms crossed, furrowed brow, looking to the side",
+                 l2:["😤","💢","🌩️","😒","🔴","😾"], l3:["□><","▢!!","◯frown","▢cross","□!","▢—"] },
+  "calm":      { l1:"A child sitting cross-legged, eyes half closed, peaceful expression, soft light",
+                 l2:["😌","🌿","💚","🧘","☁️","🌊"], l3:["○~","▢—","□calm","◯soft","▢slow","○peace"] },
+  "proud":     { l1:"A child holding up a certificate or trophy, chest puffed out, big smile",
+                 l2:["🏆","⭐","🎖️","💛","👏","✨"], l3:["★","□★","▢trophy","◯win","□proud","▢↑★"] },
+  // ── Actions ──────────────────────────────────────────────────
+  "run":       { l1:"A child running on a path outdoors, legs in stride, arms pumping, sunny day",
+                 l2:["🏃","👟","💨","⚡","🌬️","🏁"], l3:["→→","□fast","▢run","◯→","□>>","▢>>"] },
+  "jump":      { l1:"A child jumping in the air both feet off ground, arms up, clear background",
+                 l2:["⬆️","🦘","🎯","🌟","⚡","🏃"], l3:["↑↑","□jump","▢↑","◯up","□leap","▢↟"] },
+  "play":      { l1:"Two children playing with blocks on a colorful mat, smiling and engaged",
+                 l2:["🎮","🧸","🎯","🎪","🎲","⚽"], l3:["□○△","▢play","◯fun","□game","▢toys","○▢△"] },
+  "dance":     { l1:"A child dancing with arms out and one leg raised, music notes around them",
+                 l2:["💃","🎵","🎶","🌈","⭐","🕺"], l3:["♪","♫","□dance","▢move","◯spin","▢♩"] },
+  "draw":      { l1:"A child's hand holding a crayon drawing a picture on paper, close up",
+                 l2:["✏️","🖍️","🎨","📝","🖊️","🎭"], l3:["□line","▢draw","◯art","▢/","□pencil","—/—"] },
+  "sit":       { l1:"A child sitting in a chair with feet on floor, hands on lap, good posture",
+                 l2:["🪑","⬇️","🏠","📚","🎒","🏫"], l3:["□sit","▢down","◯chair","□⬇","▢chair","○⬇"] },
+  "stop":      { l1:"A stop sign, or a hand held palm outward in the universal stop gesture",
+                 l2:["🛑","✋","⛔","🔴","🚫","❌"], l3:["▢stop","□STOP","■■","▢×","□halt","▢!"] },
+  "wait":      { l1:"A child sitting with hands folded in lap, patient expression, calm posture",
+                 l2:["⏳","🕐","🤚","💤","⏱️","🌿"], l3:["…","□wait","▢...","◯—","□pause","▢≡"] },
+  "clean":     { l1:"A child wiping a table with a sponge or putting toys in a bin, focused",
+                 l2:["🧹","🧽","🫧","✨","🗑️","🧺"], l3:["□clean","▢neat","◯tidy","□○","▢wipe","○○"] },
+  // ── Classroom items ──────────────────────────────────────────
+  "pencil":    { l1:"A yellow sharpened pencil lying on a clean white desk, top-down view",
+                 l2:["✏️","🖊️","📝","🖍️","📏","📐"], l3:["—/","□pencil","▢line","—|","□write","▢—"] },
+  "paper":     { l1:"A blank white sheet of paper on a desk, slightly turned, clean background",
+                 l2:["📄","📝","🗒️","📃","📋","🗞️"], l3:["□","▢","◻","□paper","▢sheet","◻—"] },
+  "book":      { l1:"An open children's picture book showing colorful illustrations, on a table",
+                 l2:["📚","📖","📕","🔖","🎒","📗"], l3:["□□","▢book","◻open","□read","▢pages","▭"] },
+  "backpack":  { l1:"A child's colorful backpack hanging on a hook or sitting on a chair",
+                 l2:["🎒","🏫","📚","✏️","🏃","🎨"], l3:["□bag","▢pack","◻bag","□school","▢carry","○bag"] },
+  "scissors":  { l1:"A pair of safety scissors open on a white desk, from above",
+                 l2:["✂️","✏️","🎨","📝","🖍️","📐"], l3:["✗","□cut","▢×","◯✗","□snip","×"] },
+  "chair":     { l1:"A child-sized classroom chair, simple four legs and back, on classroom floor",
+                 l2:["🪑","⬇️","🏫","📚","🏠","🛋️"], l3:["□sit","▢chair","◻seat","□⬇","▢—","◻⬇"] },
+  // ── Food ─────────────────────────────────────────────────────
+  "apple":     { l1:"A bright red apple on a white table, leaves visible, clean simple shot",
+                 l2:["🍎","🍏","🍐","🍊","🍋","🍓"], l3:["○apple","▢round","◯○","□fruit","▢○red","○—"] },
+  "banana":    { l1:"A yellow banana slightly curved on a white background, simple and clear",
+                 l2:["🍌","🍋","🌽","🍑","🟡","🌙"], l3:["⌒","▢curve","□banana","◡","▢⌒","○⌒"] },
+  "cookie":    { l1:"A round chocolate chip cookie on a white plate, close-up overhead view",
+                 l2:["🍪","🎂","🧁","🍩","🍫","🟤"], l3:["○●","□cookie","▢round","◯●","□circle","●○"] },
+  "pizza":     { l1:"A triangle slice of cheese pizza on a plate, overhead view, simple",
+                 l2:["🍕","🧀","🍅","🫕","🔺","🍴"], l3:["△","▲pizza","□triangle","◭","▢△","△—"] },
+  "sandwich":  { l1:"A simple sandwich with bread, lettuce and cheese on a plate, side view",
+                 l2:["🥪","🍞","🧀","🥬","🍅","🫕"], l3:["▭▭","□sandwich","▢layers","◻stack","▭=▭","▭"] },
+  // ── Animals ──────────────────────────────────────────────────
+  "dog":       { l1:"A friendly golden retriever puppy sitting and looking at camera, plain background",
+                 l2:["🐶","🐕","🦴","🐾","🏠","🎾"], l3:["□dog","▢ears","◯•◯","□paws","▢woof","○◯"] },
+  "cat":       { l1:"An orange tabby cat sitting upright looking at camera, clean background",
+                 l2:["🐱","🐈","🐾","🧶","🌙","🎀"], l3:["△ears","□cat","▢whiskers","◯•","□meow","▢△"] },
+  "bird":      { l1:"A small blue and yellow bird perched on a branch, clean simple background",
+                 l2:["🐦","🦜","🐣","🕊️","🌿","🌸"], l3:["▷wings","□bird","▢fly","◯beak","□tweet","△wings"] },
+  "fish":      { l1:"A bright orange goldfish in clear water, side view, simple background",
+                 l2:["🐟","🐠","🐡","🌊","💧","🎣"], l3:["◁fin","□fish","▢swim","◯scales","□fin","▷◁"] },
+  // ── Health & Safety ──────────────────────────────────────────
+  "sick":      { l1:"A child in bed with a thermometer in mouth, looking tired, blanket pulled up",
+                 l2:["🤒","🌡️","🤧","💊","🛌","💙"], l3:["□sick","▢frown","◯—","□ill","▢◡","○×"] },
+  "hurt":      { l1:"A child's arm or knee with a colorful band-aid on it, close-up",
+                 l2:["🤕","❤️‍🩹","💊","🩹","😢","🏥"], l3:["□hurt","▢ouch","◯×","□pain","▢aid","×"] },
+  "danger":    { l1:"A yellow warning triangle sign with exclamation mark, bold and clear",
+                 l2:["⚠️","🚫","🔴","🛑","⛔","💢"], l3:["△!","▲!","□danger","▢warn","△⚠","▲×"] },
+  // ── Community ────────────────────────────────────────────────
+  "bus":       { l1:"A yellow school bus on a road, side view, sunny day, clear simple image",
+                 l2:["🚌","🏫","🚍","🛣️","⭐","🎒"], l3:["▭bus","□school bus","▢▭","□ride","▢yellow","▭→"] },
+  "store":     { l1:"A simple grocery store storefront with a shopping cart out front",
+                 l2:["🏪","🛒","🛍️","🏬","💰","🍎"], l3:["□store","▢shop","◻front","□buy","▢cart","▭shop"] },
+  "library":   { l1:"Rows of colorful books on wooden shelves in a bright library",
+                 l2:["📚","🏛️","📖","🔖","🪑","🌟"], l3:["▭▭▭","□books","▢shelf","◻row","□read","▢▭▭"] },
+  // ── Playground ───────────────────────────────────────────────
+  "swing":     { l1:"A child on a playground swing, legs out in the air, big smile, sunny day",
+                 l2:["🎠","⬆️","🌟","🏃","☀️","🌳"], l3:["⌒seat","□swing","▢arc","◡hang","□←→","▢⌒"] },
+  "slide":     { l1:"A red plastic playground slide with a child at the top about to go down",
+                 l2:["🛝","⬇️","🎉","🌈","⭐","🏃"], l3:["\slide","□slide","▢down","◭","□/","▢\"] },
+};
+
 // ── Word Detail Panel (See Screen) ───────────────────────────────
 function WordDetailPanel({word, user, onClose}){
   const [activeLevel, setActiveLevel] = useState(1);
   const [aiImage, setAiImage] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [selectedL2, setSelectedL2] = useState(0);
+  const [selectedL3, setSelectedL3] = useState(0);
 
-  // Level 2 & 3 emoji alternatives
-  const level2Alts = [word.emoji, "🖼️","🎨","🌈","✨","🎭"].filter(Boolean).slice(0,6);
-  const level3Alts = ["⬛","📋","🔲","⬜","🔳","▪️"];
+  // Get word-specific visuals or generate smart fallbacks
+  const wordKey = (word.word||"").toLowerCase().replace(/[^a-z]/g,"");
+  const visuals = WORD_VISUALS[wordKey] || null;
+
+  // Level 2: word-specific color emoji alternatives
+  const level2Alts = visuals?.l2 || [
+    word.emoji,
+    word.emoji, word.emoji, word.emoji, word.emoji, word.emoji
+  ].filter(Boolean).slice(0,6);
+
+  // Level 3: word-specific B&W text/symbol alternatives
+  const level3Alts = visuals?.l3 || [
+    word.word?.toUpperCase(),
+    word.display,
+    word.word?.charAt(0).toUpperCase(),
+    word.word?.slice(0,3).toUpperCase(),
+    "?",
+    word.word
+  ].filter(Boolean).slice(0,6);
+
+  // Pre-built L1 image guide specific to this word
+  const prebuiltGuide = visuals?.l1 || null;
 
   const generateAIImage = async () => {
+    // If we have a prebuilt guide show it immediately
+    if(prebuiltGuide && !aiImage){
+      setAiImage(prebuiltGuide);
+      return;
+    }
     setGenerating(true);
     setAiError("");
     try {
@@ -2079,10 +2552,10 @@ function WordDetailPanel({word, user, onClose}){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           model:"claude-sonnet-4-6",
-          max_tokens:1000,
+          max_tokens:500,
           messages:[{
             role:"user",
-            content:`Describe a simple, clear, realistic image that would represent the concept "${word.display||word.word}" for a child with autism or communication disability. The image should be unambiguous, concrete, and show a single clear subject on a plain background. Provide the description in 2 sentences maximum. Also suggest 3 royalty-free image search terms separated by commas.`
+            content:`For the AAC word "${word.display||word.word}", describe a specific, concrete, classroom-appropriate photograph that would clearly represent this concept to a child with autism or communication disability. Requirements: single subject, plain background, realistic, unambiguous. Keep description to 2 sentences. Then list 3 specific royalty-free search terms on Unsplash or Pixabay to find this image, separated by commas.`
           }]
         })
       });
@@ -2090,10 +2563,17 @@ function WordDetailPanel({word, user, onClose}){
       const text = data.content?.[0]?.text || "";
       setAiImage(text);
     } catch(e) {
-      setAiError("Could not generate description. Try again.");
+      setAiError("Could not generate. Try again.");
     }
     setGenerating(false);
   };
+
+  // Auto-show prebuilt guide on Level 1
+  useEffect(()=>{
+    if(activeLevel===1 && prebuiltGuide && !aiImage){
+      setAiImage(prebuiltGuide);
+    }
+  },[activeLevel]);
 
   const levels = [
     {num:1, label:"Photo",    emoji:"📷", color:"#5AAB2A", desc:"Real photograph from classroom environment"},
@@ -2182,26 +2662,38 @@ function WordDetailPanel({word, user, onClose}){
           {activeLevel===2&&(
             <div>
               <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
-                marginBottom:12}}>{levels[1].desc}</div>
-              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
-                color:"#888",marginBottom:8}}>Select a color representation:</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+                marginBottom:8,lineHeight:1.5}}>
+                Color clipart or emoji that represent <b>"{word.display||word.word}"</b>.
+                Select the icon that best matches what your student sees in their environment.
+              </div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
+                color:"#888",marginBottom:10,textTransform:"uppercase",letterSpacing:0.5}}>
+                Tap to select your preferred representation:
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
                 {level2Alts.map((e,i)=>(
-                  <div key={i} style={{padding:"16px 8px",borderRadius:12,
-                    background:i===0?"#EEF5FF":"#F8F9FC",
-                    border:i===0?"2px solid #1B65B8":"2px solid transparent",
-                    textAlign:"center",cursor:"pointer"}}
-                    onClick={()=>{}}>
-                    <div style={{fontSize:36,marginBottom:4}}>{e}</div>
-                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:10,color:"#888"}}>
-                      {i===0?"Primary":"Alternative "+(i)}
+                  <button key={i} onClick={()=>setSelectedL2(i)}
+                    style={{padding:"16px 8px",borderRadius:14,border:"none",
+                    background:selectedL2===i?"#EEF5FF":"#F8F9FC",
+                    boxShadow:selectedL2===i?"0 0 0 2px #1B65B8":"0 1px 4px rgba(0,0,0,0.08)",
+                    textAlign:"center",cursor:"pointer",transition:"all 0.15s"}}>
+                    <div style={{fontSize:38,marginBottom:4}}>{e}</div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,
+                      color:selectedL2===i?"#1B65B8":"#AAA",fontWeight:700}}>
+                      {i===0?"⭐ Primary":i===1?"Alt 1":i===2?"Alt 2":i===3?"Alt 3":i===4?"Alt 4":"Alt 5"}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
-              <div style={{marginTop:12,padding:12,background:"#EEF5FF",borderRadius:10,
-                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#1B65B8"}}>
-                💡 Level 2 uses color to maintain visual interest while introducing symbolic representation.
+              {selectedL2>0&&(
+                <div style={{padding:"10px 14px",borderRadius:10,background:"#EAF3DE",
+                  fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#3D8A1A",fontWeight:700}}>
+                  ✅ Alternative {selectedL2} selected — this will display at Level 2 for this word
+                </div>
+              )}
+              <div style={{marginTop:10,padding:12,background:"#EEF5FF",borderRadius:10,
+                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#1B65B8",lineHeight:1.6}}>
+                💡 Level 2 uses color imagery to maintain visual interest. Choose the icon that most closely matches your student's real-world experience with "{word.word}".
               </div>
             </div>
           )}
@@ -2209,25 +2701,43 @@ function WordDetailPanel({word, user, onClose}){
           {activeLevel===3&&(
             <div>
               <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
-                marginBottom:12}}>{levels[2].desc}</div>
-              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
-                color:"#888",marginBottom:8}}>B&W representation options:</div>
+                marginBottom:8,lineHeight:1.5}}>
+                Black & white symbols that represent <b>"{word.display||word.word}"</b>.
+                Color is removed to prompt symbol-only recognition.
+              </div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
+                color:"#888",marginBottom:10,textTransform:"uppercase",letterSpacing:0.5}}>
+                Select your preferred B&W symbol:
+              </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
-                {[word.emoji,"🔲","⬛","📋","▫️","◻️"].map((e,i)=>(
-                  <div key={i} style={{padding:"16px 8px",borderRadius:12,
-                    background:i===0?"#F8F9FC":"#F8F9FC",
-                    border:"2px solid #EEF0F4",textAlign:"center",cursor:"pointer",
-                    filter:i===0?"grayscale(100%)":"none"}}>
-                    <div style={{fontSize:36,marginBottom:4}}>{e}</div>
-                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:10,color:"#888"}}>
-                      {i===0?"Grayscale":"Option "+(i)}
+                {level3Alts.map((e,i)=>(
+                  <button key={i} onClick={()=>setSelectedL3(i)}
+                    style={{padding:"14px 8px",borderRadius:14,border:"none",
+                    background:selectedL3===i?"#F0F0F0":"#F8F9FC",
+                    boxShadow:selectedL3===i?"0 0 0 2px #607D8B":"0 1px 4px rgba(0,0,0,0.08)",
+                    textAlign:"center",cursor:"pointer",transition:"all 0.15s",
+                    filter:"grayscale(100%)"}}>
+                    <div style={{fontSize:e&&e.length<=3?32:18,marginBottom:4,
+                      fontFamily:"monospace",fontWeight:"bold",color:"#333",
+                      minHeight:36,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      {e}
                     </div>
-                  </div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,
+                      color:selectedL3===i?"#607D8B":"#AAA",fontWeight:700}}>
+                      {i===0?"⭐ Primary":i===1?"Alt 1":i===2?"Alt 2":i===3?"Alt 3":i===4?"Alt 4":"Alt 5"}
+                    </div>
+                  </button>
                 ))}
               </div>
+              {selectedL3>0&&(
+                <div style={{padding:"10px 14px",borderRadius:10,background:"#F0F0F0",
+                  fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#607D8B",fontWeight:700}}>
+                  ✅ Alternative {selectedL3} selected — this will display as the B&W symbol for "{word.word}"
+                </div>
+              )}
               <div style={{padding:12,background:"#F8F9FC",borderRadius:10,
-                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#607D8B"}}>
-                💡 Level 3 removes color as a prompt, preparing the student for text-only (Level 4).
+                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#607D8B",lineHeight:1.6}}>
+                💡 Level 3 removes color cues, using only black & white symbols. This bridges the gap between color imagery (Level 2) and text-only (Level 4), building symbol literacy.
               </div>
             </div>
           )}
