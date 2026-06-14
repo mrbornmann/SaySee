@@ -2503,7 +2503,7 @@ const WORD_VISUALS = {
   "swing":     { l1:"A child on a playground swing, legs out in the air, big smile, sunny day",
                  l2:["🎠","⬆️","🌟","🏃","☀️","🌳"], l3:["⌒seat","□swing","▢arc","◡hang","□←→","▢⌒"] },
   "slide":     { l1:"A red plastic playground slide with a child at the top about to go down",
-                 l2:["🛝","⬇️","🎉","🌈","⭐","🏃"], l3:["\slide","□slide","▢down","◭","□/","▢\"] },
+                 l2:["🛝","⬇️","🎉","🌈","⭐","🏃"], l3:["slope","□slide","▢down","◭","□/","—"] },
 };
 
 // ── Word Detail Panel (See Screen) ───────────────────────────────
