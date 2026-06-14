@@ -593,7 +593,7 @@ const REINFORCER_SURVEY = [
 
 
 // ── IP Notice ────────────────────────────────────────────────────
-// © 2026 SaySee LLC. All rights reserved.
+// © 2026 SaySee LLC. All rights reserved. SaySee™ is a registered trademark.
 // Patent Pending — U.S. Application No. 64/086,776
 
 const DEMO_STUDENTS = [
@@ -1109,7 +1109,7 @@ function TrialExpiredScreen({user, onLogout, setShowPayment, setPaymentPlan}){
         <SaySeeFullLogo size={100}/>
         <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#1B65B8",margin:"20px 0 8px"}}>Your Free Trial Has Ended</div>
         <div style={{fontFamily:"'Nunito',sans-serif",fontSize:14,color:"#666",lineHeight:1.7,marginBottom:24}}>
-          Thank you for trying SaySee©! Choose a plan to continue supporting your students.
+          Thank you for trying SaySee™! Choose a plan to continue supporting your students.
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
           {[
@@ -1211,6 +1211,7 @@ function SeeScreen({user, words, onBack}){
   const [search, setSearch]           = useState("");
   const [showSearch, setShowSearch]   = useState(false);
   const [expandedWord, setExpandedWord] = useState(null);
+  const [showAddWordInSee, setShowAddWordInSee] = useState(false);
 
   // Combine master words + dev words
   const allWords = [...words, ...DEV_WORDS];
@@ -1316,40 +1317,24 @@ function SeeScreen({user, words, onBack}){
 
       {/* Word detail panel */}
       {expandedWord&&(
-        <div style={{position:"fixed",bottom:0,left:0,right:0,
-          background:"#fff",borderRadius:"20px 20px 0 0",
-          padding:20,boxShadow:"0 -8px 30px rgba(0,0,0,0.15)",zIndex:200}}>
-          <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:12}}>
-            <div style={{fontSize:48}}>{expandedWord.emoji}</div>
-            <div>
-              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#1B65B8"}}>
-                {expandedWord.display||expandedWord.word}
-              </div>
-              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",textTransform:"capitalize"}}>
-                {expandedWord.cat} · {expandedWord.age ? `Ages ${expandedWord.age}` : "All ages"}
-              </div>
-            </div>
-          </div>
-          {/* 4 levels preview */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}>
-            {["📷 Photo","🎨 Color","✏️ B&W","🔤 Text"].map((lbl,i)=>(
-              <div key={i} style={{padding:"10px 6px",borderRadius:10,
-                background:["#EAF3DE","#EEF5FF","#F8F9FC","#FFF8EC"][i],
-                textAlign:"center",border:`1px solid ${["#C8E6B0","#BDD7F5","#E8ECF0","#FEEBC8"][i]}`}}>
-                <div style={{fontSize:14,marginBottom:4}}>{lbl.split(" ")[0]}</div>
-                <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,color:"#888",fontWeight:700}}>
-                  {["Level 1","Level 2","Level 3","Level 4"][i]}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
-            Triggers: {(expandedWord.triggers||[expandedWord.word]).join(", ")}
-          </div>
-          <button onClick={()=>setExpandedWord(null)}
-            style={{position:"absolute",top:16,right:16,background:"#F0F2F5",
-            border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:16}}>✕</button>
-        </div>
+        <WordDetailPanel word={expandedWord} user={user}
+          onClose={()=>setExpandedWord(null)}/>
+      )}
+
+      {/* Add Word Button */}
+      <button onClick={()=>setShowAddWordInSee(true)}
+        style={{position:"fixed",bottom:80,right:16,width:52,height:52,
+        borderRadius:"50%",background:"#5AAB2A",border:"none",
+        color:"#fff",fontSize:24,cursor:"pointer",
+        boxShadow:"0 4px 16px rgba(90,171,42,0.5)",zIndex:100}}>+</button>
+
+      {/* Add Word Modal in See */}
+      {showAddWordInSee&&(
+        <AddWordInSeeModal user={user} onClose={()=>setShowAddWordInSee(false)}
+          onAdd={w=>{
+            // Save to master words and Supabase
+            setShowAddWordInSee(false);
+          }}/>
       )}
     </div>
   );
@@ -2074,8 +2059,384 @@ function SubscriptionSection({user, onBack}){
   );
 }
 
+// ── Word Detail Panel (See Screen) ───────────────────────────────
+function WordDetailPanel({word, user, onClose}){
+  const [activeLevel, setActiveLevel] = useState(1);
+  const [aiImage, setAiImage] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  // Level 2 & 3 emoji alternatives
+  const level2Alts = [word.emoji, "🖼️","🎨","🌈","✨","🎭"].filter(Boolean).slice(0,6);
+  const level3Alts = ["⬛","📋","🔲","⬜","🔳","▪️"];
+
+  const generateAIImage = async () => {
+    setGenerating(true);
+    setAiError("");
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:1000,
+          messages:[{
+            role:"user",
+            content:`Describe a simple, clear, realistic image that would represent the concept "${word.display||word.word}" for a child with autism or communication disability. The image should be unambiguous, concrete, and show a single clear subject on a plain background. Provide the description in 2 sentences maximum. Also suggest 3 royalty-free image search terms separated by commas.`
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || "";
+      setAiImage(text);
+    } catch(e) {
+      setAiError("Could not generate description. Try again.");
+    }
+    setGenerating(false);
+  };
+
+  const levels = [
+    {num:1, label:"Photo",    emoji:"📷", color:"#5AAB2A", desc:"Real photograph from classroom environment"},
+    {num:2, label:"Color Art",emoji:"🎨", color:"#1B65B8", desc:"Color illustration or emoji representation"},
+    {num:3, label:"B&W",      emoji:"✏️",  color:"#607D8B", desc:"Black & white sketch representation"},
+    {num:4, label:"Text",     emoji:"🔤", color:"#E67E22", desc:"Word only — full symbolic independence"},
+  ];
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",
+      display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:500}}
+      onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",
+        maxWidth:560,maxHeight:"85vh",overflowY:"auto",
+        boxShadow:"0 -8px 40px rgba(0,0,0,0.2)"}}>
+
+        {/* Header */}
+        <div style={{padding:"20px 20px 0",display:"flex",gap:14,alignItems:"center"}}>
+          <div style={{fontSize:52}}>{word.emoji}</div>
+          <div style={{flex:1}}>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#1B65B8"}}>
+              {word.display||word.word}
+            </div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",
+              textTransform:"capitalize",marginTop:2}}>
+              {word.cat} · {word.age ? `Ages ${word.age}` : "All ages"}
+            </div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#AAA",marginTop:2}}>
+              Triggers: {(word.triggers||[word.word]).join(", ")}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:"#F0F2F5",border:"none",
+            borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:16,flexShrink:0}}>✕</button>
+        </div>
+
+        {/* Level tabs */}
+        <div style={{display:"flex",gap:0,margin:"16px 20px 0",
+          borderRadius:12,overflow:"hidden",border:"1px solid #EEF0F4"}}>
+          {levels.map(l=>(
+            <button key={l.num} onClick={()=>setActiveLevel(l.num)}
+              style={{flex:1,padding:"10px 4px",border:"none",cursor:"pointer",
+              background:activeLevel===l.num?l.color:"#F8F9FC",
+              color:activeLevel===l.num?"#fff":"#888",
+              fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
+              borderRight:"1px solid #EEF0F4",transition:"all 0.15s"}}>
+              <div style={{fontSize:16,marginBottom:2}}>{l.emoji}</div>
+              {l.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Level content */}
+        <div style={{padding:"16px 20px 20px"}}>
+          {activeLevel===1&&(
+            <div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
+                marginBottom:12,lineHeight:1.6}}>
+                {levels[0].desc}. Use a real photo from your classroom for maximum impact.
+              </div>
+              <button onClick={generateAIImage} disabled={generating}
+                style={{width:"100%",padding:"12px",borderRadius:12,border:"none",
+                background:generating?"#EEF0F4":"linear-gradient(135deg,#1B65B8,#2B6CB0)",
+                color:generating?"#888":"#fff",fontFamily:"'Nunito',sans-serif",
+                fontWeight:800,fontSize:14,cursor:generating?"not-allowed":"pointer",
+                marginBottom:12}}>
+                {generating?"🤖 Generating AI description...":"🤖 Generate AI Image Guide"}
+              </button>
+              {aiError&&<div style={{color:"#E74C3C",fontSize:12,marginBottom:8}}>{aiError}</div>}
+              {aiImage&&(
+                <div style={{background:"#EEF5FF",borderRadius:12,padding:14,
+                  fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",lineHeight:1.7}}>
+                  <div style={{fontWeight:800,color:"#1B65B8",marginBottom:6}}>
+                    🤖 AI Image Guide for "{word.display||word.word}":
+                  </div>
+                  {aiImage}
+                </div>
+              )}
+              <div style={{marginTop:12,padding:12,background:"#EAF3DE",borderRadius:10,
+                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#3D8A1A"}}>
+                💡 Tip: Take a photo of the actual object in your classroom using the camera in the AAC screen for best results.
+              </div>
+            </div>
+          )}
+
+          {activeLevel===2&&(
+            <div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
+                marginBottom:12}}>{levels[1].desc}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
+                color:"#888",marginBottom:8}}>Select a color representation:</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+                {level2Alts.map((e,i)=>(
+                  <div key={i} style={{padding:"16px 8px",borderRadius:12,
+                    background:i===0?"#EEF5FF":"#F8F9FC",
+                    border:i===0?"2px solid #1B65B8":"2px solid transparent",
+                    textAlign:"center",cursor:"pointer"}}
+                    onClick={()=>{}}>
+                    <div style={{fontSize:36,marginBottom:4}}>{e}</div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:10,color:"#888"}}>
+                      {i===0?"Primary":"Alternative "+(i)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:12,padding:12,background:"#EEF5FF",borderRadius:10,
+                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#1B65B8"}}>
+                💡 Level 2 uses color to maintain visual interest while introducing symbolic representation.
+              </div>
+            </div>
+          )}
+
+          {activeLevel===3&&(
+            <div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
+                marginBottom:12}}>{levels[2].desc}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
+                color:"#888",marginBottom:8}}>B&W representation options:</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
+                {[word.emoji,"🔲","⬛","📋","▫️","◻️"].map((e,i)=>(
+                  <div key={i} style={{padding:"16px 8px",borderRadius:12,
+                    background:i===0?"#F8F9FC":"#F8F9FC",
+                    border:"2px solid #EEF0F4",textAlign:"center",cursor:"pointer",
+                    filter:i===0?"grayscale(100%)":"none"}}>
+                    <div style={{fontSize:36,marginBottom:4}}>{e}</div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:10,color:"#888"}}>
+                      {i===0?"Grayscale":"Option "+(i)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{padding:12,background:"#F8F9FC",borderRadius:10,
+                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#607D8B"}}>
+                💡 Level 3 removes color as a prompt, preparing the student for text-only (Level 4).
+              </div>
+            </div>
+          )}
+
+          {activeLevel===4&&(
+            <div style={{textAlign:"center",padding:"20px 0"}}>
+              <div style={{fontFamily:"'Fredoka One',cursive",
+                fontSize:"clamp(36px,12vw,64px)",color:"#E67E22",letterSpacing:2,
+                marginBottom:12}}>{word.display||word.word}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",lineHeight:1.6}}>
+                {levels[3].desc}. The student reads and responds to the written word without visual support.
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Add Word In See Modal ─────────────────────────────────────────
+function AddWordInSeeModal({user, onClose, onAdd}){
+  const [word,setWord]   = useState("");
+  const [display,setDisplay] = useState("");
+  const [emoji,setEmoji] = useState("");
+  const [cat,setCat]     = useState("core");
+  const [age,setAge]     = useState("all");
+  const [triggers,setTriggers] = useState("");
+  const [saving,setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if(!word.trim()||!emoji.trim()) return;
+    setSaving(true);
+    const newWord = {
+      id:`custom_${Date.now()}`,
+      word:word.trim(),
+      display:(display||word).toUpperCase(),
+      emoji:emoji.trim(),
+      cat,
+      age:age==="all"?undefined:age,
+      triggers: triggers ? triggers.split(",").map(t=>t.trim()) : [word.trim()],
+      color:"#1B65B8",
+    };
+    try {
+      await sbAuth.saveCustomWord(newWord, user.id, user.district_id||null);
+    } catch(e){}
+    onAdd(newWord);
+    onClose();
+    setSaving(false);
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",
+      display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:16}}>
+      <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:440,
+        padding:24,maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#5AAB2A",marginBottom:4}}>
+          ➕ Add Word
+        </div>
+        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginBottom:16}}>
+          New words are saved to your account and available immediately.
+        </div>
+
+        {[
+          {label:"Word (what you say) *", val:word, set:setWord, placeholder:"e.g. sit down"},
+          {label:"Display text (what student sees)", val:display, set:setDisplay, placeholder:"e.g. SIT DOWN"},
+          {label:"Emoji icon *", val:emoji, set:setEmoji, placeholder:"e.g. 🪑"},
+          {label:"Voice triggers (comma separated)", val:triggers, set:setTriggers, placeholder:"e.g. sit down, take a seat"},
+        ].map(f=>(
+          <div key={f.label} style={{marginBottom:12}}>
+            <label style={{fontFamily:"'Nunito',sans-serif",fontSize:11,fontWeight:700,
+              color:"#888",display:"block",marginBottom:4}}>{f.label}</label>
+            <input value={f.val} onChange={e=>f.set(e.target.value)}
+              placeholder={f.placeholder}
+              style={{width:"100%",padding:"10px 12px",borderRadius:10,
+              border:"2px solid #EEF0F4",fontFamily:"'Nunito',sans-serif",
+              fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+        ))}
+
+        {/* Category */}
+        <div style={{marginBottom:12}}>
+          <label style={{fontFamily:"'Nunito',sans-serif",fontSize:11,fontWeight:700,
+            color:"#888",display:"block",marginBottom:4}}>Category</label>
+          <select value={cat} onChange={e=>setCat(e.target.value)}
+            style={{width:"100%",padding:"10px 12px",borderRadius:10,
+            border:"2px solid #EEF0F4",fontFamily:"'Nunito',sans-serif",fontSize:13}}>
+            {["core","emotions","actions","needs","food","people","animals",
+              "classroom","academic","health","safety","community","activities"].map(c=>(
+              <option key={c} value={c} style={{textTransform:"capitalize"}}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Developmental age */}
+        <div style={{marginBottom:16}}>
+          <label style={{fontFamily:"'Nunito',sans-serif",fontSize:11,fontWeight:700,
+            color:"#888",display:"block",marginBottom:4}}>Developmental Age Band</label>
+          <select value={age} onChange={e=>setAge(e.target.value)}
+            style={{width:"100%",padding:"10px 12px",borderRadius:10,
+            border:"2px solid #EEF0F4",fontFamily:"'Nunito',sans-serif",fontSize:13}}>
+            <option value="all">All Ages</option>
+            {DEV_AGES.map(a=>(
+              <option key={a.id} value={a.id}>{a.label} — {a.desc}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onClose}
+            style={{flex:1,padding:"11px",borderRadius:10,border:"2px solid #EEF0F4",
+            background:"transparent",fontFamily:"'Nunito',sans-serif",fontWeight:800,
+            fontSize:13,cursor:"pointer",color:"#888"}}>Cancel</button>
+          <button onClick={handleSave} disabled={saving||!word||!emoji}
+            style={{flex:2,padding:"11px",borderRadius:10,border:"none",
+            background:!word||!emoji?"#EEF0F4":"#5AAB2A",
+            color:!word||!emoji?"#AAA":"#fff",
+            fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,
+            cursor:!word||!emoji?"not-allowed":"pointer"}}>
+            {saving?"Saving...":"Save Word"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Terms & Conditions Modal ─────────────────────────────────────
+function TermsModal({onClose}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",
+      display:"flex",alignItems:"center",justifyContent:"center",
+      zIndex:99999,padding:16}}>
+      <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:600,
+        maxHeight:"90vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{background:"#1B65B8",padding:"16px 20px",display:"flex",
+          alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff"}}>
+            SaySee™ Terms & Conditions
+          </div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,0.2)",
+            border:"none",borderRadius:8,padding:"4px 12px",color:"#fff",
+            cursor:"pointer",fontSize:16}}>✕</button>
+        </div>
+        <div style={{overflowY:"auto",padding:20,flex:1,
+          fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",lineHeight:1.8,
+          userSelect:"none",WebkitUserSelect:"none"}}
+          onContextMenu={e=>e.preventDefault()}>
+
+          <p style={{color:"#888",fontSize:11,marginBottom:16}}>
+            Effective Date: June 2026 · SaySee LLC · U.S. Patent Pending App. No. 64/086,776 · SaySee™ is a registered trademark.
+          </p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>1. Acceptance of Terms</h3>
+          <p>By accessing or using the SaySee™ AAC Visual Learning Platform ("Service"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, you may not use the Service. These Terms constitute a legally binding agreement between you and SaySee LLC.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>2. Description of Service</h3>
+          <p>SaySee™ is a voice-activated Augmentative and Alternative Communication (AAC) visual learning platform designed for use by licensed educators, speech-language pathologists, applied behavior analysts, and other qualified professionals. The Service is intended for use with students with communication disabilities and English language learners in educational and clinical settings.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>3. Eligibility and Account Registration</h3>
+          <p>You must be at least 18 years of age and a qualified educator or professional to register for an account. By registering, you represent that all information provided is accurate and that you are authorized to use student data in accordance with applicable law including FERPA.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>4. Subscription and Payment</h3>
+          <p>Access to SaySee™ requires a paid subscription following a 7-day free trial. Subscription fees are charged in advance on a monthly or annual basis. All fees are non-refundable except as required by law. SaySee LLC reserves the right to modify pricing with 30 days notice. Cancellation requests must be submitted to hello@saysee.io.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>5. Student Data and FERPA</h3>
+          <p>You acknowledge that you are responsible for ensuring appropriate consent and authorization for any student data entered into the Service. SaySee LLC operates as a "school official" under FERPA when used by educational institutions. Student data will not be sold, shared with third parties, or used for advertising. Full Data Processing Agreement terms are available upon request at hello@saysee.io.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>6. Intellectual Property</h3>
+          <p>The SaySee™ platform, including all software, visual design, methodology, word libraries, AI scaffolding system, and documentation, is the exclusive intellectual property of SaySee LLC. SaySee™ is a registered trademark of SaySee LLC. U.S. Patent Pending Application No. 64/086,776. All content is protected by copyright © 2026 SaySee LLC. Unauthorized reproduction, distribution, or modification is strictly prohibited.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>7. Acceptable Use</h3>
+          <p>You agree to use the Service only for lawful educational purposes. You may not: share account credentials, reverse engineer the software, use the Service for any commercial purpose other than as permitted under your subscription, upload inappropriate content, or attempt to circumvent security measures.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>8. AI and Voice Processing</h3>
+          <p>The Service uses artificial intelligence for semantic word matching. Voice audio is processed in real-time and is not stored or recorded. Student names are removed from all AI processing to protect student privacy. By using the Service, you consent to this processing on behalf of your institution.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>9. Disclaimer of Warranties</h3>
+          <p>The Service is provided "as is" without warranty of any kind. SaySee LLC does not warrant that the Service will be uninterrupted, error-free, or that results obtained will be accurate. SaySee LLC disclaims all warranties, express or implied, including warranties of merchantability and fitness for a particular purpose.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>10. Limitation of Liability</h3>
+          <p>SaySee LLC shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Service. Our total liability shall not exceed the subscription fees paid by you in the 12 months preceding any claim.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>11. Termination</h3>
+          <p>SaySee LLC reserves the right to suspend or terminate accounts that violate these Terms. Upon termination, your access to the Service will cease and your data will be deleted within 30 days.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>12. Governing Law</h3>
+          <p>These Terms are governed by the laws of the State of California. Any disputes shall be resolved in San Francisco County, California through binding arbitration.</p>
+
+          <h3 style={{fontFamily:"'Fredoka One',cursive",color:"#1B65B8",fontSize:16,margin:"16px 0 6px"}}>13. Contact</h3>
+          <p>SaySee LLC · 28 Geary St Suite 650 PMB 70334 · San Francisco, CA 94108 · hello@saysee.io</p>
+
+          <p style={{marginTop:20,fontSize:11,color:"#CCC"}}>
+            © 2026 SaySee LLC. All rights reserved. SaySee™ is a registered trademark. Patent Pending — U.S. Application No. 64/086,776. These Terms may not be reproduced without written permission from SaySee LLC.
+          </p>
+        </div>
+        <div style={{padding:16,borderTop:"1px solid #EEF0F4",textAlign:"center"}}>
+          <button onClick={onClose}
+            style={{padding:"10px 32px",borderRadius:30,border:"none",
+            background:"#1B65B8",color:"#fff",fontFamily:"'Nunito',sans-serif",
+            fontWeight:800,fontSize:14,cursor:"pointer"}}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Auth screen ───────────────────────────────────────────────
-function AuthScreen({accounts,onLogin,onRegister}){
+function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms,onAcceptTerms}){
   const [mode,setMode]=useState("login");
   const [email,setEmail]=useState("");
   const [pass,setPass]=useState("");
@@ -2139,7 +2500,25 @@ function AuthScreen({accounts,onLogin,onRegister}){
               <button type="submit" style={{display:"none"}}>Sign In</button>
             </form>
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
-            <button onClick={doLogin} type="button" style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
+            {/* T&C checkbox */}
+            {!termsAccepted&&(
+              <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12,
+                padding:"10px 12px",background:"rgba(255,255,255,0.06)",borderRadius:10}}>
+                <input type="checkbox" id="tc-check"
+                  onChange={e=>{ if(e.target.checked && onAcceptTerms) onAcceptTerms(); }}
+                  style={{marginTop:2,width:16,height:16,cursor:"pointer",flexShrink:0}}/>
+                <label htmlFor="tc-check" style={{fontFamily:"'Nunito',sans-serif",
+                  fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.5,cursor:"pointer"}}>
+                  I agree to the{" "}
+                  <span onClick={()=>onShowTerms&&onShowTerms()}
+                    style={{color:"#5AAB2A",fontWeight:800,cursor:"pointer",textDecoration:"underline"}}>
+                    Terms & Conditions
+                  </span>
+                  {" "}and Privacy Policy
+                </label>
+              </div>
+            )}
+            <button onClick={()=>{ if(!termsAccepted){ alert("Please accept the Terms & Conditions to continue."); return; } doLogin(); }} type="button" style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
             <div style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",fontSize:14,color:"rgba(255,255,255,0.45)"}}>
               No account? <span onClick={()=>{setErr("");setMode("register");}} style={{color:"#74B9FF",cursor:"pointer",fontWeight:800}}>Sign up</span>
             </div>
@@ -2863,11 +3242,14 @@ Reply with ONLY the matching word or NO_MATCH.`
     if(recRef.current){ lisRef.current=false; try{recRef.current.stop();}catch{} recRef.current=null; }
     try{
       const rec=new SR();
-      rec.continuous=true; rec.interimResults=true; rec.lang="en-US";
+      rec.continuous=true; rec.interimResults=true; rec.lang="en-US"; rec.maxAlternatives=3;
       rec.onstart=()=>{ setListening(true); setMicError(""); };
       rec.onresult=(e)=>{
         for(let i=e.resultIndex;i<e.results.length;i++){
+          // Use interim results for faster display
+          const isFinal = e.results[i].isFinal;
           const t=e.results[i][0].transcript.toLowerCase().trim();
+          if(!t) continue;
           if(e.results[i].isFinal){
             setTrans(t);
 
@@ -4153,7 +4535,11 @@ export default function SaySee(){
   const [masterWords,setMasterWords] = useState([...MASTER_WORDS]);
   const [showPayment,setShowPayment]   = useState(false);
   const [paymentPlan,setPaymentPlan]   = useState('monthly');
-  const [homeMode,setHomeMode]         = useState('home'); // home|say|see|teach|data|settings|reinforcers
+  const [homeMode,setHomeMode]         = useState('home');
+  const [termsAccepted,setTermsAccepted] = useState(()=>{
+    try { return localStorage.getItem('saysee_terms_accepted')==='true'; } catch(e){ return false; }
+  });
+  const [showTerms,setShowTerms]       = useState(false); // home|say|see|teach|data|settings|reinforcers
 
   // Check for existing session on load
   useEffect(()=>{
