@@ -3013,7 +3013,8 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
             {/* T&C checkbox */}
             {!termsAccepted&&(
               <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12,
-                padding:"10px 12px",background:"rgba(255,255,255,0.06)",borderRadius:10}}>
+                padding:"10px 14px",background:"transparent",borderRadius:10,
+                border:"1px solid rgba(255,255,255,0.2)"}}>
                 <input type="checkbox" id="tc-check"
                   onChange={e=>{ if(e.target.checked && onAcceptTerms) onAcceptTerms(); }}
                   style={{marginTop:2,width:16,height:16,cursor:"pointer",flexShrink:0}}/>
@@ -3021,7 +3022,7 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
                   fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.5,cursor:"pointer"}}>
                   I agree to the{" "}
                   <span onClick={()=>onShowTerms&&onShowTerms()}
-                    style={{color:"#5AAB2A",fontWeight:800,cursor:"pointer",textDecoration:"underline"}}>
+                    style={{color:"#7DD94A",fontWeight:800,cursor:"pointer",textDecoration:"underline"}}>
                     Terms & Conditions
                   </span>
                   {" "}and Privacy Policy
