@@ -2529,40 +2529,45 @@ function WordDetailPanel({word, user, onClose}){
   // Currently selected L2 emoji
   const currentL2Emoji = l2Alts[selectedL2] || word.emoji;
 
-  // Auto-generate AI image on mount
+  // Auto-show image on mount — prebuilt first, then AI
   useEffect(()=>{
     if(!customPhoto && !aiImageUrl){
-      generateAIImage();
+      if(prebuiltGuide){
+        setAiImageUrl(prebuiltGuide);
+      } else {
+        generateAIImage();
+      }
     }
   },[]);
 
   const generateAIImage = async () => {
+    // Show prebuilt guide immediately — no API needed
+    if(prebuiltGuide && !aiImageUrl){
+      setAiImageUrl(prebuiltGuide);
+      return;
+    }
+    // Call AI for custom words not in the library
     setGenerating(true);
     setAiError("");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           model:"claude-sonnet-4-6",
           max_tokens:400,
-          messages:[{role:"user",content:
-            `For the AAC communication word "${word.display||word.word}", provide:
-1. A specific 1-sentence description of the ideal realistic photograph for Level 1 (clear, single subject, plain background, classroom-appropriate, suitable for a child with autism)
-2. The best royalty-free search terms to find this image on Unsplash.com (3 terms, comma separated)
+          messages:[{role:"user",content:`For the AAC word "${word.display||word.word}", describe the ideal realistic photo for a child with autism. Single subject, plain background, concrete. 2 sentences. Then list 3 Unsplash search terms.
 
-Format your response as:
-DESCRIPTION: [description]
-SEARCH: [term1, term2, term3]`
-          }]
+DESCRIPTION: [here]
+SEARCH: [term1, term2, term3]`}]
         })
       });
-      const data = await res.json();
+      if(!resp.ok) throw new Error(resp.status);
+      const data = await resp.json();
       const text = data.content?.[0]?.text || "";
-      setAiImageUrl(text);
+      setAiImageUrl(text || prebuiltGuide || `A clear photo of "${word.word}" on a plain background.`);
     } catch(e){
-      setAiError("Could not generate. Using default guide.");
-      setAiImageUrl(l1Guide);
+      setAiImageUrl(prebuiltGuide || `A clear, realistic classroom photo showing "${word.display||word.word}" as a single subject on a plain white background.`);
     }
     setGenerating(false);
   };
@@ -3114,25 +3119,28 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
               <button type="submit" style={{display:"none"}}>Sign In</button>
             </form>
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
-            {/* T&C checkbox */}
+                        {/* T&C checkbox */}
             {!termsAccepted&&(
-              <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12,
-                padding:"10px 14px",background:"transparent",borderRadius:10,
-                border:"1px solid rgba(255,255,255,0.2)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,
+                padding:"0 2px"}}>
                 <input type="checkbox" id="tc-check"
                   onChange={e=>{ if(e.target.checked && onAcceptTerms) onAcceptTerms(); }}
-                  style={{marginTop:2,width:16,height:16,cursor:"pointer",flexShrink:0}}/>
+                  style={{width:17,height:17,cursor:"pointer",flexShrink:0,
+                  accentColor:"#5AAB2A"}}/>
                 <label htmlFor="tc-check" style={{fontFamily:"'Nunito',sans-serif",
-                  fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.5,cursor:"pointer"}}>
+                  fontSize:13,color:"white",lineHeight:1.5,cursor:"pointer",
+                  fontWeight:600}}>
                   I agree to the{" "}
                   <span onClick={()=>onShowTerms&&onShowTerms()}
-                    style={{color:"#7DD94A",fontWeight:800,cursor:"pointer",textDecoration:"underline"}}>
+                    style={{color:"#5AAB2A",fontWeight:800,cursor:"pointer",
+                    textDecoration:"underline"}}>
                     Terms & Conditions
                   </span>
                   {" "}and Privacy Policy
                 </label>
               </div>
             )}
+
             <button onClick={()=>{ if(!termsAccepted){ alert("Please accept the Terms & Conditions to continue."); return; } doLogin(); }} type="button" style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
             <div style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",fontSize:14,color:"rgba(255,255,255,0.45)"}}>
               No account? <span onClick={()=>{setErr("");setMode("register");}} style={{color:"#74B9FF",cursor:"pointer",fontWeight:800}}>Sign up</span>
