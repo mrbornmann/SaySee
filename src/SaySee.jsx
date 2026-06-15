@@ -2509,110 +2509,121 @@ const WORD_VISUALS = {
 // ── Word Detail Panel (See Screen) ───────────────────────────────
 function WordDetailPanel({word, user, onClose}){
   const [activeLevel, setActiveLevel] = useState(1);
-  const [aiImage, setAiImage] = useState(null);
-  const [generating, setGenerating] = useState(false);
-  const [aiError, setAiError] = useState("");
-  const [selectedL2, setSelectedL2] = useState(0);
-  const [selectedL3, setSelectedL3] = useState(0);
+  const [aiImageUrl, setAiImageUrl]   = useState(null);
+  const [generating, setGenerating]   = useState(false);
+  const [aiError, setAiError]         = useState("");
+  const [selectedL2, setSelectedL2]   = useState(0);
+  const [customPhoto, setCustomPhoto] = useState(
+    mem.get(`word_photo_${word.id||word.word}_${user?.id}`, null)
+  );
+  const [l4Color, setL4Color]         = useState("#1B65B8");
+  const [l4Font, setL4Font]           = useState("'Fredoka One',cursive");
+  const fileRef = useRef(null);
 
-  // Get word-specific visuals or generate smart fallbacks
-  const wordKey = (word.word||"").toLowerCase().replace(/[^a-z]/g,"");
-  const visuals = WORD_VISUALS[wordKey] || null;
+  // Word-specific visuals
+  const wordKey  = (word.word||"").toLowerCase().replace(/[^a-z]/g,"");
+  const visuals  = WORD_VISUALS[wordKey] || null;
+  const l2Alts   = visuals?.l2 || [word.emoji,"🖼️","🎨","✨","💫","⭐"];
+  const l1Guide  = visuals?.l1 || `A clear, realistic photograph of "${word.display||word.word}" on a plain white background, suitable for a child with autism. Single subject, no clutter, bright and unambiguous.`;
 
-  // Level 2: word-specific color emoji alternatives
-  const level2Alts = visuals?.l2 || [
-    word.emoji,
-    word.emoji, word.emoji, word.emoji, word.emoji, word.emoji
-  ].filter(Boolean).slice(0,6);
+  // Currently selected L2 emoji
+  const currentL2Emoji = l2Alts[selectedL2] || word.emoji;
 
-  // Level 3: word-specific B&W text/symbol alternatives
-  const level3Alts = visuals?.l3 || [
-    word.word?.toUpperCase(),
-    word.display,
-    word.word?.charAt(0).toUpperCase(),
-    word.word?.slice(0,3).toUpperCase(),
-    "?",
-    word.word
-  ].filter(Boolean).slice(0,6);
-
-  // Pre-built L1 image guide specific to this word
-  const prebuiltGuide = visuals?.l1 || null;
+  // Auto-generate AI image on mount
+  useEffect(()=>{
+    if(!customPhoto && !aiImageUrl){
+      generateAIImage();
+    }
+  },[]);
 
   const generateAIImage = async () => {
-    // If we have a prebuilt guide show it immediately
-    if(prebuiltGuide && !aiImage){
-      setAiImage(prebuiltGuide);
-      return;
-    }
     setGenerating(true);
     setAiError("");
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           model:"claude-sonnet-4-6",
-          max_tokens:500,
-          messages:[{
-            role:"user",
-            content:`For the AAC word "${word.display||word.word}", describe a specific, concrete, classroom-appropriate photograph that would clearly represent this concept to a child with autism or communication disability. Requirements: single subject, plain background, realistic, unambiguous. Keep description to 2 sentences. Then list 3 specific royalty-free search terms on Unsplash or Pixabay to find this image, separated by commas.`
+          max_tokens:400,
+          messages:[{role:"user",content:
+            `For the AAC communication word "${word.display||word.word}", provide:
+1. A specific 1-sentence description of the ideal realistic photograph for Level 1 (clear, single subject, plain background, classroom-appropriate, suitable for a child with autism)
+2. The best royalty-free search terms to find this image on Unsplash.com (3 terms, comma separated)
+
+Format your response as:
+DESCRIPTION: [description]
+SEARCH: [term1, term2, term3]`
           }]
         })
       });
-      const data = await response.json();
+      const data = await res.json();
       const text = data.content?.[0]?.text || "";
-      setAiImage(text);
-    } catch(e) {
-      setAiError("Could not generate. Try again.");
+      setAiImageUrl(text);
+    } catch(e){
+      setAiError("Could not generate. Using default guide.");
+      setAiImageUrl(l1Guide);
     }
     setGenerating(false);
   };
 
-  // Auto-show prebuilt guide on Level 1
-  useEffect(()=>{
-    if(activeLevel===1 && prebuiltGuide && !aiImage){
-      setAiImage(prebuiltGuide);
-    }
-  },[activeLevel]);
+  const handleCustomPhoto = (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const url = ev.target.result;
+      setCustomPhoto(url);
+      mem.set(`word_photo_${word.id||word.word}_${user?.id}`, url);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const l4Colors  = ["#1B65B8","#5AAB2A","#E67E22","#8E44AD","#E74C3C","#000000"];
+  const l4Fonts   = [
+    {label:"Fredoka",  val:"'Fredoka One',cursive"},
+    {label:"Nunito",   val:"'Nunito',sans-serif"},
+    {label:"Arial",    val:"Arial,sans-serif"},
+    {label:"Georgia",  val:"Georgia,serif"},
+    {label:"Courier",  val:"Courier,monospace"},
+    {label:"Impact",   val:"Impact,sans-serif"},
+  ];
 
   const levels = [
-    {num:1, label:"Photo",    emoji:"📷", color:"#5AAB2A", desc:"Real photograph from classroom environment"},
-    {num:2, label:"Color Art",emoji:"🎨", color:"#1B65B8", desc:"Color illustration or emoji representation"},
-    {num:3, label:"B&W",      emoji:"✏️",  color:"#607D8B", desc:"Black & white sketch representation"},
-    {num:4, label:"Text",     emoji:"🔤", color:"#E67E22", desc:"Word only — full symbolic independence"},
+    {num:1, label:"Photo",     emoji:"📷", color:"#5AAB2A"},
+    {num:2, label:"Color Art", emoji:"🎨", color:"#1B65B8"},
+    {num:3, label:"B&W",       emoji:"✏️",  color:"#607D8B"},
+    {num:4, label:"Text",      emoji:"🔤", color:"#E67E22"},
   ];
 
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",
       display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:500}}
       onClick={onClose}>
       <div onClick={e=>e.stopPropagation()}
         style={{background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",
-        maxWidth:560,maxHeight:"85vh",overflowY:"auto",
-        boxShadow:"0 -8px 40px rgba(0,0,0,0.2)"}}>
+        maxWidth:560,maxHeight:"88vh",display:"flex",flexDirection:"column",
+        boxShadow:"0 -8px 40px rgba(0,0,0,0.25)"}}>
 
         {/* Header */}
-        <div style={{padding:"20px 20px 0",display:"flex",gap:14,alignItems:"center"}}>
-          <div style={{fontSize:52}}>{word.emoji}</div>
+        <div style={{padding:"18px 20px 0",display:"flex",gap:14,alignItems:"center",flexShrink:0}}>
+          <div style={{fontSize:52,lineHeight:1}}>{word.emoji}</div>
           <div style={{flex:1}}>
-            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#1B65B8"}}>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#1B65B8"}}>
               {word.display||word.word}
             </div>
-            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",
-              textTransform:"capitalize",marginTop:2}}>
-              {word.cat} · {word.age ? `Ages ${word.age}` : "All ages"}
-            </div>
-            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#AAA",marginTop:2}}>
-              Triggers: {(word.triggers||[word.word]).join(", ")}
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#AAA",marginTop:2,
+              textTransform:"capitalize"}}>
+              {word.cat} · {word.age?`Ages ${word.age}`:"All ages"}
             </div>
           </div>
           <button onClick={onClose} style={{background:"#F0F2F5",border:"none",
-            borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:16,flexShrink:0}}>✕</button>
+            borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:18,flexShrink:0}}>✕</button>
         </div>
 
         {/* Level tabs */}
-        <div style={{display:"flex",gap:0,margin:"16px 20px 0",
-          borderRadius:12,overflow:"hidden",border:"1px solid #EEF0F4"}}>
+        <div style={{display:"flex",margin:"14px 20px 0",borderRadius:12,
+          overflow:"hidden",border:"1px solid #EEF0F4",flexShrink:0}}>
           {levels.map(l=>(
             <button key={l.num} onClick={()=>setActiveLevel(l.num)}
               style={{flex:1,padding:"10px 4px",border:"none",cursor:"pointer",
@@ -2620,135 +2631,227 @@ function WordDetailPanel({word, user, onClose}){
               color:activeLevel===l.num?"#fff":"#888",
               fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
               borderRight:"1px solid #EEF0F4",transition:"all 0.15s"}}>
-              <div style={{fontSize:16,marginBottom:2}}>{l.emoji}</div>
+              <div style={{fontSize:15,marginBottom:2}}>{l.emoji}</div>
               {l.label}
             </button>
           ))}
         </div>
 
-        {/* Level content */}
-        <div style={{padding:"16px 20px 20px"}}>
+        {/* Scrollable content */}
+        <div style={{flex:1,overflowY:"auto",padding:"16px 20px 24px"}}>
+
+          {/* ── LEVEL 1: Realistic Photo ── */}
           {activeLevel===1&&(
             <div>
-              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
-                marginBottom:12,lineHeight:1.6}}>
-                {levels[0].desc}. Use a real photo from your classroom for maximum impact.
-              </div>
-              <button onClick={generateAIImage} disabled={generating}
-                style={{width:"100%",padding:"12px",borderRadius:12,border:"none",
-                background:generating?"#EEF0F4":"linear-gradient(135deg,#1B65B8,#2B6CB0)",
-                color:generating?"#888":"#fff",fontFamily:"'Nunito',sans-serif",
-                fontWeight:800,fontSize:14,cursor:generating?"not-allowed":"pointer",
-                marginBottom:12}}>
-                {generating?"🤖 Generating AI description...":"🤖 Generate AI Image Guide"}
-              </button>
-              {aiError&&<div style={{color:"#E74C3C",fontSize:12,marginBottom:8}}>{aiError}</div>}
-              {aiImage&&(
-                <div style={{background:"#EEF5FF",borderRadius:12,padding:14,
-                  fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",lineHeight:1.7}}>
-                  <div style={{fontWeight:800,color:"#1B65B8",marginBottom:6}}>
-                    🤖 AI Image Guide for "{word.display||word.word}":
+              {/* Current image display */}
+              <div style={{background:"#F8F9FC",borderRadius:14,padding:16,
+                marginBottom:14,minHeight:140,display:"flex",alignItems:"center",
+                justifyContent:"center",position:"relative",overflow:"hidden"}}>
+                {customPhoto?(
+                  <div style={{textAlign:"center"}}>
+                    <img src={customPhoto} alt={word.word}
+                      style={{maxWidth:"100%",maxHeight:180,borderRadius:10,objectFit:"contain"}}/>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#5AAB2A",
+                      marginTop:6,fontWeight:700}}>✅ Your classroom photo</div>
                   </div>
-                  {aiImage}
-                </div>
+                ):generating?(
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:36,marginBottom:8,animation:"spin 1s linear infinite"}}>🤖</div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#888"}}>
+                      Generating image guide...
+                    </div>
+                  </div>
+                ):aiImageUrl?(
+                  <div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
+                      color:"#1B65B8",marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>
+                      🤖 AI Image Guide for "{word.display||word.word}"
+                    </div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
+                      lineHeight:1.7,whiteSpace:"pre-line"}}>{aiImageUrl}</div>
+                  </div>
+                ):(
+                  <div style={{textAlign:"center",opacity:0.4}}>
+                    <div style={{fontSize:48}}>{word.emoji}</div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
+                      No image yet
+                    </div>
+                  </div>
+                )}
+              </div>
+              {aiError&&<div style={{color:"#E74C3C",fontSize:11,marginBottom:8}}>{aiError}</div>}
+
+              {/* Action buttons */}
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                <button onClick={generateAIImage} disabled={generating}
+                  style={{flex:1,padding:"11px",borderRadius:10,border:"none",
+                  background:generating?"#EEF0F4":"#1B65B8",
+                  color:generating?"#AAA":"#fff",fontFamily:"'Nunito',sans-serif",
+                  fontWeight:800,fontSize:12,cursor:generating?"not-allowed":"pointer"}}>
+                  🤖 {generating?"Generating...":"Regenerate Guide"}
+                </button>
+                <button onClick={()=>fileRef.current?.click()}
+                  style={{flex:1,padding:"11px",borderRadius:10,border:"2px solid #5AAB2A",
+                  background:"transparent",color:"#5AAB2A",fontFamily:"'Nunito',sans-serif",
+                  fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                  📷 Use My Photo
+                </button>
+              </div>
+              {customPhoto&&(
+                <button onClick={()=>{
+                    setCustomPhoto(null);
+                    mem.set(`word_photo_${word.id||word.word}_${user?.id}`,null);
+                  }}
+                  style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EEF0F4",
+                  background:"transparent",color:"#AAA",fontFamily:"'Nunito',sans-serif",
+                  fontSize:11,cursor:"pointer",marginBottom:8}}>
+                  Remove my photo — use AI guide
+                </button>
               )}
-              <div style={{marginTop:12,padding:12,background:"#EAF3DE",borderRadius:10,
-                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#3D8A1A"}}>
-                💡 Tip: Take a photo of the actual object in your classroom using the camera in the AAC screen for best results.
+              <input ref={fileRef} type="file" accept="image/*"
+                style={{display:"none"}} onChange={handleCustomPhoto}/>
+              <div style={{padding:"10px 12px",background:"#EAF3DE",borderRadius:10,
+                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#3D8A1A",lineHeight:1.6}}>
+                💡 Use the AI guide to find a royalty-free photo on Unsplash.com, or tap "Use My Photo" to take a real classroom photo for maximum learning impact.
               </div>
             </div>
           )}
 
+          {/* ── LEVEL 2: Color Art/Emoji ── */}
           {activeLevel===2&&(
             <div>
               <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
-                marginBottom:8,lineHeight:1.5}}>
-                Color clipart or emoji that represent <b>"{word.display||word.word}"</b>.
-                Select the icon that best matches what your student sees in their environment.
+                marginBottom:12,lineHeight:1.6}}>
+                Select the color clipart that best represents <b>{word.display||word.word}</b> for your student. Level 3 will automatically mirror this in black & white.
               </div>
-              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
-                color:"#888",marginBottom:10,textTransform:"uppercase",letterSpacing:0.5}}>
-                Tap to select your preferred representation:
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
-                {level2Alts.map((e,i)=>(
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+                {l2Alts.map((e,i)=>(
                   <button key={i} onClick={()=>setSelectedL2(i)}
-                    style={{padding:"16px 8px",borderRadius:14,border:"none",
+                    style={{padding:"18px 8px",borderRadius:14,border:"none",
                     background:selectedL2===i?"#EEF5FF":"#F8F9FC",
                     boxShadow:selectedL2===i?"0 0 0 2px #1B65B8":"0 1px 4px rgba(0,0,0,0.08)",
-                    textAlign:"center",cursor:"pointer",transition:"all 0.15s"}}>
-                    <div style={{fontSize:38,marginBottom:4}}>{e}</div>
+                    textAlign:"center",cursor:"pointer",transition:"all 0.15s",
+                    position:"relative"}}>
+                    {selectedL2===i&&(
+                      <div style={{position:"absolute",top:6,right:6,width:16,height:16,
+                        borderRadius:"50%",background:"#1B65B8",color:"#fff",
+                        fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",
+                        fontWeight:900}}>✓</div>
+                    )}
+                    <div style={{fontSize:40,marginBottom:4}}>{e}</div>
                     <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,
                       color:selectedL2===i?"#1B65B8":"#AAA",fontWeight:700}}>
-                      {i===0?"⭐ Primary":i===1?"Alt 1":i===2?"Alt 2":i===3?"Alt 3":i===4?"Alt 4":"Alt 5"}
+                      {i===0?"⭐ Primary":"Alt "+i}
                     </div>
                   </button>
                 ))}
               </div>
-              {selectedL2>0&&(
-                <div style={{padding:"10px 14px",borderRadius:10,background:"#EAF3DE",
-                  fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#3D8A1A",fontWeight:700}}>
-                  ✅ Alternative {selectedL2} selected — this will display at Level 2 for this word
-                </div>
-              )}
-              <div style={{marginTop:10,padding:12,background:"#EEF5FF",borderRadius:10,
-                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#1B65B8",lineHeight:1.6}}>
-                💡 Level 2 uses color imagery to maintain visual interest. Choose the icon that most closely matches your student's real-world experience with "{word.word}".
+              <div style={{padding:"12px 14px",borderRadius:10,
+                background:selectedL2>0?"#EEF5FF":"#F8F9FC",
+                fontFamily:"'Nunito',sans-serif",fontSize:12,
+                color:selectedL2>0?"#1B65B8":"#888",lineHeight:1.6}}>
+                {selectedL2>0
+                  ? `✅ "${l2Alts[selectedL2]}" selected — Level 3 will show this in black & white`
+                  : `💡 Select an alternative if the primary icon doesn't match your student's environment`
+                }
               </div>
             </div>
           )}
 
+          {/* ── LEVEL 3: B&W version of selected L2 ── */}
           {activeLevel===3&&(
             <div>
               <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
-                marginBottom:8,lineHeight:1.5}}>
-                Black & white symbols that represent <b>"{word.display||word.word}"</b>.
-                Color is removed to prompt symbol-only recognition.
+                marginBottom:12,lineHeight:1.6}}>
+                Level 3 automatically mirrors your selected Level 2 image in black & white. Color is removed to reduce visual prompting.
               </div>
-              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
-                color:"#888",marginBottom:10,textTransform:"uppercase",letterSpacing:0.5}}>
-                Select your preferred B&W symbol:
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
-                {level3Alts.map((e,i)=>(
-                  <button key={i} onClick={()=>setSelectedL3(i)}
-                    style={{padding:"14px 8px",borderRadius:14,border:"none",
-                    background:selectedL3===i?"#F0F0F0":"#F8F9FC",
-                    boxShadow:selectedL3===i?"0 0 0 2px #607D8B":"0 1px 4px rgba(0,0,0,0.08)",
-                    textAlign:"center",cursor:"pointer",transition:"all 0.15s",
-                    filter:"grayscale(100%)"}}>
-                    <div style={{fontSize:e&&e.length<=3?32:18,marginBottom:4,
-                      fontFamily:"monospace",fontWeight:"bold",color:"#333",
-                      minHeight:36,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      {e}
-                    </div>
-                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,
-                      color:selectedL3===i?"#607D8B":"#AAA",fontWeight:700}}>
-                      {i===0?"⭐ Primary":i===1?"Alt 1":i===2?"Alt 2":i===3?"Alt 3":i===4?"Alt 4":"Alt 5"}
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {selectedL3>0&&(
-                <div style={{padding:"10px 14px",borderRadius:10,background:"#F0F0F0",
-                  fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#607D8B",fontWeight:700}}>
-                  ✅ Alternative {selectedL3} selected — this will display as the B&W symbol for "{word.word}"
+
+              {/* Show the SAME emoji as L2 but in grayscale */}
+              <div style={{background:"#F8F9FC",borderRadius:14,padding:24,
+                textAlign:"center",marginBottom:14,
+                border:"2px solid #EEF0F4"}}>
+                <div style={{fontSize:72,filter:"grayscale(100%) contrast(1.2)",
+                  marginBottom:8,lineHeight:1}}>{currentL2Emoji}</div>
+                <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",fontWeight:700}}>
+                  B&W version of your Level 2 selection
                 </div>
-              )}
-              <div style={{padding:12,background:"#F8F9FC",borderRadius:10,
+                <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#AAA",marginTop:4}}>
+                  {selectedL2===0?"Primary icon":"Alternative "+selectedL2} — grayscale applied
+                </div>
+              </div>
+
+              <div style={{padding:"10px 14px",background:"#F0F0F0",borderRadius:10,
                 fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#607D8B",lineHeight:1.6}}>
-                💡 Level 3 removes color cues, using only black & white symbols. This bridges the gap between color imagery (Level 2) and text-only (Level 4), building symbol literacy.
+                💡 Level 3 always mirrors Level 2 in black & white. To change the Level 3 image, go back to Level 2 and select a different alternative.
+              </div>
+
+              <div style={{marginTop:10,padding:"10px 14px",background:"#EEF5FF",
+                borderRadius:10,fontFamily:"'Nunito',sans-serif",fontSize:12,
+                color:"#1B65B8",lineHeight:1.6}}>
+                🎯 <b>Why B&W?</b> Removing color as a visual cue increases cognitive demand, preparing the student for symbol-only and text-only recognition (Level 4).
               </div>
             </div>
           )}
 
+          {/* ── LEVEL 4: Text only with color/font options ── */}
           {activeLevel===4&&(
-            <div style={{textAlign:"center",padding:"20px 0"}}>
-              <div style={{fontFamily:"'Fredoka One',cursive",
-                fontSize:"clamp(36px,12vw,64px)",color:"#E67E22",letterSpacing:2,
-                marginBottom:12}}>{word.display||word.word}</div>
-              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",lineHeight:1.6}}>
-                {levels[3].desc}. The student reads and responds to the written word without visual support.
+            <div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
+                marginBottom:14,lineHeight:1.6}}>
+                Level 4 displays text only. Customize the color and font style for your student.
+              </div>
+
+              {/* Live preview */}
+              <div style={{background:"#F8F9FC",borderRadius:14,padding:24,
+                textAlign:"center",marginBottom:16,minHeight:100,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{fontFamily:l4Font,fontSize:"clamp(32px,10vw,56px)",
+                  color:l4Color,letterSpacing:2,lineHeight:1,fontWeight:"bold"}}>
+                  {word.display||word.word?.toUpperCase()}
+                </div>
+              </div>
+
+              {/* Color options */}
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
+                color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>
+                Text Color
+              </div>
+              <div style={{display:"flex",gap:10,marginBottom:16}}>
+                {l4Colors.map(c=>(
+                  <button key={c} onClick={()=>setL4Color(c)}
+                    style={{width:36,height:36,borderRadius:"50%",border:"none",
+                    background:c,cursor:"pointer",
+                    boxShadow:l4Color===c?"0 0 0 3px #fff, 0 0 0 5px "+c:"0 2px 6px rgba(0,0,0,0.2)",
+                    transition:"all 0.15s"}}/>
+                ))}
+              </div>
+
+              {/* Font options */}
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:11,
+                color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>
+                Font Style
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
+                {l4Fonts.map(f=>(
+                  <button key={f.val} onClick={()=>setL4Font(f.val)}
+                    style={{padding:"10px 6px",borderRadius:10,border:"none",
+                    background:l4Font===f.val?"#EEF5FF":"#F8F9FC",
+                    boxShadow:l4Font===f.val?"0 0 0 2px #1B65B8":"0 1px 4px rgba(0,0,0,0.08)",
+                    cursor:"pointer",textAlign:"center"}}>
+                    <div style={{fontFamily:f.val,fontSize:16,color:l4Color,fontWeight:"bold",
+                      marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {word.display||word.word}
+                    </div>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,color:"#AAA",fontWeight:700}}>
+                      {f.label}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div style={{padding:"10px 14px",background:"#FFF8EC",borderRadius:10,
+                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#92600A",lineHeight:1.6}}>
+                🎓 Level 4 represents full symbolic independence — the student reads and responds to the written word without any visual support.
               </div>
             </div>
           )}
@@ -2757,6 +2860,7 @@ function WordDetailPanel({word, user, onClose}){
     </div>
   );
 }
+
 
 // ── Add Word In See Modal ─────────────────────────────────────────
 function AddWordInSeeModal({user, onClose, onAdd}){
