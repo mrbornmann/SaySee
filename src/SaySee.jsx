@@ -3123,7 +3123,10 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
                         {/* T&C checkbox */}
             {(!termsAccepted && !localTerms)&&(
               <div style={{display:"flex",alignItems:"center",gap:8,
-                marginBottom:14,marginTop:4}}>
+                marginBottom:14,marginTop:4,
+                padding:"10px 12px",
+                borderRadius:10,
+                background:"rgba(0,0,0,0.15)"}}>
                 <input type="checkbox" id="tc-check"
                   checked={localTerms}
                   onChange={e=>{
@@ -3134,14 +3137,14 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
                     }
                   }}
                   style={{width:17,height:17,cursor:"pointer",flexShrink:0,
-                  accentColor:"#5AAB2A",background:"transparent"}}/>
+                  accentColor:"#5AAB2A"}}/>
                 <label htmlFor="tc-check"
                   style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
-                  color:"rgba(255,255,255,0.9)",lineHeight:1.5,cursor:"pointer",
-                  fontWeight:600,userSelect:"none"}}>
+                  color:"rgba(255,255,255,0.95)",lineHeight:1.5,cursor:"pointer",
+                  fontWeight:700,userSelect:"none"}}>
                   I agree to the{" "}
-                  <span onClick={()=>onShowTerms&&onShowTerms()}
-                    style={{color:"#5AAB2A",fontWeight:800,cursor:"pointer",
+                  <span onClick={(e)=>{e.preventDefault();e.stopPropagation();onShowTerms&&onShowTerms();}}
+                    style={{color:"#5AAB2A",fontWeight:900,cursor:"pointer",
                     textDecoration:"underline"}}>
                     Terms & Conditions
                   </span>
