@@ -3121,23 +3121,15 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
             </form>
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
             {(!termsAccepted && !localTerms)&&(
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}
+                onClick={()=>{ setLocalTerms(p=>{ const next=!p; if(next){ if(onAcceptTerms) onAcceptTerms(); try{localStorage.setItem("saysee_terms_accepted","true");}catch(ex){} } return next; }); }}>
                 <input type="checkbox" id="tc-check" checked={localTerms}
-                  onChange={e=>{
-                    setLocalTerms(e.target.checked);
-                    if(e.target.checked){
-                      if(onAcceptTerms) onAcceptTerms();
-                      try{localStorage.setItem("saysee_terms_accepted","true");}catch(ex){}
-                    }
-                  }}
+                  onChange={()=>{}}
                   style={{width:16,height:16,cursor:"pointer",flexShrink:0,
-                    accentColor:"#5AAB2A",background:"none",border:"none",
-                    appearance:"auto",WebkitAppearance:"auto"}}/>
-                <label htmlFor="tc-check"
-                  style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
+                    accentColor:"#5AAB2A"}}/>
+                <span style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
                   color:"#fff",lineHeight:1.5,cursor:"pointer",
-                  fontWeight:600,userSelect:"none",
-                  textShadow:"none",background:"none"}}>
+                  fontWeight:600,userSelect:"none"}}>
                   I agree to the{" "}
                   <span onClick={(e)=>{e.stopPropagation();onShowTerms&&onShowTerms();}}
                     style={{color:"#5AAB2A",fontWeight:800,cursor:"pointer",
@@ -3145,7 +3137,7 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
                     Terms & Conditions
                   </span>
                   {" "}and Privacy Policy
-                </label>
+                </span>
               </div>
             )}
             <button onClick={()=>{ if(!localTerms && !termsAccepted){ alert("Please check the Terms & Conditions box to continue."); return; } doLogin(); }} type="button" style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
