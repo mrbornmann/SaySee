@@ -2552,89 +2552,95 @@ function WordDetailPanel({word, user, onClose}){
 
   const fetchWordImage = async () => {
     setImgLoading(true);
-    const baseWord = (word.display||word.word||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").trim();
+    const wordStr = (word.display||word.word||"").toLowerCase().trim();
 
-    // Build a specific child/classroom-appropriate search term
-    // Map AAC words to better search terms for Commons
-    const searchMap = {
-      "eat":"child eating food", "drink":"child drinking water cup",
-      "sleep":"child sleeping bed", "play":"children playing toys",
-      "stop":"stop hand gesture", "go":"walking child",
-      "help":"helping hands children", "more":"more food child",
-      "yes":"thumbs up yes", "no":"no shaking head",
-      "happy":"happy smiling child", "sad":"sad child crying",
-      "angry":"angry child face", "scared":"scared child",
-      "tired":"tired sleepy child", "hurt":"bandage injury child",
-      "sick":"sick child thermometer", "potty":"toilet bathroom",
-      "bath":"child bathing bubbles", "milk":"glass of milk",
-      "water":"glass of water", "snack":"healthy snack fruit",
-      "mom":"mother woman smiling", "dad":"father man smiling",
-      "teacher":"teacher classroom school", "dog":"pet dog friendly",
-      "cat":"pet cat friendly", "bird":"pet bird colorful",
+    // Word-specific search terms optimized for classroom/educational context
+    const searchTerms = {
+      "eat":"child eating healthy food school", "drink":"child drinking water bottle",
+      "sleep":"child sleeping bedroom", "play":"children playing school",
+      "stop":"stop sign hand", "go":"child walking forward",
+      "help":"teacher helping student", "more":"child asking more food",
+      "yes":"child nodding yes thumbs up", "no":"child shaking head no",
+      "happy":"happy smiling child school", "sad":"sad child emotion",
+      "angry":"angry frustrated child", "scared":"scared child hiding",
+      "tired":"tired sleepy child yawning", "excited":"excited child jumping",
+      "calm":"calm child breathing relaxed", "proud":"proud child award trophy",
+      "hurt":"child with bandage injury", "sick":"sick child thermometer",
+      "potty":"child bathroom toilet", "bath":"child bath bubbles",
+      "water":"child drinking water glass", "milk":"glass of milk white",
+      "snack":"healthy snack fruit crackers", "mom":"mother and child",
+      "dad":"father and child", "teacher":"teacher classroom whiteboard",
+      "friend":"children friends playing", "doctor":"doctor child checkup",
       "apple":"red apple fruit", "banana":"yellow banana fruit",
-      "cookie":"chocolate chip cookie", "book":"open children book",
-      "pencil":"pencil school writing", "chair":"classroom chair",
-      "table":"classroom table desk", "ball":"playground ball",
-      "jump":"child jumping", "run":"child running",
-      "sit":"child sitting chair", "stand":"child standing",
-      "walk":"child walking", "clean":"cleaning washing hands",
-      "wash":"washing hands soap", "brush":"brushing teeth",
-      "shoes":"pair of shoes child", "shirt":"children shirt clothing",
-      "pants":"children pants clothing", "hat":"children hat wearing",
-      "hot":"hot temperature sun", "cold":"cold ice winter",
-      "big":"big large elephant", "small":"small tiny mouse",
-      "up":"arrow pointing up", "down":"arrow pointing down",
-      "open":"open door", "close":"closed door",
-      "on":"light switch on", "off":"light switch off",
-      "in":"inside box", "out":"outside outdoor",
-      "wait":"waiting patient child", "come":"come here gesture",
-      "look":"looking eyes child", "listen":"listening ear",
-      "line up":"children line up school", "sit down":"child sitting down",
+      "cookie":"chocolate chip cookie", "book":"child reading book",
+      "pencil":"pencil writing school", "chair":"classroom chair school",
+      "table":"classroom desk table", "backpack":"school backpack child",
+      "scissors":"safety scissors cutting", "paper":"white paper school",
+      "dog":"friendly dog pet", "cat":"friendly cat pet",
+      "bird":"colorful bird pet", "run":"child running playground",
+      "jump":"child jumping playground", "sit":"child sitting chair classroom",
+      "walk":"child walking hallway", "wash":"child washing hands soap",
+      "clean":"cleaning organizing school", "draw":"child drawing art",
+      "read":"child reading book", "write":"child writing pencil",
+      "listen":"child listening teacher", "look":"child looking pointing",
+      "dance":"child dancing movement", "wait":"child waiting patient",
+      "line up":"children lining up school hallway",
+      "sit down":"child sitting down chair",
+      "stand up":"child standing up classroom",
+      "be quiet":"quiet finger lips school",
+      "good job":"child praise sticker star",
+      "bathroom":"school bathroom hallway sign",
     };
 
-    const searchTerm = searchMap[baseWord] || searchMap[word.word?.toLowerCase()] || (baseWord + " child school");
+    const query = searchTerms[wordStr]
+      || searchTerms[word.word?.toLowerCase()]
+      || (wordStr + " child school classroom");
 
     try {
-      // Search Wikimedia Commons with specific educational terms
+      // Pexels API — free, modern, educational photos
+      // Get free key at pexels.com/api
+      const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY || "";
+
+      if(PEXELS_KEY){
+        const res = await fetch(
+          `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5&orientation=square&size=medium`,
+          { headers: { Authorization: PEXELS_KEY } }
+        );
+        if(res.ok){
+          const data = await res.json();
+          // Pick best photo - prefer photos with people/children
+          const photo = data.photos?.[0];
+          if(photo?.src?.medium){
+            const imgUrl = photo.src.medium;
+            setUnsplashUrl(imgUrl);
+            mem.set(`word_img_${word.id||word.word}`, imgUrl);
+            setImgLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Fallback: Wikimedia Commons with educational search terms
       const commonsRes = await fetch(
-        `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&srnamespace=6&srlimit=10&format=json&origin=*`
+        `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srnamespace=6&srlimit=5&format=json&origin=*`
       );
       const commonsData = await commonsRes.json();
-      const hits = commonsData.query?.search || [];
+      const hits = (commonsData.query?.search || []).filter(h =>
+        h.title.match(/\.(jpg|jpeg|png)$/i)
+      );
 
       for(const hit of hits){
-        // Skip SVG files - we want photos
-        if(hit.title.toLowerCase().endsWith('.svg')) continue;
-        if(!hit.title.match(/\.(jpg|jpeg|png|webp)/i)) continue;
-
         const infoRes = await fetch(
           `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(hit.title)}&prop=imageinfo&iiprop=url|mime&iiurlwidth=400&format=json&origin=*`
         );
         const infoData = await infoRes.json();
         const imgInfo = Object.values(infoData.query?.pages||{})[0]?.imageinfo?.[0];
-        const imgUrl = imgInfo?.thumburl || imgInfo?.url;
-        const mime = imgInfo?.mime || "";
-
-        if(imgUrl && mime.startsWith("image/") && !mime.includes("svg")){
-          setUnsplashUrl(imgUrl);
-          mem.set(`word_img_${word.id||word.word}`, imgUrl);
+        if(imgInfo?.thumburl && imgInfo.mime?.startsWith("image/jpeg")){
+          setUnsplashUrl(imgInfo.thumburl);
+          mem.set(`word_img_${word.id||word.word}`, imgInfo.thumburl);
           setImgLoading(false);
           return;
         }
-      }
-
-      // Fallback: Wikipedia article for the BASE word (not the full search term)
-      const wikiRes = await fetch(
-        `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(baseWord)}&prop=pageimages&format=json&pithumbsize=400&origin=*`
-      );
-      const wikiData = await wikiRes.json();
-      const pages = Object.values(wikiData.query?.pages || {});
-      const thumb = pages[0]?.thumbnail?.source;
-      if(thumb && !thumb.includes('.svg')){
-        setUnsplashUrl(thumb);
-        mem.set(`word_img_${word.id||word.word}`, thumb);
-        setImgLoading(false);
-        return;
       }
     } catch(e){
       console.log("Image fetch error:", e.message);
