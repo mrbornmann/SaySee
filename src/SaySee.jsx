@@ -1982,7 +1982,8 @@ function ProfileSection({user, onBack}){
   const [photoUrl,  setPhotoUrl]  = useState(mem.get(`profile_photo_${user.id}`)||null);
   const [saved,     setSaved]     = useState(false);
   const [saving,    setSaving]    = useState(false);
-  const fileRef = useRef(null);
+  const fileRef   = useRef(null);
+  const cameraRef = useRef(null);
 
   // Generate initials avatar
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "?";
@@ -2521,7 +2522,7 @@ function WordDetailPanel({word, user, onClose}){
   const [activeLevel, setActiveLevel] = useState(1);
   const [aiImageUrl, setAiImageUrl]   = useState(null);
   const [unsplashUrl, setUnsplashUrl] = useState(
-    mem.get(`word_img_${word.id||word.word}`, null)
+    mem.get(`word_img_${(word.word||word.id||'').toLowerCase()}`, null)
   );
   const [imgLoading, setImgLoading]   = useState(false);
   const [generating, setGenerating]   = useState(false);
@@ -2532,7 +2533,8 @@ function WordDetailPanel({word, user, onClose}){
   );
   const [l4Color, setL4Color]         = useState("#1B65B8");
   const [l4Font, setL4Font]           = useState("'Fredoka One',cursive");
-  const fileRef = useRef(null);
+  const fileRef   = useRef(null);
+  const cameraRef = useRef(null);
 
   // Word-specific visuals
   const wordKey  = (word.word||"").toLowerCase().replace(/[^a-z]/g,"");
@@ -2550,96 +2552,49 @@ function WordDetailPanel({word, user, onClose}){
     if(!customPhoto && !unsplashUrl) fetchWordImage();
   },[]);
 
-  const fetchWordImage = async () => {
+  const fetchWordImage = async (forceNew=false) => {
     setImgLoading(true);
     const wordStr = (word.display||word.word||"").toLowerCase().trim();
 
-    // Word-specific search terms optimized for classroom/educational context
-    const searchTerms = {
-      "eat":"child eating healthy food school", "drink":"child drinking water bottle",
-      "sleep":"child sleeping bedroom", "play":"children playing school",
-      "stop":"stop sign hand", "go":"child walking forward",
-      "help":"teacher helping student", "more":"child asking more food",
-      "yes":"child nodding yes thumbs up", "no":"child shaking head no",
-      "happy":"happy smiling child school", "sad":"sad child emotion",
-      "angry":"angry frustrated child", "scared":"scared child hiding",
-      "tired":"tired sleepy child yawning", "excited":"excited child jumping",
-      "calm":"calm child breathing relaxed", "proud":"proud child award trophy",
-      "hurt":"child with bandage injury", "sick":"sick child thermometer",
-      "potty":"child bathroom toilet", "bath":"child bath bubbles",
-      "water":"child drinking water glass", "milk":"glass of milk white",
-      "snack":"healthy snack fruit crackers", "mom":"mother and child",
-      "dad":"father and child", "teacher":"teacher classroom whiteboard",
-      "friend":"children friends playing", "doctor":"doctor child checkup",
-      "apple":"red apple fruit", "banana":"yellow banana fruit",
-      "cookie":"chocolate chip cookie", "book":"child reading book",
-      "pencil":"pencil writing school", "chair":"classroom chair school",
-      "table":"classroom desk table", "backpack":"school backpack child",
-      "scissors":"safety scissors cutting", "paper":"white paper school",
-      "dog":"friendly dog pet", "cat":"friendly cat pet",
-      "bird":"colorful bird pet", "run":"child running playground",
-      "jump":"child jumping playground", "sit":"child sitting chair classroom",
-      "walk":"child walking hallway", "wash":"child washing hands soap",
-      "clean":"cleaning organizing school", "draw":"child drawing art",
-      "read":"child reading book", "write":"child writing pencil",
-      "listen":"child listening teacher", "look":"child looking pointing",
-      "dance":"child dancing movement", "wait":"child waiting patient",
-      "line up":"children lining up school hallway",
-      "sit down":"child sitting down chair",
-      "stand up":"child standing up classroom",
-      "be quiet":"quiet finger lips school",
-      "good job":"child praise sticker star",
-      "bathroom":"school bathroom hallway sign",
-    };
-
-    const query = searchTerms[wordStr]
-      || searchTerms[word.word?.toLowerCase()]
-      || (wordStr + " child school classroom");
-
     try {
-      // Pexels API — free, modern, educational photos
-      // Get free key at pexels.com/api
-      const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY || "";
+      // Step 1: Use Claude AI to generate the perfect Pexels search query
+      const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:60,
+          messages:[{role:"user",content:
+            `AAC app image for word "${wordStr}" (category: ${cat}). Generate ONE Pexels search query (3-5 words) that finds a clear COLOR photo showing exactly this concept in a school or home setting — concrete and unambiguous, suitable for a child with autism. The word is VERY literal. Examples: "eat" → "child eating lunch", "breakfast" → "breakfast food plate", "mine" → "child holding object mine". Reply with ONLY the search query.`
+          }]
+        })
+      });
+      let searchQuery = wordStr + " child school";
+      if(aiRes.ok){
+        const aiData = await aiRes.json();
+        const aiText = aiData.content?.[0]?.text?.trim();
+        if(aiText && aiText.length < 80) searchQuery = aiText;
+      }
 
+      // Step 2: Search Pexels with AI-generated query
+      const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY || "";
       if(PEXELS_KEY){
+        // If forceNew, skip cache and get next page
+        const page = forceNew ? Math.floor(Math.random()*5)+2 : 1;
         const res = await fetch(
-          `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5&orientation=square&size=medium`,
+          `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=5&page=${page}&orientation=square&size=medium`,
           { headers: { Authorization: PEXELS_KEY } }
         );
         if(res.ok){
           const data = await res.json();
-          // Pick best photo - prefer photos with people/children
           const photo = data.photos?.[0];
           if(photo?.src?.medium){
-            const imgUrl = photo.src.medium;
-            setUnsplashUrl(imgUrl);
-            mem.set(`word_img_${word.id||word.word}`, imgUrl);
+            setUnsplashUrl(photo.src.medium);
+            mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`, photo.src.medium);
+            mem.set(`word_query_${(word.word||word.id||'').toLowerCase()}`, searchQuery);
             setImgLoading(false);
             return;
           }
-        }
-      }
-
-      // Fallback: Wikimedia Commons with educational search terms
-      const commonsRes = await fetch(
-        `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srnamespace=6&srlimit=5&format=json&origin=*`
-      );
-      const commonsData = await commonsRes.json();
-      const hits = (commonsData.query?.search || []).filter(h =>
-        h.title.match(/\.(jpg|jpeg|png)$/i)
-      );
-
-      for(const hit of hits){
-        const infoRes = await fetch(
-          `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(hit.title)}&prop=imageinfo&iiprop=url|mime&iiurlwidth=400&format=json&origin=*`
-        );
-        const infoData = await infoRes.json();
-        const imgInfo = Object.values(infoData.query?.pages||{})[0]?.imageinfo?.[0];
-        if(imgInfo?.thumburl && imgInfo.mime?.startsWith("image/jpeg")){
-          setUnsplashUrl(imgInfo.thumburl);
-          mem.set(`word_img_${word.id||word.word}`, imgInfo.thumburl);
-          setImgLoading(false);
-          return;
         }
       }
     } catch(e){
@@ -2686,11 +2641,16 @@ SEARCH: [term1, term2, term3]`}]
     const reader = new FileReader();
     reader.onload = ev => {
       const url = ev.target.result;
+      // Replace immediately
       setCustomPhoto(url);
+      setUnsplashUrl(null);
       mem.set(`word_photo_${word.id||word.word}_${user?.id}`, url);
+      mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`, null);
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
+
 
   const l4Colors  = ["#1B65B8","#5AAB2A","#E67E22","#8E44AD","#E74C3C","#000000"];
   const l4Fonts   = [
@@ -2810,7 +2770,11 @@ SEARCH: [term1, term2, term3]`}]
 
               {/* Action buttons */}
               <div style={{display:"flex",gap:8,marginBottom:8}}>
-                <button onClick={()=>fetchWordImage()}
+                <button onClick={()=>{
+                    setUnsplashUrl(null);
+                    mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`,null);
+                    fetchWordImage(true);
+                  }}
                   disabled={imgLoading}
                   style={{flex:1,padding:"10px",borderRadius:10,border:"none",
                   background:imgLoading?"#EEF0F4":"#1B65B8",
@@ -2818,7 +2782,7 @@ SEARCH: [term1, term2, term3]`}]
                   fontWeight:800,fontSize:11,cursor:imgLoading?"not-allowed":"pointer"}}>
                   {imgLoading?"🔍 Finding...":"🔍 Find New Image"}
                 </button>
-                <button onClick={()=>fileRef.current?.click()}
+                <button onClick={()=>cameraRef.current?.click()}
                   style={{flex:1,padding:"10px",borderRadius:10,border:"2px solid #5AAB2A",
                   background:"transparent",color:"#5AAB2A",fontFamily:"'Nunito',sans-serif",
                   fontWeight:800,fontSize:11,cursor:"pointer"}}>
@@ -2830,7 +2794,7 @@ SEARCH: [term1, term2, term3]`}]
                     setCustomPhoto(null);
                     setUnsplashUrl(null);
                     mem.set(`word_photo_${word.id||word.word}_${user?.id}`,null);
-                    mem.set(`word_img_${word.id||word.word}`,null);
+                    mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`,null);
                   }}
                   style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EEF0F4",
                   background:"transparent",color:"#AAA",fontFamily:"'Nunito',sans-serif",
@@ -2838,8 +2802,15 @@ SEARCH: [term1, term2, term3]`}]
                   ✕ Remove image
                 </button>
               )}
-              <input ref={fileRef} type="file" accept="image/*"
+              {/* Camera input - opens camera directly on mobile */}
+              <input ref={cameraRef} type="file" accept="image/*"
+                capture="environment"
                 style={{display:"none"}} onChange={handleCustomPhoto}/>
+              {/* File input - for desktop or manual file selection */}
+              <input ref={cameraRef} type="file" accept="image/*"
+                capture="environment"
+                style={{display:"none"}} onChange={handleCustomPhoto}/>
+
               <div style={{padding:"10px 12px",background:"#EAF3DE",borderRadius:10,
                 fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#3D8A1A",lineHeight:1.6}}>
                 💡 Use the AI guide to find a royalty-free photo on Unsplash.com, or tap "Use My Photo" to take a real classroom photo for maximum learning impact.
@@ -3059,9 +3030,8 @@ function AddWordInSeeModal({user, onClose, onAdd}){
           <select value={cat} onChange={e=>setCat(e.target.value)}
             style={{width:"100%",padding:"10px 12px",borderRadius:10,
             border:"2px solid #EEF0F4",fontFamily:"'Nunito',sans-serif",fontSize:13}}>
-            {["core","emotions","actions","needs","food","people","animals",
-              "classroom","academic","health","safety","community","activities"].map(c=>(
-              <option key={c} value={c} style={{textTransform:"capitalize"}}>{c}</option>
+            {CATS.map(c=>(
+              <option key={c.id} value={c.id} style={{textTransform:"capitalize"}}>{c.icon} {c.label}</option>
             ))}
           </select>
         </div>
@@ -5336,169 +5306,130 @@ export default function SaySee(){
   const [user,setUser]           = useState(null);
   const [loading,setLoading]     = useState(true);
   const [masterWords,setMasterWords] = useState([...MASTER_WORDS]);
-  const [showPayment,setShowPayment]   = useState(false);
-  const [paymentPlan,setPaymentPlan]   = useState('monthly');
-  const [homeMode,setHomeMode]         = useState('home');
+  const [homeMode,setHomeMode]   = useState("home");
+  const [showTerms,setShowTerms] = useState(false);
   const [termsAccepted,setTermsAccepted] = useState(()=>{
-    try { return localStorage.getItem('saysee_terms_accepted')==='true'; } catch(e){ return false; }
+    try{ return localStorage.getItem("saysee_terms_accepted")==="true"; }catch(e){ return false; }
   });
-  const [showTerms,setShowTerms]       = useState(false); // home|say|see|teach|data|settings|reinforcers
 
-  // Check for existing session on load
-  useEffect(()=>{
-    const checkSession = async () => {
-      try {
-        // Try to refresh the session first (handles expired JWT)
-        try {
-          if(supabase) await supabase.auth.refreshSession();
-        } catch(refreshErr) {
-          console.log("Session refresh failed, trying existing session");
-        }
-        // Supabase auto-restores session from localStorage with persistSession:true
-        const session = await sbAuth.getSession();
-        if (session?.user) {
-          const email = session.user.email || '';
-          const isAdmin = ['admin@saysee.app','admin@saysee.io','hello@saysee.io'].includes(email.toLowerCase());
-          // Try to get full account from DB
-          let acct = null;
-          try { acct = await sbAuth.getAccount(session.user.id); } catch(e){}
-          const userData = acct ? {
-            ...acct,
-            role: isAdmin ? 'admin' : (acct.role || 'teacher'),
-            plan: isAdmin ? 'admin' : (acct.plan || 'monthly'),
-            maxStudents: acct.max_students || 28,
-            name: acct.name || email,
-          } : {
-            id: session.user.id, email,
-            name: session.user.user_metadata?.name || email,
-            role: isAdmin ? 'admin' : 'teacher',
-            plan: isAdmin ? 'admin' : 'monthly',
-            maxStudents: 28,
-          };
-          setUser(userData);
-          // Also cache locally as backup
-          try { localStorage.setItem('saysee_session', JSON.stringify({user:userData,ts:Date.now()})); } catch(e){}
-        } else {
-          // No Supabase session — check 7-day local cache as fallback
-          try {
-            const cached = localStorage.getItem('saysee_session');
-            if(cached){
-              const {user:cu, ts} = JSON.parse(cached);
-              console.log('Restoring from cache, age:', Math.round((Date.now()-ts)/1000/60), 'minutes');
-              const sevenDays = 7*24*60*60*1000;
-              if(Date.now()-ts < sevenDays && cu?.email) {
-                setUser(cu);
-              } else {
-                localStorage.removeItem('saysee_session');
-              }
-            }
-          } catch(e){}
-        }
-      } catch(e) {
-        // Supabase unavailable — use local cache
-        try {
-          const cached = localStorage.getItem('saysee_session');
+  const ADMIN_EMAILS = ["admin@saysee.app","admin@saysee.io","hello@saysee.io"];
+
+  const checkSession = async () => {
+    try {
+      try{ if(supabase) await supabase.auth.refreshSession(); }catch(e){}
+      const session = await sbAuth.getSession();
+      if(session?.user){
+        const email = session.user.email||"";
+        const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
+        let acct = null;
+        try{ acct = await sbAuth.getAccount(session.user.id); }catch(e){}
+        const userData = acct ? {
+          ...acct,
+          role: isAdmin?"admin":(acct.role||"teacher"),
+          plan: isAdmin?"admin":(acct.plan||"monthly"),
+          maxStudents: acct.max_students||28,
+          name: acct.name||email,
+        } : {
+          id:session.user.id, email,
+          name:session.user.user_metadata?.name||email,
+          role:isAdmin?"admin":"teacher",
+          plan:isAdmin?"admin":"monthly",
+          maxStudents:28,
+        };
+        setUser(userData);
+        try{ localStorage.setItem("saysee_session",JSON.stringify({user:userData,ts:Date.now()})); }catch(e){}
+      } else {
+        try{
+          const cached = localStorage.getItem("saysee_session");
           if(cached){
-            const {user:cu, ts} = JSON.parse(cached);
-            if(Date.now()-ts < 7*24*60*60*1000 && cu?.email) setUser(cu);
+            const {user:cu,ts} = JSON.parse(cached);
+            const sevenDays = 7*24*60*60*1000;
+            if(Date.now()-ts < sevenDays && cu?.email) setUser(cu);
+            else localStorage.removeItem("saysee_session");
           }
-        } catch(e2){}
+        }catch(e){}
       }
-      setLoading(false);
-    };
-    checkSession();
-  },[]);
+    } catch(e){
+      try{
+        const cached = localStorage.getItem("saysee_session");
+        if(cached){
+          const {user:cu,ts} = JSON.parse(cached);
+          if(Date.now()-ts < 7*24*60*60*1000 && cu?.email) setUser(cu);
+        }
+      }catch(e2){}
+    }
+    setLoading(false);
+  };
 
-  // Load master words from Supabase if available
+  useEffect(()=>{ checkSession(); },[]);
+
+  // Load master words
   useEffect(()=>{
-    const loadWords = async () => {
-      try {
-        const words = await sbData.getWords();
-        if (words.length > 0) setMasterWords(words.map(w=>({...w, cat:w.category, triggers:w.triggers||[w.word]})));
-      } catch(e) { console.log("Using built-in word list"); }
-    };
-    loadWords();
+    try{
+      const saved = localStorage.getItem("saysee_master_words");
+      if(saved){ const w=JSON.parse(saved); if(w?.length) setMasterWords(w); }
+    }catch(e){}
   },[]);
-
-  // ── Trial enforcement helpers ────────────────────────────────
-  const isTrialExpired = (acct) => {
-    if(!acct) return false;
-    // Never block admins, paid plans, or demo accounts
-    if(acct.role === 'admin' || acct.role === 'district_admin') return false;
-    if(acct.plan !== 'trial') return false;
-    if(DEMO_EMAILS.has(acct.email?.toLowerCase())) return false;
-    if(!acct.trialStart) return false;
-    const trialStart = new Date(acct.trialStart);
-    if(isNaN(trialStart.getTime())) return false;
-    const daysDiff = (Date.now() - trialStart) / (1000 * 60 * 60 * 24);
-    return daysDiff > 7;
-  };
-
-  const daysLeftInTrial = (acct) => {
-    if(!acct?.trialStart) return 7;
-    const trialStart = new Date(acct.trialStart);
-    const now = new Date();
-    const daysDiff = (now - trialStart) / (1000 * 60 * 60 * 24);
-    return Math.max(0, Math.ceil(7 - daysDiff));
-  };
-
-  // Admin emails always get admin role regardless of database state
-  const ADMIN_EMAILS = ['admin@saysee.app', 'admin@saysee.io', 'hello@saysee.io'];
 
   const login = async (email, password, setErr) => {
-    // ── Check demo accounts first — always work, bypass Supabase ──
     const demo = DEMO_ACCOUNTS.find(a=>a.email===email.toLowerCase()&&a.password===password);
     if(demo){
       setUser(demo);
-      try { localStorage.setItem('saysee_session', JSON.stringify({user:demo,ts:Date.now()})); } catch(e){}
+      try{ localStorage.setItem("saysee_session",JSON.stringify({user:demo,ts:Date.now()})); }catch(e){}
       return;
     }
-
-    // ── Try Supabase for real accounts ─────────────────────────────
-    try {
-      const { user:u } = await sbAuth.signIn(email, password);
+    try{
+      const {user:u} = await sbAuth.signIn(email,password);
       const acct = await sbAuth.getAccount(u.id);
       const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
       const loginUser = acct ? {
         ...acct,
-        role:       isAdmin ? 'admin'   : (acct.role   || 'teacher'),
-        plan:       isAdmin ? 'admin'   : (acct.plan   || 'monthly'),
-        maxStudents: acct.max_students  || 28,
-        name:       acct.name           || email,
+        role:isAdmin?"admin":(acct.role||"teacher"),
+        plan:isAdmin?"admin":(acct.plan||"monthly"),
+        maxStudents:acct.max_students||28,
+        name:acct.name||email,
       } : {
-        id: u.id, email: u.email,
-        name: u.user_metadata?.name || email,
-        role: isAdmin ? 'admin'  : (u.user_metadata?.role || 'teacher'),
-        plan: isAdmin ? 'admin'  : 'monthly',
-        maxStudents: 28,
+        id:u.id, email,
+        name:u.user_metadata?.name||email,
+        role:isAdmin?"admin":"teacher",
+        plan:isAdmin?"admin":"monthly",
+        maxStudents:28,
       };
       setUser(loginUser);
-      // Save 7-day session
-      try { localStorage.setItem('saysee_session', JSON.stringify({user:loginUser,ts:Date.now()})); } catch(e){}
-    } catch(e) {
-      setErr(e.message||"Invalid email or password.");
+      try{ localStorage.setItem("saysee_session",JSON.stringify({user:loginUser,ts:Date.now()})); }catch(e){}
+    }catch(err){
+      if(setErr) setErr(err.message||"Login failed. Please try again.");
+    }
+  };
+
+  const register = async (email, password, name, plan, setErr) => {
+    try{
+      await sbAuth.signUp(email,password,name,plan);
+      await login(email,password,setErr);
+    }catch(err){
+      if(setErr) setErr(err.message||"Registration failed.");
     }
   };
 
   const logout = async () => {
-    try { localStorage.removeItem('saysee_session'); } catch(e){}
-    try { localStorage.removeItem('saysee_terms_accepted'); } catch(e){}
+    try{ localStorage.removeItem("saysee_session"); }catch(e){}
     await sbAuth.signOut();
     setUser(null);
+    setHomeMode("home");
   };
 
-  const register = async (name, email, password, plan, setErr) => {
-    try {
-      const trialStart = new Date().toISOString();
-      await sbAuth.signUp(email, password, name, plan);
-      setUser({ id:`u_${Date.now()}`, email, name, role:"teacher", plan:"trial", trialStart, maxStudents:28 });
-    } catch(e) { setErr(e.message||"Registration failed. Please try again."); }
+  const daysLeftInTrial = (u) => {
+    if(!u?.created_at) return 7;
+    const days = Math.ceil((new Date(u.created_at).getTime()+7*24*60*60*1000-Date.now())/(1000*60*60*24));
+    return Math.max(0,days);
   };
 
-  if (loading) return(
-    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#1B4F9E,#2B6CB0)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20}}>
-      <SaySeeFullLogo size={120}/>
-      <div style={{fontFamily:"'Nunito',sans-serif",fontSize:14,color:"rgba(255,255,255,0.5)"}}>Loading…</div>
+  if(loading) return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#1B65B8"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{marginBottom:16}}><SaySeeLogo size={60}/></div>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#5AAB2A"}}>Loading SaySee™...</div>
+      </div>
     </div>
   );
 
@@ -5507,82 +5438,67 @@ export default function SaySee(){
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
-        input[type="checkbox"]{accent-color:#5AAB2A;cursor:pointer;}
-        input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
-          -webkit-text-fill-color:#1A1A2E;
-          -webkit-box-shadow:0 0 0px 1000px rgba(255,255,255,0.92) inset;
-        }
-        label{background:none!important;}
         body{background:#F4F6FB;}
+        input[type="checkbox"]{accent-color:#5AAB2A;cursor:pointer;}
+        label{background:none!important;}
         @keyframes popIn   {from{transform:scale(0.75);opacity:0}to{transform:scale(1);opacity:1}}
         @keyframes fadeUp  {from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
-        @keyframes slideR  {from{transform:translateX(100%)}to{transform:translateX(0)}}
-        @keyframes micGlow {0%,100%{box-shadow:0 0 0 4px #2ECC7133}50%{box-shadow:0 0 0 11px #2ECC7115}}
-        @keyframes mPulse  {0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.3;transform:scale(1.7)}}
-        @keyframes listenPulse {0%,100%{transform:scale(1);opacity:0.08}50%{transform:scale(1.15);opacity:0.18}}
+        @keyframes listenPulse{0%,100%{transform:scale(1);opacity:0.6}50%{transform:scale(1.15);opacity:0.18}}
         ::-webkit-scrollbar{width:4px;height:4px}
         ::-webkit-scrollbar-thumb{background:#DDD;border-radius:4px}
       `}</style>
-      {!user
-        ?<>
+      {!user ? (
+        <>
           {showTerms&&<TermsModal onClose={()=>setShowTerms(false)}/>}
-          <AuthScreen onLogin={login} onRegister={register}
+          <AuthScreen
+            accounts={DEMO_ACCOUNTS}
+            onLogin={login}
+            onRegister={register}
             termsAccepted={termsAccepted}
             onShowTerms={()=>setShowTerms(true)}
             onAcceptTerms={()=>{
               setTermsAccepted(true);
-              try { localStorage.setItem('saysee_terms_accepted','true'); } catch(e){}
+              try{ localStorage.setItem("saysee_terms_accepted","true"); }catch(e){}
             }}/>
         </>
-        :user.role==="admin"
-          ?<ErrorBoundary><AdminPanel words={masterWords} setWords={setMasterWords} onLogout={logout}/></ErrorBoundary>
-          :user.role==="district_admin"
-            ?<ErrorBoundary><DistrictAdminPanel user={user} onLogout={logout}/></ErrorBoundary>
-            :isTrialExpired(user)
-              ?<>
-                <TrialExpiredScreen user={user} onLogout={logout} setShowPayment={setShowPayment} setPaymentPlan={setPaymentPlan}/>
-                {showPayment&&(
-                  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
-                    <PaymentForm
-                      user={user}
-                      plan={paymentPlan}
-                      onSuccess={plan=>{
-                        setUser(u=>({...u,plan}));
-                        setShowPayment(false);
-                      }}
-                      onCancel={()=>setShowPayment(false)}
-                    />
-                  </div>
-                )}
-              </>
-              :<ErrorBoundary>
-                {homeMode==="home"?(
-                  <HomeScreen user={user} onLogout={logout}
-                    onMode={mode=>setHomeMode(mode)}/>
-                ):homeMode==="see"?(
-                  <SeeScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}/>
-                ):homeMode==="teach"?(
-                  <TeachScreen user={user} students={[]} trialData={{}}
-                    onBack={()=>setHomeMode("home")}
-                    onManageStudents={()=>setHomeMode("say")}/>
-                ):homeMode==="data"?(
-                  <DataScreen user={user} onBack={()=>setHomeMode("home")}/>
-                ):homeMode==="settings"?(
-                  <SettingsScreen user={user} onBack={()=>setHomeMode("home")}
-                    onLogout={logout} onNavigate={m=>setHomeMode(m)}/>
-                ):homeMode==="reinforcers"?(
-                  <ReinforcerSurveyScreen user={user}
-                    onBack={()=>setHomeMode("home")}
-                    onSave={()=>{}}/>
-                ):(
-                  // "say" mode — straight to AAC listening platform
-                  <TeacherApp user={user} words={masterWords} onLogout={logout}
-                    daysLeft={daysLeftInTrial(user)}
-                    onGoHome={()=>setHomeMode("home")}
-                    autoStart={true}/>
-                )}
-              </ErrorBoundary>
-      }
+      ) : user.role==="admin" ? (
+        <ErrorBoundary>
+          <AdminPanel words={masterWords} setWords={w=>{
+            setMasterWords(w);
+            try{ localStorage.setItem("saysee_master_words",JSON.stringify(w)); }catch(e){}
+          }} onLogout={logout} user={user}/>
+        </ErrorBoundary>
+      ) : homeMode==="home" ? (
+        <HomeScreen user={user} onLogout={logout} onMode={setHomeMode}
+          daysLeft={daysLeftInTrial(user)}/>
+      ) : homeMode==="see" ? (
+        <ErrorBoundary>
+          <SeeScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}/>
+        </ErrorBoundary>
+      ) : homeMode==="teach" ? (
+        <ErrorBoundary>
+          <TeachScreen user={user} onBack={()=>setHomeMode("home")}/>
+        </ErrorBoundary>
+      ) : homeMode==="data" ? (
+        <ErrorBoundary>
+          <DataScreen user={user} onBack={()=>setHomeMode("home")}/>
+        </ErrorBoundary>
+      ) : homeMode==="settings" ? (
+        <ErrorBoundary>
+          <SettingsScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}
+            onLogout={logout}/>
+        </ErrorBoundary>
+      ) : homeMode==="reinforcers" ? (
+        <ReinforcerSurveyScreen user={user} onBack={()=>setHomeMode("home")} onSave={()=>{}}/>
+      ) : (
+        // Say tile — straight to AAC listening with autoStart
+        <ErrorBoundary>
+          <TeacherApp user={user} words={masterWords} onLogout={logout}
+            daysLeft={daysLeftInTrial(user)}
+            onGoHome={()=>setHomeMode("home")}
+            autoStart={true}/>
+        </ErrorBoundary>
+      )}
     </>
   );
 }
