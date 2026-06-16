@@ -2542,18 +2542,46 @@ function WordDetailPanel({word, user, onClose}){
 
   const fetchWordImage = async () => {
     setImgLoading(true);
-    const term = encodeURIComponent(
-      ((word.display||word.word||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").trim())
-      + " child classroom"
-    );
-    const url = `https://source.unsplash.com/400x400/?${term}`;
+    const searchTerm = (word.display||word.word||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").trim();
     try {
-      const img = new window.Image();
-      img.crossOrigin = "anonymous";
-      img.onload = ()=>{ setUnsplashUrl(url); mem.set(`word_img_${word.id||word.word}`,url); setImgLoading(false); };
-      img.onerror = ()=>{ setImgLoading(false); };
-      img.src = url + "&t=" + Date.now(); // cache bust
-    } catch(e){ setImgLoading(false); }
+      // Wikipedia article image — most reliable free source
+      const wikiRes = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(searchTerm)}&prop=pageimages&format=json&pithumbsize=400&origin=*`
+      );
+      const wikiData = await wikiRes.json();
+      const pages = Object.values(wikiData.query?.pages || {});
+      const thumb = pages[0]?.thumbnail?.source;
+      if(thumb){
+        setUnsplashUrl(thumb);
+        mem.set(`word_img_${word.id||word.word}`, thumb);
+        setImgLoading(false);
+        return;
+      }
+
+      // Wikimedia Commons search fallback
+      const commonsRes = await fetch(
+        `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm+" photo")}&srnamespace=6&srlimit=3&format=json&origin=*`
+      );
+      const commonsData = await commonsRes.json();
+      const hits = commonsData.query?.search || [];
+      for(const hit of hits){
+        const infoRes = await fetch(
+          `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(hit.title)}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`
+        );
+        const infoData = await infoRes.json();
+        const imgInfo = Object.values(infoData.query?.pages||{})[0]?.imageinfo?.[0];
+        const imgUrl = imgInfo?.thumburl || imgInfo?.url;
+        if(imgUrl && (imgUrl.endsWith('.jpg') || imgUrl.endsWith('.jpeg') || imgUrl.endsWith('.png'))){
+          setUnsplashUrl(imgUrl);
+          mem.set(`word_img_${word.id||word.word}`, imgUrl);
+          setImgLoading(false);
+          return;
+        }
+      }
+    } catch(e){
+      console.log("Image fetch error:", e.message);
+    }
+    setImgLoading(false);
   };
 
   const generateAIImage = async () => {
