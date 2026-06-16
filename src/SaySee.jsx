@@ -3121,8 +3121,7 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
             </form>
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
             {(!termsAccepted && !localTerms)&&(
-              <div style={{display:"flex",alignItems:"center",gap:8,
-                marginBottom:14,padding:"10px 0"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
                 <input type="checkbox" id="tc-check" checked={localTerms}
                   onChange={e=>{
                     setLocalTerms(e.target.checked);
@@ -3132,11 +3131,13 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
                     }
                   }}
                   style={{width:16,height:16,cursor:"pointer",flexShrink:0,
-                  accentColor:"#5AAB2A"}}/>
+                    accentColor:"#5AAB2A",background:"none",border:"none",
+                    appearance:"auto",WebkitAppearance:"auto"}}/>
                 <label htmlFor="tc-check"
                   style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
-                  color:"rgba(255,255,255,0.9)",lineHeight:1.5,
-                  cursor:"pointer",fontWeight:600,userSelect:"none"}}>
+                  color:"#fff",lineHeight:1.5,cursor:"pointer",
+                  fontWeight:600,userSelect:"none",
+                  textShadow:"none",background:"none"}}>
                   I agree to the{" "}
                   <span onClick={(e)=>{e.stopPropagation();onShowTerms&&onShowTerms();}}
                     style={{color:"#5AAB2A",fontWeight:800,cursor:"pointer",
@@ -5317,6 +5318,12 @@ export default function SaySee(){
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
+        input[type="checkbox"]{accent-color:#5AAB2A;cursor:pointer;}
+        input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
+          -webkit-text-fill-color:#1A1A2E;
+          -webkit-box-shadow:0 0 0px 1000px rgba(255,255,255,0.92) inset;
+        }
+        label{background:none!important;}
         body{background:#F4F6FB;}
         @keyframes popIn   {from{transform:scale(0.75);opacity:0}to{transform:scale(1);opacity:1}}
         @keyframes fadeUp  {from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
