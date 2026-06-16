@@ -3062,6 +3062,7 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
   const [name,setName]=useState("");
   const [plan,setPlan]=useState("monthly");
   const [err,setErr]=useState("");
+  const [localTerms,setLocalTerms]=useState(()=>{ try{ return localStorage.getItem("saysee_terms_accepted")==="true"; }catch(e){ return false; } });
   const [showStripe,setShowStripe]=useState(false);
   const [stripePlan,setStripePlan]=useState("monthly");
 
@@ -5323,7 +5324,16 @@ export default function SaySee(){
         ::-webkit-scrollbar-thumb{background:#DDD;border-radius:4px}
       `}</style>
       {!user
-        ?<AuthScreen onLogin={login} onRegister={register}/>
+        ?<>
+          {showTerms&&<TermsModal onClose={()=>setShowTerms(false)}/>}
+          <AuthScreen onLogin={login} onRegister={register}
+            termsAccepted={termsAccepted}
+            onShowTerms={()=>setShowTerms(true)}
+            onAcceptTerms={()=>{
+              setTermsAccepted(true);
+              try { localStorage.setItem('saysee_terms_accepted','true'); } catch(e){}
+            }}/>
+        </>
         :user.role==="admin"
           ?<ErrorBoundary><AdminPanel words={masterWords} setWords={setMasterWords} onLogout={logout}/></ErrorBoundary>
           :user.role==="district_admin"
