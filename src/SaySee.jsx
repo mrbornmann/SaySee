@@ -3120,11 +3120,12 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
             </form>
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
                         {/* T&C checkbox */}
-            {!termsAccepted&&(
+            {(!termsAccepted && !localTerms)&&(
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,
                 padding:"0 2px"}}>
                 <input type="checkbox" id="tc-check"
-                  onChange={e=>{ if(e.target.checked && onAcceptTerms) onAcceptTerms(); }}
+                  checked={localTerms}
+                  onChange={e=>{ setLocalTerms(e.target.checked); if(e.target.checked && onAcceptTerms) onAcceptTerms(); }}
                   style={{width:17,height:17,cursor:"pointer",flexShrink:0,
                   accentColor:"#5AAB2A"}}/>
                 <label htmlFor="tc-check" style={{fontFamily:"'Nunito',sans-serif",
@@ -3141,7 +3142,7 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
               </div>
             )}
 
-            <button onClick={()=>{ if(!termsAccepted){ alert("Please accept the Terms & Conditions to continue."); return; } doLogin(); }} type="button" style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
+            <button onClick={()=>{ if(!localTerms && !termsAccepted){ alert("Please check the Terms & Conditions box to continue."); return; } doLogin(); }} type="button" style={{width:"100%",padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#0984E3,#6C5CE7)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,cursor:"pointer",boxShadow:"0 6px 24px rgba(9,132,227,0.45)",marginBottom:14}}>Sign In</button>
             <div style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",fontSize:14,color:"rgba(255,255,255,0.45)"}}>
               No account? <span onClick={()=>{setErr("");setMode("register");}} style={{color:"#74B9FF",cursor:"pointer",fontWeight:800}}>Sign up</span>
             </div>
