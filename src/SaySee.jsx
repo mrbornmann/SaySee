@@ -106,8 +106,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     autoRefreshToken: true,
     storageKey: 'saysee-auth',
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    detectSessionInUrl: false,
   }
 });
+
+// Listen for auth state changes — auto-restore session
+if(supabase){
+  supabase.auth.onAuthStateChange((event, session) => {
+    if(event === 'SIGNED_OUT'){
+      try { localStorage.removeItem('saysee_session'); } catch(e){}
+    }
+  });
+}
 
 // ── Auth helpers ──────────────────────────────────────────────────
 const sbAuth = {
@@ -5332,6 +5342,12 @@ export default function SaySee(){
   useEffect(()=>{
     const checkSession = async () => {
       try {
+        // Try to refresh the session first (handles expired JWT)
+        try {
+          if(supabase) await supabase.auth.refreshSession();
+        } catch(refreshErr) {
+          console.log("Session refresh failed, trying existing session");
+        }
         // Supabase auto-restores session from localStorage with persistSession:true
         const session = await sbAuth.getSession();
         if (session?.user) {
@@ -5362,6 +5378,7 @@ export default function SaySee(){
             const cached = localStorage.getItem('saysee_session');
             if(cached){
               const {user:cu, ts} = JSON.parse(cached);
+              console.log('Restoring from cache, age:', Math.round((Date.now()-ts)/1000/60), 'minutes');
               const sevenDays = 7*24*60*60*1000;
               if(Date.now()-ts < sevenDays && cu?.email) {
                 setUser(cu);
@@ -5425,7 +5442,11 @@ export default function SaySee(){
   const login = async (email, password, setErr) => {
     // ── Check demo accounts first — always work, bypass Supabase ──
     const demo = DEMO_ACCOUNTS.find(a=>a.email===email.toLowerCase()&&a.password===password);
-    if(demo){ setUser(demo); return; }
+    if(demo){
+      setUser(demo);
+      try { localStorage.setItem('saysee_session', JSON.stringify({user:demo,ts:Date.now()})); } catch(e){}
+      return;
+    }
 
     // ── Try Supabase for real accounts ─────────────────────────────
     try {
@@ -5453,7 +5474,12 @@ export default function SaySee(){
     }
   };
 
-  const logout = async () => { await sbAuth.signOut(); setUser(null); };
+  const logout = async () => {
+    try { localStorage.removeItem('saysee_session'); } catch(e){}
+    try { localStorage.removeItem('saysee_terms_accepted'); } catch(e){}
+    await sbAuth.signOut();
+    setUser(null);
+  };
 
   const register = async (name, email, password, plan, setErr) => {
     try {
