@@ -3122,16 +3122,23 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
                         {/* T&C checkbox */}
             {(!termsAccepted && !localTerms)&&(
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,
-                padding:"0 2px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,
+                marginBottom:14,marginTop:4}}>
                 <input type="checkbox" id="tc-check"
                   checked={localTerms}
-                  onChange={e=>{ setLocalTerms(e.target.checked); if(e.target.checked && onAcceptTerms) onAcceptTerms(); }}
+                  onChange={e=>{
+                    setLocalTerms(e.target.checked);
+                    if(e.target.checked){
+                      if(onAcceptTerms) onAcceptTerms();
+                      try{localStorage.setItem("saysee_terms_accepted","true");}catch(ex){}
+                    }
+                  }}
                   style={{width:17,height:17,cursor:"pointer",flexShrink:0,
-                  accentColor:"#5AAB2A"}}/>
-                <label htmlFor="tc-check" style={{fontFamily:"'Nunito',sans-serif",
-                  fontSize:13,color:"white",lineHeight:1.5,cursor:"pointer",
-                  fontWeight:600}}>
+                  accentColor:"#5AAB2A",background:"transparent"}}/>
+                <label htmlFor="tc-check"
+                  style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
+                  color:"rgba(255,255,255,0.9)",lineHeight:1.5,cursor:"pointer",
+                  fontWeight:600,userSelect:"none"}}>
                   I agree to the{" "}
                   <span onClick={()=>onShowTerms&&onShowTerms()}
                     style={{color:"#5AAB2A",fontWeight:800,cursor:"pointer",
