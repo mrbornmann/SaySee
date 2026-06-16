@@ -2510,6 +2510,10 @@ const WORD_VISUALS = {
 function WordDetailPanel({word, user, onClose}){
   const [activeLevel, setActiveLevel] = useState(1);
   const [aiImageUrl, setAiImageUrl]   = useState(null);
+  const [unsplashUrl, setUnsplashUrl] = useState(
+    mem.get(`word_img_${word.id||word.word}`, null)
+  );
+  const [imgLoading, setImgLoading]   = useState(false);
   const [generating, setGenerating]   = useState(false);
   const [aiError, setAiError]         = useState("");
   const [selectedL2, setSelectedL2]   = useState(0);
@@ -2530,15 +2534,27 @@ function WordDetailPanel({word, user, onClose}){
   const currentL2Emoji = l2Alts[selectedL2] || word.emoji;
 
   // Auto-show image on mount — prebuilt first, then AI
+  // Auto-fetch real image on mount
   useEffect(()=>{
-    if(!customPhoto && !aiImageUrl){
-      if(l1Guide){
-        setAiImageUrl(l1Guide);
-      } else {
-        generateAIImage();
-      }
-    }
+    if(!aiImageUrl && l1Guide) setAiImageUrl(l1Guide);
+    if(!customPhoto && !unsplashUrl) fetchWordImage();
   },[]);
+
+  const fetchWordImage = async () => {
+    setImgLoading(true);
+    const term = encodeURIComponent(
+      ((word.display||word.word||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").trim())
+      + " child classroom"
+    );
+    const url = `https://source.unsplash.com/400x400/?${term}`;
+    try {
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      img.onload = ()=>{ setUnsplashUrl(url); mem.set(`word_img_${word.id||word.word}`,url); setImgLoading(false); };
+      img.onerror = ()=>{ setImgLoading(false); };
+      img.src = url + "&t=" + Date.now(); // cache bust
+    } catch(e){ setImgLoading(false); }
+  };
 
   const generateAIImage = async () => {
     // Show prebuilt guide immediately — no API needed
@@ -2649,68 +2665,85 @@ SEARCH: [term1, term2, term3]`}]
           {activeLevel===1&&(
             <div>
               {/* Current image display */}
-              <div style={{background:"#F8F9FC",borderRadius:14,padding:16,
-                marginBottom:14,minHeight:140,display:"flex",alignItems:"center",
-                justifyContent:"center",position:"relative",overflow:"hidden"}}>
+              {/* Level 1 — Real image display */}
+              <div style={{borderRadius:14,marginBottom:14,overflow:"hidden",
+                background:"#F0F2F5",minHeight:200,position:"relative",
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
                 {customPhoto?(
-                  <div style={{textAlign:"center"}}>
+                  <>
                     <img src={customPhoto} alt={word.word}
-                      style={{maxWidth:"100%",maxHeight:180,borderRadius:10,objectFit:"contain"}}/>
-                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#5AAB2A",
-                      marginTop:6,fontWeight:700}}>✅ Your classroom photo</div>
-                  </div>
-                ):generating?(
-                  <div style={{textAlign:"center"}}>
-                    <div style={{fontSize:36,marginBottom:8,animation:"spin 1s linear infinite"}}>🤖</div>
+                      style={{width:"100%",maxHeight:260,objectFit:"cover",display:"block"}}/>
+                    <div style={{position:"absolute",bottom:8,left:8,
+                      background:"rgba(90,171,42,0.9)",borderRadius:8,
+                      padding:"3px 10px",fontFamily:"'Nunito',sans-serif",
+                      fontSize:11,color:"#fff",fontWeight:700}}>
+                      ✅ Your photo
+                    </div>
+                  </>
+                ):unsplashUrl?(
+                  <>
+                    <img src={unsplashUrl} alt={word.word}
+                      style={{width:"100%",maxHeight:260,objectFit:"cover",display:"block"}}
+                      onError={()=>setUnsplashUrl(null)}/>
+                    <div style={{position:"absolute",bottom:8,left:8,
+                      background:"rgba(0,0,0,0.55)",borderRadius:8,
+                      padding:"3px 10px",fontFamily:"'Nunito',sans-serif",
+                      fontSize:11,color:"#fff",fontWeight:700}}>
+                      📷 Auto image · tap to replace
+                    </div>
+                  </>
+                ):imgLoading?(
+                  <div style={{textAlign:"center",padding:20}}>
+                    <div style={{fontSize:32,marginBottom:8}}>🔍</div>
                     <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#888"}}>
-                      Generating image guide...
+                      Finding image for "{word.display||word.word}"...
                     </div>
-                  </div>
-                ):aiImageUrl?(
-                  <div>
-                    <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,
-                      color:"#1B65B8",marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>
-                      🤖 AI Image Guide for "{word.display||word.word}"
-                    </div>
-                    <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#555",
-                      lineHeight:1.7,whiteSpace:"pre-line"}}>{aiImageUrl}</div>
                   </div>
                 ):(
-                  <div style={{textAlign:"center",opacity:0.4}}>
-                    <div style={{fontSize:48}}>{word.emoji}</div>
+                  <div style={{textAlign:"center",padding:20}}>
+                    <div style={{fontSize:48,marginBottom:8}}>{word.emoji}</div>
                     <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888"}}>
-                      No image yet
+                      No image found — tap "Use My Photo" to add one
                     </div>
                   </div>
                 )}
               </div>
+              {/* AI guide text (collapsed by default) */}
+              {aiImageUrl&&!customPhoto&&!unsplashUrl&&(
+                <div style={{background:"#EEF5FF",borderRadius:10,padding:12,
+                  marginBottom:12,fontFamily:"'Nunito',sans-serif",fontSize:12,
+                  color:"#555",lineHeight:1.7}}>{aiImageUrl}</div>
+              )}
               {aiError&&<div style={{color:"#E74C3C",fontSize:11,marginBottom:8}}>{aiError}</div>}
 
               {/* Action buttons */}
-              <div style={{display:"flex",gap:8,marginBottom:12}}>
-                <button onClick={generateAIImage} disabled={generating}
-                  style={{flex:1,padding:"11px",borderRadius:10,border:"none",
-                  background:generating?"#EEF0F4":"#1B65B8",
-                  color:generating?"#AAA":"#fff",fontFamily:"'Nunito',sans-serif",
-                  fontWeight:800,fontSize:12,cursor:generating?"not-allowed":"pointer"}}>
-                  🤖 {generating?"Generating...":"Regenerate Guide"}
+              <div style={{display:"flex",gap:8,marginBottom:8}}>
+                <button onClick={()=>fetchWordImage()}
+                  disabled={imgLoading}
+                  style={{flex:1,padding:"10px",borderRadius:10,border:"none",
+                  background:imgLoading?"#EEF0F4":"#1B65B8",
+                  color:imgLoading?"#AAA":"#fff",fontFamily:"'Nunito',sans-serif",
+                  fontWeight:800,fontSize:11,cursor:imgLoading?"not-allowed":"pointer"}}>
+                  {imgLoading?"🔍 Finding...":"🔍 Find New Image"}
                 </button>
                 <button onClick={()=>fileRef.current?.click()}
-                  style={{flex:1,padding:"11px",borderRadius:10,border:"2px solid #5AAB2A",
+                  style={{flex:1,padding:"10px",borderRadius:10,border:"2px solid #5AAB2A",
                   background:"transparent",color:"#5AAB2A",fontFamily:"'Nunito',sans-serif",
-                  fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                  fontWeight:800,fontSize:11,cursor:"pointer"}}>
                   📷 Use My Photo
                 </button>
               </div>
-              {customPhoto&&(
+              {(customPhoto||unsplashUrl)&&(
                 <button onClick={()=>{
                     setCustomPhoto(null);
+                    setUnsplashUrl(null);
                     mem.set(`word_photo_${word.id||word.word}_${user?.id}`,null);
+                    mem.set(`word_img_${word.id||word.word}`,null);
                   }}
                   style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EEF0F4",
                   background:"transparent",color:"#AAA",fontFamily:"'Nunito',sans-serif",
-                  fontSize:11,cursor:"pointer",marginBottom:8}}>
-                  Remove my photo — use AI guide
+                  fontSize:11,cursor:"pointer",marginBottom:6}}>
+                  ✕ Remove image
                 </button>
               )}
               <input ref={fileRef} type="file" accept="image/*"
@@ -3578,6 +3611,7 @@ function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome,autoStart=false}
 
   // ── Working For state ─────────────────────────────────────────
   const [workingForItem,setWorkingForItem] = useState(null);
+  const [wfStage,setWfStage]             = useState("idle");
   const [showWorkingForPicker,setShowWorkingForPicker] = useState(false);
   const [workingForActive,setWorkingForActive] = useState(false);
 
@@ -4144,6 +4178,28 @@ Reply with ONLY the matching word or NO_MATCH.`
   if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>{ setStuMode(false); if(onGoHome) onGoHome(); }}/>;
 
   // ── Pure listening view (from Say tile) ──────────────────────
+  // Show ABA boards when triggered
+  if(autoStart && appMode==="firstthen") return(
+    <FirstThenBoard
+      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage}
+      onExit={()=>{setAppMode("aac");setFirstItem(null);setThenItem(null);setFirstThenStage("first");}}/>
+  );
+  if(autoStart && appMode==="choice") return(
+    <ChoiceBoard
+      items={choiceItems} selected={choiceSelected} stage="choice"
+      onSelect={item=>{
+        setChoiceSelected(item);
+        logTrial(activeId, item.id||item.word, true, 0);
+      }}/>
+  );
+  if(autoStart && appMode==="workingfor") return(
+    <WorkingForBoard
+      reinforcer={workingForItem} stage={wfStage}
+      items={REINFORCERS}
+      onSelect={item=>{setWorkingForItem(item);setWfStage("selected");mem.set(`wf_${activeId}`,item);}}
+      onExit={()=>{setAppMode("aac");setWfStage("idle");}}/>
+  );
+
   if(autoStart) return(
     <div style={{minHeight:"100vh",background:"#1B4F9E",display:"flex",
       flexDirection:"column",position:"relative"}}>
@@ -4258,6 +4314,28 @@ Reply with ONLY the matching word or NO_MATCH.`
         onSaved={(id,url)=>{handlePhotoSaved(id,url);setPhotoModal(null);}}
         onClose={()=>setPhotoModal(null)}/>}
     </div>
+  );
+
+  // ABA boards for non-autoStart (traditional teacher view)
+  if(appMode==="firstthen") return(
+    <FirstThenBoard
+      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage}
+      onExit={()=>{setAppMode("aac");setFirstItem(null);setThenItem(null);setFirstThenStage("first");}}/>
+  );
+  if(appMode==="choice") return(
+    <ChoiceBoard
+      items={choiceItems} selected={choiceSelected} stage="choice"
+      onSelect={item=>{
+        setChoiceSelected(item);
+        logTrial(activeId, item.id||item.word, true, 0);
+      }}/>
+  );
+  if(appMode==="workingfor") return(
+    <WorkingForBoard
+      reinforcer={workingForItem} stage={wfStage}
+      items={REINFORCERS}
+      onSelect={item=>{setWorkingForItem(item);setWfStage("selected");mem.set(`wf_${activeId}`,item);}}
+      onExit={()=>{setAppMode("aac");setWfStage("idle");}}/>
   );
 
   return(
