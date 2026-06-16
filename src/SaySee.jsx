@@ -2532,8 +2532,8 @@ function WordDetailPanel({word, user, onClose}){
   // Auto-show image on mount — prebuilt first, then AI
   useEffect(()=>{
     if(!customPhoto && !aiImageUrl){
-      if(prebuiltGuide){
-        setAiImageUrl(prebuiltGuide);
+      if(l1Guide){
+        setAiImageUrl(l1Guide);
       } else {
         generateAIImage();
       }
@@ -2542,8 +2542,8 @@ function WordDetailPanel({word, user, onClose}){
 
   const generateAIImage = async () => {
     // Show prebuilt guide immediately — no API needed
-    if(prebuiltGuide && !aiImageUrl){
-      setAiImageUrl(prebuiltGuide);
+    if(l1Guide && !aiImageUrl){
+      setAiImageUrl(l1Guide);
       return;
     }
     // Call AI for custom words not in the library
@@ -2565,9 +2565,9 @@ SEARCH: [term1, term2, term3]`}]
       if(!resp.ok) throw new Error(resp.status);
       const data = await resp.json();
       const text = data.content?.[0]?.text || "";
-      setAiImageUrl(text || prebuiltGuide || `A clear photo of "${word.word}" on a plain background.`);
+      setAiImageUrl(text || l1Guide || `A clear photo of "${word.word}" on a plain background.`);
     } catch(e){
-      setAiImageUrl(prebuiltGuide || `A clear, realistic classroom photo showing "${word.display||word.word}" as a single subject on a plain white background.`);
+      setAiImageUrl(l1Guide || `A clear, realistic classroom photo showing "${word.display||word.word}" as a single subject on a plain white background.`);
     }
     setGenerating(false);
   };
@@ -3062,7 +3062,9 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
   const [name,setName]=useState("");
   const [plan,setPlan]=useState("monthly");
   const [err,setErr]=useState("");
-  const [localTerms,setLocalTerms]=useState(()=>{ try{ return localStorage.getItem("saysee_terms_accepted")==="true"; }catch(e){ return false; } });
+  const [localTerms,setLocalTerms]=useState(()=>{
+    try{ return localStorage.getItem("saysee_terms_accepted")==="true"; }catch(e){ return false; }
+  });
   const [showStripe,setShowStripe]=useState(false);
   const [stripePlan,setStripePlan]=useState("monthly");
 
@@ -3122,7 +3124,16 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
             {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:10,fontFamily:"'Nunito',sans-serif"}}>{err}</div>}
             {(!termsAccepted && !localTerms)&&(
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}
-                onClick={()=>{ setLocalTerms(p=>{ const next=!p; if(next){ if(onAcceptTerms) onAcceptTerms(); try{localStorage.setItem("saysee_terms_accepted","true");}catch(ex){} } return next; }); }}>
+                onClick={()=>{
+                  if(!localTerms){
+                    setLocalTerms(true);
+                    if(onAcceptTerms) onAcceptTerms();
+                    try{localStorage.setItem("saysee_terms_accepted","true");}catch(ex){}
+                  } else {
+                    setLocalTerms(false);
+                    try{localStorage.removeItem("saysee_terms_accepted");}catch(ex){}
+                  }
+                }}>
                 <input type="checkbox" id="tc-check" checked={localTerms}
                   onChange={()=>{}}
                   style={{width:16,height:16,cursor:"pointer",flexShrink:0,
