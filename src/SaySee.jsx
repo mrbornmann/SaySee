@@ -407,14 +407,19 @@ const MASTER_WORDS = [
 ];
 
 const CATS = [
-  {id:"core",      label:"Core",        icon:"⭐", color:"#1B65B8"},
-  {id:"classroom", label:"Classroom",   icon:"🏫", color:"#1B65B8"},
-  {id:"library",   label:"Library",     icon:"📚", color:"#8E44AD"},
-  {id:"recess",    label:"Recess",      icon:"⚽", color:"#5AAB2A"},
-  {id:"lunch",     label:"Lunch",       icon:"🍽️",  color:"#E67E22"},
-  {id:"emotions",  label:"Emotions",    icon:"😊", color:"#F1C40F"},
-  {id:"actions",   label:"Actions",     icon:"🏃", color:"#1ABC9C"},
-  {id:"custom",    label:"My Words",    icon:"✏️",  color:"#95A5A6"},
+  {id:"core",       label:"Core",        icon:"⭐", color:"#1B65B8"},
+  {id:"actions",    label:"Actions",     icon:"🏃", color:"#1ABC9C"},
+  {id:"emotions",   label:"Emotions",    icon:"😊", color:"#F1C40F"},
+  {id:"needs",      label:"Needs",       icon:"🙏", color:"#E67E22"},
+  {id:"people",     label:"People",      icon:"👨‍👩‍👧", color:"#8E44AD"},
+  {id:"food",       label:"Food",        icon:"🍎", color:"#E74C3C"},
+  {id:"animals",    label:"Animals",     icon:"🐶", color:"#27AE60"},
+  {id:"classroom",  label:"Classroom",   icon:"🏫", color:"#2980B9"},
+  {id:"academic",   label:"Academic",    icon:"📚", color:"#8E44AD"},
+  {id:"community",  label:"Community",   icon:"🏘️", color:"#16A085"},
+  {id:"health",     label:"Health",      icon:"❤️",  color:"#E74C3C"},
+  {id:"safety",     label:"Safety",      icon:"⚠️",  color:"#F39C12"},
+  {id:"custom",     label:"My Words",    icon:"✏️",  color:"#95A5A6"},
 ];
 
 const LEVELS = [
@@ -1236,8 +1241,8 @@ function SeeScreen({user, words, onBack}){
     return matchAge && matchCat && matchSearch;
   });
 
-  // All unique categories
-  const cats = ["all", ...new Set(allWords.map(w=>w.cat).filter(Boolean))];
+  // Use CATS definition for consistent ordering and icons across all views
+  const cats = ["all", ...CATS.map(c=>c.id)];
 
   return(
     <div style={{minHeight:"100vh",background:"#F4F6FB",display:"flex",flexDirection:"column"}}>
@@ -1288,13 +1293,20 @@ function SeeScreen({user, words, onBack}){
       {/* Category filter */}
       <div style={{background:"#fff",padding:"8px 12px",display:"flex",
         gap:6,overflowX:"auto",scrollbarWidth:"none",borderBottom:"2px solid #EEF0F4"}}>
-        {cats.map(c=>(
-          <button key={c} onClick={()=>setActiveCat(c)}
-            style={{flexShrink:0,padding:"5px 14px",borderRadius:20,border:"none",
-            background:activeCat===c?"#1B65B8":"#F0F2F5",
-            color:activeCat===c?"#fff":"#666",fontFamily:"'Nunito',sans-serif",
-            fontWeight:800,fontSize:11,cursor:"pointer",textTransform:"capitalize"}}>{c}</button>
-        ))}
+        {cats.map(c=>{
+          const catDef = CATS.find(x=>x.id===c);
+          const label = c==="all" ? "⭐ All" : `${catDef?.icon||""} ${catDef?.label||c}`;
+          const activeColor = catDef?.color || "#1B65B8";
+          return(
+            <button key={c} onClick={()=>setActiveCat(c)}
+              style={{flexShrink:0,padding:"5px 14px",borderRadius:20,border:"none",
+              background:activeCat===c?activeColor:"#F0F2F5",
+              color:activeCat===c?"#fff":"#666",fontFamily:"'Nunito',sans-serif",
+              fontWeight:800,fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Word grid */}
@@ -2554,52 +2566,126 @@ function WordDetailPanel({word, user, onClose}){
 
   const fetchWordImage = async (forceNew=false) => {
     setImgLoading(true);
-    const wordStr = (word.display||word.word||"").toLowerCase().trim();
+
+    // Unique cache key per word — prevents cross-word contamination
+    const cacheKey = `word_img_v2_${(word.word||word.id||'unknown').toLowerCase().replace(/\s+/g,'_')}`;
+
+    // Clear cache if forcing new
+    if(forceNew){
+      mem.set(cacheKey, null);
+    } else {
+      // Check cache first
+      const cached = mem.get(cacheKey, null);
+      if(cached){
+        setUnsplashUrl(cached);
+        setImgLoading(false);
+        return;
+      }
+    }
+
+    const wordStr = (word.display||word.word||'').toLowerCase().trim();
+    const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY || '';
 
     try {
-      // Step 1: Use Claude AI to generate the perfect Pexels search query
-      const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-6",
-          max_tokens:60,
-          messages:[{role:"user",content:
-            `AAC app image for word "${wordStr}" (category: ${cat}). Generate ONE Pexels search query (3-5 words) that finds a clear COLOR photo showing exactly this concept in a school or home setting — concrete and unambiguous, suitable for a child with autism. The word is VERY literal. Examples: "eat" → "child eating lunch", "breakfast" → "breakfast food plate", "mine" → "child holding object mine". Reply with ONLY the search query.`
-          }]
-        })
-      });
-      let searchQuery = wordStr + " child school";
-      if(aiRes.ok){
-        const aiData = await aiRes.json();
-        const aiText = aiData.content?.[0]?.text?.trim();
-        if(aiText && aiText.length < 80) searchQuery = aiText;
+      // Step 1: Claude AI generates a very specific COLOR photo search query
+      let searchQuery = '';
+      try {
+        const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 50,
+            messages: [{
+              role: 'user',
+              content: `You are helping find images for an AAC app for children with autism. Generate ONE specific Pexels search query (3-5 words) for the word "${wordStr}". Requirements: COLOR photo only, concrete real-world object or action, school or home appropriate, child-friendly. The query must directly match the word concept. Examples: "breakfast"→"breakfast food table plate", "mine"→"child pointing self mine", "sit down"→"child sitting school chair", "happy"→"happy child smiling school", "apple"→"red apple fruit". Reply with ONLY the query, nothing else.`
+            }]
+          })
+        });
+        if(aiRes.ok){
+          const aiJson = await aiRes.json();
+          const q = aiJson.content?.[0]?.text?.trim().replace(/['"]/g,'').substring(0,60);
+          if(q && q.length > 3) searchQuery = q;
+        }
+      } catch(aiErr){ console.log('AI query err:', aiErr.message); }
+
+      // Hardcoded fallbacks for common AAC words if AI fails
+      if(!searchQuery){
+        const fallbackMap = {
+          'breakfast':'breakfast food morning table','lunch':'lunch food sandwich school',
+          'dinner':'dinner family food table','eat':'child eating food smiling',
+          'drink':'child drinking water cup','sleep':'child sleeping bedroom',
+          'play':'children playing toys school','happy':'happy smiling child',
+          'sad':'sad child crying tears','angry':'angry child frustrated',
+          'scared':'scared child hiding face','tired':'tired yawning child',
+          'help':'teacher helping child','stop':'stop hand gesture',
+          'go':'child walking forward','more':'child asking more food',
+          'yes':'child thumbs up yes','no':'child shaking head no',
+          'mine':'child holding toy mine','please':'child hands together please',
+          'wait':'child waiting patient','sit':'child sitting school chair',
+          'stand':'child standing classroom','walk':'child walking school',
+          'run':'child running playground','jump':'child jumping outside',
+          'mom':'mother hugging child','dad':'father child smiling',
+          'teacher':'teacher classroom school','friend':'children friends school',
+          'book':'colorful children book','pencil':'pencil school writing',
+          'chair':'classroom chair school','backpack':'school backpack colorful',
+          'apple':'red apple fruit table','banana':'yellow banana fruit',
+          'water':'water glass drinking','milk':'milk glass white',
+          'cookie':'chocolate chip cookie plate','potty':'child bathroom school',
+          'bath':'child bath bubbles smiling','wash':'child washing hands',
+          'hurt':'child bandage arm','sick':'sick child doctor',
+          'dog':'dog pet friendly','cat':'cat pet friendly',
+          'line up':'children line school hallway','sit down':'child sitting chair desk',
+          'good job':'child award star praise','clean up':'child cleaning toys',
+          'quiet':'quiet finger lips school','outside':'children playing outside school',
+          'inside':'children classroom inside school','home':'family home house',
+        };
+        searchQuery = fallbackMap[wordStr] || fallbackMap[word.word?.toLowerCase()] || `${wordStr} child school color`;
       }
 
-      // Step 2: Search Pexels with AI-generated query
-      const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY || "";
+      // Step 2: Search Pexels — with color filter to avoid B&W
       if(PEXELS_KEY){
-        // If forceNew, skip cache and get next page
-        const page = forceNew ? Math.floor(Math.random()*5)+2 : 1;
-        const res = await fetch(
-          `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=5&page=${page}&orientation=square&size=medium`,
+        const page = forceNew ? Math.floor(Math.random()*4)+1 : 1;
+        const pexRes = await fetch(
+          `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=8&page=${page}&orientation=square&size=medium&color=multicolor`,
           { headers: { Authorization: PEXELS_KEY } }
         );
-        if(res.ok){
-          const data = await res.json();
-          const photo = data.photos?.[0];
-          if(photo?.src?.medium){
-            setUnsplashUrl(photo.src.medium);
-            mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`, photo.src.medium);
-            mem.set(`word_query_${(word.word||word.id||'').toLowerCase()}`, searchQuery);
-            setImgLoading(false);
-            return;
+        if(pexRes.ok){
+          const pexData = await pexRes.json();
+          const photos = pexData.photos || [];
+          if(photos.length > 0){
+            // Pick photo — if forceNew pick random, otherwise first
+            const pick = forceNew
+              ? photos[Math.floor(Math.random()*photos.length)]
+              : photos[0];
+            const imgUrl = pick?.src?.medium || pick?.src?.small;
+            if(imgUrl){
+              setUnsplashUrl(imgUrl);
+              mem.set(cacheKey, imgUrl);
+              setImgLoading(false);
+              return;
+            }
+          }
+          // If no results, try simpler query
+          if(photos.length === 0){
+            const simpleRes = await fetch(
+              `https://api.pexels.com/v1/search?query=${encodeURIComponent(wordStr)}&per_page=5&orientation=square`,
+              { headers: { Authorization: PEXELS_KEY } }
+            );
+            if(simpleRes.ok){
+              const simpleData = await simpleRes.json();
+              const p = simpleData.photos?.[0];
+              if(p?.src?.medium){
+                setUnsplashUrl(p.src.medium);
+                mem.set(cacheKey, p.src.medium);
+                setImgLoading(false);
+                return;
+              }
+            }
           }
         }
       }
-    } catch(e){
-      console.log("Image fetch error:", e.message);
-    }
+    } catch(e){ console.log('fetchWordImage error:', e.message); }
     setImgLoading(false);
   };
 
