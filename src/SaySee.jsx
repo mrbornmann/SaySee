@@ -1033,84 +1033,6 @@ function ChoiceBoard({items, selected, onSelect, stage, onDone}){
       )}
     </div>
   );
-}){
-  const cols = items.length<=2?2:items.length<=4?2:3;
-  return(
-    <div style={{
-      position:"fixed",inset:0,
-      background:"#F3E5F5",
-      display:"flex",flexDirection:"column",
-      alignItems:"center",
-      zIndex:100,
-      padding:16,gap:12,
-      // Force landscape feel
-    }}>
-      {/* Header */}
-      <div style={{background:stage==="workingfor_pick"?"#F5A623":"#8E44AD",
-        borderRadius:14,padding:"8px 28px",
-        boxShadow:`0 4px 20px ${stage==="workingfor_pick"?"#F5A62344":"#8E44AD44"}`,
-        width:"100%",textAlign:"center"}}>
-        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:22,color:"#fff",letterSpacing:2}}>
-          {stage==="workingfor_pick"?"🌟 What are you working for?":
-           stage==="listening"?"Listening for choices...":"Choice Board"}
-        </div>
-      </div>
-
-      {/* Choice grid - fills screen */}
-      {items.length===0?(
-        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
-          flexDirection:"column",gap:10,opacity:0.4}}>
-          <div style={{fontSize:56}}>🎯</div>
-          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#8E44AD"}}>
-            Say the choices
-          </div>
-        </div>
-      ):(
-        <div style={{
-          flex:1,
-          display:"grid",
-          gridTemplateColumns:`repeat(${cols},1fr)`,
-          gridTemplateRows:`repeat(${Math.ceil(items.length/cols)},1fr)`,
-          gap:10,width:"100%",
-        }}>
-          {items.map((item,i)=>(
-            <button key={item.id||i} onClick={()=>onSelect(item)} style={{
-              display:"flex",flexDirection:"column",
-              alignItems:"center",justifyContent:"center",
-              gap:6,padding:10,borderRadius:20,border:"none",
-              cursor:"pointer",
-              background:selected?.id===item.id?
-                (stage==="workingfor_pick"?"#F5A623":"#8E44AD"):"#fff",
-              boxShadow:selected?.id===item.id?
-                `0 6px 24px ${stage==="workingfor_pick"?"#F5A62355":"#8E44AD55"}`:
-                "0 3px 12px rgba(0,0,0,0.1)",
-              transform:selected?.id===item.id?"scale(1.03)":"scale(1)",
-              transition:"all 0.2s",
-            }}>
-              <div style={{fontSize:"clamp(28px,8vw,56px)",lineHeight:1}}>{item.emoji}</div>
-              <div style={{fontFamily:"'Fredoka One',cursive",
-                fontSize:"clamp(13px,3.5vw,20px)",
-                color:selected?.id===item.id?"#fff":"#333",
-                textAlign:"center",lineHeight:1.2}}>
-                {(item.display||item.label||item.word||"").toUpperCase()}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Selection confirmation */}
-      {selected&&(
-        <div style={{background:stage==="workingfor_pick"?"#F5A623":"#8E44AD",
-          borderRadius:14,padding:"8px 24px",
-          animation:"popIn 0.4s ease",width:"100%",textAlign:"center"}}>
-          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,color:"#fff"}}>
-            {stage==="workingfor_pick"?"🌟":"✅"} {(selected.display||selected.label||selected.word||"").toUpperCase()}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 
@@ -1375,7 +1297,7 @@ function SeeScreen({user, words, onBack}){
   const [showAddWordInSee, setShowAddWordInSee] = useState(false);
 
   // Combine master words + dev words
-  const allWords = [...words, ...DEV_WORDS];
+  const allWords = words;
 
   // Filter
   const filtered = allWords.filter(w=>{
@@ -5649,7 +5571,7 @@ function DistrictAdminPanel({user, onLogout}){
 export default function SaySee(){
   const [user,setUser]           = useState(null);
   const [loading,setLoading]     = useState(true);
-  const [masterWords,setMasterWords] = useState([...MASTER_WORDS]);
+  const [masterWords,setMasterWords] = useState([...MASTER_WORDS, ...DEV_WORDS]);
   const [homeMode,setHomeMode]   = useState("home");
   const [showTerms,setShowTerms] = useState(false);
   const [termsAccepted,setTermsAccepted] = useState(()=>{
@@ -5707,11 +5629,22 @@ export default function SaySee(){
 
   useEffect(()=>{ checkSession(); },[]);
 
-  // Load master words
+  // Load master words — merge in any new seed words missing from saved list
   useEffect(()=>{
     try{
+      const seed = [...MASTER_WORDS, ...DEV_WORDS];
       const saved = localStorage.getItem("saysee_master_words");
-      if(saved){ const w=JSON.parse(saved); if(w?.length) setMasterWords(w); }
+      if(saved){
+        const w = JSON.parse(saved);
+        if(w?.length){
+          const ids = new Set(w.map(x=>x.id));
+          const merged = [...w, ...seed.filter(s=>!ids.has(s.id))];
+          setMasterWords(merged);
+          if(merged.length !== w.length){
+            try{ localStorage.setItem("saysee_master_words", JSON.stringify(merged)); }catch(e){}
+          }
+        }
+      }
     }catch(e){}
   },[]);
 
@@ -5807,9 +5740,12 @@ export default function SaySee(){
         </>
       ) : user.role==="admin" ? (
         <ErrorBoundary>
-          <AdminPanel words={masterWords} setWords={w=>{
-            setMasterWords(w);
-            try{ localStorage.setItem("saysee_master_words",JSON.stringify(w)); }catch(e){}
+          <AdminPanel words={masterWords} setWords={updater=>{
+            setMasterWords(prev=>{
+              const next = typeof updater === "function" ? updater(prev) : updater;
+              try{ localStorage.setItem("saysee_master_words",JSON.stringify(next)); }catch(e){}
+              return next;
+            });
           }} onLogout={logout} user={user}/>
         </ErrorBoundary>
       ) : homeMode==="home" ? (
