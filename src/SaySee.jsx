@@ -4386,6 +4386,13 @@ Reply with ONLY the matching word or NO_MATCH.`
             };
             const directMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>matchesTrigger(t,tr)));
             if(directMatch){
+              // A directive / one-word statement returns us to the listening (Say) page
+              if(appModeRef.current==="firstthen" || appModeRef.current==="choice"){
+                setAppMode("aac"); appModeRef.current="aac";
+                setFirstItem(null); setThenItem(null); setFirstThenStage("idle");
+                setChoiceItems([]); setChoiceSelected(null);
+                setChoiceStage("idle"); choiceStageRef.current="idle";
+              }
               setCurWord(directMatch);
               setFlash(true);
               setTimeout(()=>setFlash(false),700);
@@ -4406,6 +4413,12 @@ Reply with ONLY the matching word or NO_MATCH.`
               trackUnmatched(t);
               semanticMatch(t, wRef.current).then(semanticWord=>{
                 if(semanticWord){
+                  if(appModeRef.current==="firstthen" || appModeRef.current==="choice"){
+                    setAppMode("aac"); appModeRef.current="aac";
+                    setFirstItem(null); setThenItem(null); setFirstThenStage("idle");
+                    setChoiceItems([]); setChoiceSelected(null);
+                    setChoiceStage("idle"); choiceStageRef.current="idle";
+                  }
                   setCurWord(semanticWord);
                   setFlash(true);
                   setTimeout(()=>setFlash(false),700);
