@@ -2567,94 +2567,197 @@ function WordDetailPanel({word, user, onClose}){
   const fetchWordImage = async (forceNew=false) => {
     setImgLoading(true);
 
-    // Unique cache key per word — prevents cross-word contamination
-    const cacheKey = `word_img_v2_${(word.word||word.id||'unknown').toLowerCase().replace(/\s+/g,'_')}`;
+    const wordStr = (word.display||word.word||'').toLowerCase().trim();
+    const cacheKey = `word_img_v3_${wordStr.replace(/\s+/g,'_')}`;
 
-    // Clear cache if forcing new
-    if(forceNew){
-      mem.set(cacheKey, null);
-    } else {
-      // Check cache first
+    // Clear cache on forceNew
+    if(forceNew) mem.set(cacheKey, null);
+
+    // Check cache first (skip if forceNew)
+    if(!forceNew){
       const cached = mem.get(cacheKey, null);
-      if(cached){
-        setUnsplashUrl(cached);
-        setImgLoading(false);
-        return;
-      }
+      if(cached){ setUnsplashUrl(cached); setImgLoading(false); return; }
     }
 
-    const wordStr = (word.display||word.word||'').toLowerCase().trim();
     const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY || '';
 
-    try {
-      // Step 1: Claude AI generates a very specific COLOR photo search query
-      let searchQuery = '';
+    // ── Highly specific AAC word → Pexels query map ──────────────
+    // Every query is hand-crafted to return exactly the right image
+    const QUERY_MAP = {
+      // Needs & requests
+      'yes':         'child nodding yes thumbs up',
+      'no':          'child shaking head no hand stop',
+      'more':        'child pointing more food plate',
+      'help':        'teacher helping student desk',
+      'please':      'child hands together polite please',
+      'stop':        'stop sign red octagon street',
+      'wait':        'child sitting waiting patiently bench',
+      'go':          'child walking forward school',
+      'want':        'child reaching hand want toy',
+      'mine':        'child holding toy possession',
+      'done':        'child finished plate empty done',
+      'open':        'hands opening door handle',
+      'close':       'child closing door handle',
+      'on':          'light switch on wall',
+      'off':         'light switch off wall',
+      'up':          'child arms up overhead',
+      'down':        'child pointing down floor',
+      'in':          'child going inside building door',
+      'out':         'child going outside building',
+      // Bathroom / hygiene
+      'potty':       'toilet white bathroom clean',
+      'bathroom':    'school bathroom sink toilet',
+      'restroom':    'restroom sign door school hallway',
+      'wash':        'child washing hands soap sink',
+      'bath':        'child bathtub bubbles smiling',
+      'brush teeth': 'child brushing teeth toothbrush',
+      'flush':       'toilet flush handle bathroom',
+      // Food & drink
+      'eat':         'child eating food lunch smiling',
+      'drink':       'child drinking water glass cup',
+      'hungry':      'child pointing stomach hungry',
+      'thirsty':     'child drinking water thirsty',
+      'breakfast':   'breakfast food eggs toast plate table',
+      'lunch':       'school lunch tray food cafeteria',
+      'dinner':      'family dinner food table evening',
+      'snack':       'healthy snack fruit crackers plate',
+      'water':       'glass water clear drinking',
+      'milk':        'glass milk white breakfast',
+      'juice':       'glass orange juice fruit',
+      'apple':       'red apple fruit table',
+      'banana':      'yellow banana fruit',
+      'cookie':      'chocolate chip cookie plate',
+      'pizza':       'pizza slice cheese plate',
+      'sandwich':    'sandwich bread lunch plate',
+      // Sleep & rest
+      'sleep':       'child sleeping bed pillow night',
+      'tired':       'tired child yawning sleepy',
+      'rest':        'child resting lying down bed',
+      // Emotions
+      'happy':       'happy smiling child joyful school',
+      'sad':         'sad child unhappy crying face',
+      'angry':       'angry frustrated child face',
+      'scared':      'scared child hiding face fear',
+      'excited':     'excited child arms up jumping joyful',
+      'calm':        'calm child sitting peacefully relaxed',
+      'worried':     'worried child anxious face thinking',
+      'proud':       'proud child award certificate trophy',
+      'frustrated':  'frustrated child arms crossed',
+      'hurt':        'child with bandage arm injury',
+      'sick':        'sick child thermometer resting blanket',
+      // Actions
+      'sit':         'child sitting school chair desk',
+      'sit down':    'child sitting down chair classroom',
+      'stand':       'child standing upright classroom',
+      'stand up':    'child standing up from chair',
+      'walk':        'child walking school hallway',
+      'run':         'child running playground outdoor',
+      'jump':        'child jumping air playground',
+      'play':        'children playing toys blocks school',
+      'dance':       'child dancing movement music',
+      'draw':        'child drawing crayon paper art',
+      'read':        'child reading picture book',
+      'write':       'child writing pencil paper desk',
+      'listen':      'child listening teacher attentive',
+      'look':        'child looking pointing eyes',
+      'clean up':    'child putting toys away bin',
+      'clean':       'child cleaning wiping table',
+      'line up':     'children standing line school hallway',
+      'be quiet':    'child finger lips quiet shh',
+      'come':        'teacher gesturing child come here',
+      'wait here':   'child waiting standing patient',
+      // School items
+      'pencil':      'yellow pencil school desk close up',
+      'crayon':      'colorful crayons box school',
+      'scissors':    'safety scissors yellow school',
+      'paper':       'white paper stack school desk',
+      'book':        'colorful children picture book open',
+      'backpack':    'colorful school backpack child',
+      'chair':       'elementary school chair classroom',
+      'table':       'classroom desk table student',
+      'computer':    'child using computer school lab',
+      'tablet':      'child using tablet ipad school',
+      'marker':      'colorful markers school art',
+      'glue':        'glue stick school craft',
+      // People
+      'mom':         'mother smiling hugging child home',
+      'dad':         'father smiling with child home',
+      'baby':        'baby infant smiling happy',
+      'teacher':     'teacher smiling classroom whiteboard',
+      'friend':      'children friends smiling school',
+      'doctor':      'doctor white coat stethoscope office',
+      'nurse':       'nurse scrubs hospital clinic',
+      // Animals
+      'dog':         'friendly golden retriever dog sitting',
+      'cat':         'orange tabby cat sitting friendly',
+      'bird':        'small colorful bird perched branch',
+      'fish':        'goldfish bowl water orange',
+      'rabbit':      'white rabbit fluffy pet',
+      // Places
+      'home':        'house family home exterior sunny',
+      'school':      'elementary school building exterior',
+      'park':        'children playing park playground sunny',
+      'store':       'grocery store supermarket entrance',
+      'bus':         'yellow school bus road',
+      'car':         'family car sedan parked',
+      // Health & safety
+      'medicine':    'child taking medicine spoon syrup',
+      'bandage':     'bandage adhesive bandaid skin',
+      'danger':      'warning sign caution yellow',
+      'hot':         'hot food steam careful',
+      'cold':        'ice cold winter jacket child',
+      // Good behavior
+      'good job':    'child receiving praise star sticker',
+      'nice work':   'teacher praising student thumbs up',
+      'thank you':   'child saying thank you polite',
+      'sorry':       'child apologizing sorry sad face',
+      // Clothing
+      'shoes':       'child shoes colorful sneakers',
+      'coat':        'child wearing winter coat',
+      'hat':         'child wearing hat colorful',
+    };
+
+    // Get the search query — map first, then Claude AI for custom words
+    let searchQuery = QUERY_MAP[wordStr] || QUERY_MAP[word.word?.toLowerCase()];
+
+    if(!searchQuery && PEXELS_KEY){
+      // Use Claude to generate a precise query for words not in the map
       try {
         const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-sonnet-4-6',
-            max_tokens: 50,
+            max_tokens: 40,
             messages: [{
               role: 'user',
-              content: `You are helping find images for an AAC app for children with autism. Generate ONE specific Pexels search query (3-5 words) for the word "${wordStr}". Requirements: COLOR photo only, concrete real-world object or action, school or home appropriate, child-friendly. The query must directly match the word concept. Examples: "breakfast"→"breakfast food table plate", "mine"→"child pointing self mine", "sit down"→"child sitting school chair", "happy"→"happy child smiling school", "apple"→"red apple fruit". Reply with ONLY the query, nothing else.`
+              content: `Pexels image search query for AAC word "${wordStr}". Must return a clear, modern, child-appropriate COLOR photo. 3-5 words max. Think literally — what exact object or action would a child with autism recognize? Reply with ONLY the search query.`
             }]
           })
         });
         if(aiRes.ok){
           const aiJson = await aiRes.json();
-          const q = aiJson.content?.[0]?.text?.trim().replace(/['"]/g,'').substring(0,60);
-          if(q && q.length > 3) searchQuery = q;
+          const q = aiJson.content?.[0]?.text?.trim().replace(/['"".]/g,'').toLowerCase();
+          if(q && q.length > 2 && q.length < 50) searchQuery = q;
         }
-      } catch(aiErr){ console.log('AI query err:', aiErr.message); }
+      } catch(e){ console.log('AI query err:', e.message); }
+    }
 
-      // Hardcoded fallbacks for common AAC words if AI fails
-      if(!searchQuery){
-        const fallbackMap = {
-          'breakfast':'breakfast food morning table','lunch':'lunch food sandwich school',
-          'dinner':'dinner family food table','eat':'child eating food smiling',
-          'drink':'child drinking water cup','sleep':'child sleeping bedroom',
-          'play':'children playing toys school','happy':'happy smiling child',
-          'sad':'sad child crying tears','angry':'angry child frustrated',
-          'scared':'scared child hiding face','tired':'tired yawning child',
-          'help':'teacher helping child','stop':'stop hand gesture',
-          'go':'child walking forward','more':'child asking more food',
-          'yes':'child thumbs up yes','no':'child shaking head no',
-          'mine':'child holding toy mine','please':'child hands together please',
-          'wait':'child waiting patient','sit':'child sitting school chair',
-          'stand':'child standing classroom','walk':'child walking school',
-          'run':'child running playground','jump':'child jumping outside',
-          'mom':'mother hugging child','dad':'father child smiling',
-          'teacher':'teacher classroom school','friend':'children friends school',
-          'book':'colorful children book','pencil':'pencil school writing',
-          'chair':'classroom chair school','backpack':'school backpack colorful',
-          'apple':'red apple fruit table','banana':'yellow banana fruit',
-          'water':'water glass drinking','milk':'milk glass white',
-          'cookie':'chocolate chip cookie plate','potty':'child bathroom school',
-          'bath':'child bath bubbles smiling','wash':'child washing hands',
-          'hurt':'child bandage arm','sick':'sick child doctor',
-          'dog':'dog pet friendly','cat':'cat pet friendly',
-          'line up':'children line school hallway','sit down':'child sitting chair desk',
-          'good job':'child award star praise','clean up':'child cleaning toys',
-          'quiet':'quiet finger lips school','outside':'children playing outside school',
-          'inside':'children classroom inside school','home':'family home house',
-        };
-        searchQuery = fallbackMap[wordStr] || fallbackMap[word.word?.toLowerCase()] || `${wordStr} child school color`;
-      }
+    // Final fallback
+    if(!searchQuery) searchQuery = `${wordStr} child school`;
 
-      // Step 2: Search Pexels — with color filter to avoid B&W
-      if(PEXELS_KEY){
-        const page = forceNew ? Math.floor(Math.random()*4)+1 : 1;
+    // ── Search Pexels ─────────────────────────────────────────────
+    if(PEXELS_KEY){
+      try {
+        const page = forceNew ? Math.floor(Math.random()*3)+1 : 1;
         const pexRes = await fetch(
-          `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=8&page=${page}&orientation=square&size=medium&color=multicolor`,
+          `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=5&page=${page}&orientation=square&size=medium`,
           { headers: { Authorization: PEXELS_KEY } }
         );
         if(pexRes.ok){
           const pexData = await pexRes.json();
           const photos = pexData.photos || [];
           if(photos.length > 0){
-            // Pick photo — if forceNew pick random, otherwise first
             const pick = forceNew
               ? photos[Math.floor(Math.random()*photos.length)]
               : photos[0];
@@ -2666,26 +2769,10 @@ function WordDetailPanel({word, user, onClose}){
               return;
             }
           }
-          // If no results, try simpler query
-          if(photos.length === 0){
-            const simpleRes = await fetch(
-              `https://api.pexels.com/v1/search?query=${encodeURIComponent(wordStr)}&per_page=5&orientation=square`,
-              { headers: { Authorization: PEXELS_KEY } }
-            );
-            if(simpleRes.ok){
-              const simpleData = await simpleRes.json();
-              const p = simpleData.photos?.[0];
-              if(p?.src?.medium){
-                setUnsplashUrl(p.src.medium);
-                mem.set(cacheKey, p.src.medium);
-                setImgLoading(false);
-                return;
-              }
-            }
-          }
         }
-      }
-    } catch(e){ console.log('fetchWordImage error:', e.message); }
+      } catch(e){ console.log('Pexels error:', e.message); }
+    }
+
     setImgLoading(false);
   };
 
