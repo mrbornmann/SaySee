@@ -887,7 +887,153 @@ function FirstThenBoard({firstItem, thenItem}){
 }
 
 // ── Choice Board ──────────────────────────────────────────────────
-function ChoiceBoard({items, selected, onSelect, stage}){
+function ChoiceBoard({items, selected, onSelect, stage, onDone}){
+  // Auto-calculate best grid layout based on item count
+  const count = items.length;
+  const cols = count <= 2 ? 2
+              : count <= 4 ? 2
+              : count <= 6 ? 3
+              : 3;
+
+  const isWorkingFor = stage === "workingfor_pick";
+  const headerColor  = isWorkingFor ? "#F5A623" : "#8E44AD";
+  const headerText   = isWorkingFor ? "🌟 What are you working for?"
+                     : stage === "listening" ? "🎯 Listening for choices..."
+                     : "Choice Board";
+
+  return(
+    <div style={{
+      position:"fixed", inset:0,
+      background: isWorkingFor ? "#FFF8E7" : "#F3E5F5",
+      display:"flex", flexDirection:"column",
+      zIndex:200, overflow:"hidden",
+    }}>
+      {/* Header */}
+      <div style={{background:headerColor, padding:"10px 16px",
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        flexShrink:0}}>
+        <div style={{fontFamily:"'Fredoka One',cursive", fontSize:20,
+          color:"#fff", letterSpacing:1}}>
+          {headerText}
+        </div>
+        {stage==="listening"&&(
+          <button onClick={onDone}
+            style={{background:"rgba(255,255,255,0.25)",border:"none",
+            borderRadius:10,padding:"6px 14px",color:"#fff",
+            fontFamily:"'Nunito',sans-serif",fontWeight:800,
+            fontSize:13,cursor:"pointer"}}>
+            ✓ Done
+          </button>
+        )}
+      </div>
+
+      {/* Listening status */}
+      {stage==="listening"&&items.length<2&&(
+        <div style={{background:"rgba(142,68,173,0.08)",padding:"10px 16px",
+          textAlign:"center",flexShrink:0}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
+            color:"#8E44AD",fontWeight:700}}>
+            {items.length===0
+              ? "Say the first choice..."
+              : `Got "${(items[0]?.display||items[0]?.word||"").toUpperCase()}" — say the next choice...`
+            }
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {items.length===0&&(
+        <div style={{flex:1,display:"flex",alignItems:"center",
+          justifyContent:"center",flexDirection:"column",gap:12}}>
+          <div style={{fontSize:56}}>🎯</div>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,
+            color:"#8E44AD",textAlign:"center",padding:"0 20px"}}>
+            Say the choices one at a time...
+          </div>
+        </div>
+      )}
+
+      {/* Choice grid — fills all available space */}
+      {items.length>0&&(
+        <div style={{
+          flex:1,
+          display:"grid",
+          gridTemplateColumns:`repeat(${cols}, 1fr)`,
+          gridTemplateRows:`repeat(${Math.ceil(count/cols)}, 1fr)`,
+          gap:8, padding:8,
+          minHeight:0, // important — allows grid to shrink
+        }}>
+          {items.map((item,i)=>{
+            const isSelected = selected?.id===item.id;
+            return(
+              <button key={item.id||i}
+                onClick={()=>onSelect(item)}
+                style={{
+                  display:"flex", flexDirection:"column",
+                  alignItems:"center", justifyContent:"center",
+                  gap:6, padding:8,
+                  borderRadius:20, border:"none",
+                  cursor:"pointer", minHeight:0,
+                  width:"100%", height:"100%",
+                  background: isSelected ? headerColor : "#fff",
+                  boxShadow: isSelected
+                    ? `0 6px 24px ${headerColor}66`
+                    : "0 3px 12px rgba(0,0,0,0.1)",
+                  transform: isSelected ? "scale(0.97)" : "scale(1)",
+                  transition:"all 0.2s",
+                  overflow:"hidden",
+                }}>
+                {/* Image or emoji */}
+                <div style={{
+                  flex:1, width:"100%", minHeight:0,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  overflow:"hidden", borderRadius:12,
+                }}>
+                  {item.imgUrl?(
+                    <img src={item.imgUrl} alt={item.word}
+                      style={{width:"100%",height:"100%",
+                        objectFit:"cover",borderRadius:12}}
+                      onError={e=>e.target.style.display='none'}/>
+                  ):(
+                    <div style={{fontSize:count<=2?"64px":count<=4?"48px":"36px",
+                      lineHeight:1}}>
+                      {item.emoji||"🎯"}
+                    </div>
+                  )}
+                </div>
+                {/* Label */}
+                <div style={{
+                  fontFamily:"'Fredoka One',cursive",
+                   fontSize:count<=2?"22px":count<=4?"18px":"14px",
+                  color: isSelected ? "#fff" : "#333",
+                  textAlign:"center", lineHeight:1.1,
+                  flexShrink:0, paddingBottom:2,
+                }}>
+                  {(item.display||item.label||item.word||"").toUpperCase()}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Selected confirmation bar */}
+      {selected&&(
+        <div style={{
+          background:headerColor, padding:"10px 20px",
+          textAlign:"center", flexShrink:0,
+          animation:"popIn 0.3s ease",
+        }}>
+          <div style={{fontFamily:"'Fredoka One',cursive",
+            fontSize:18, color:"#fff"}}>
+            {isWorkingFor?"🌟":"✅"}{" "}
+            {(selected.display||selected.label||selected.word||"").toUpperCase()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}){
   const cols = items.length<=2?2:items.length<=4?2:3;
   return(
     <div style={{
@@ -4259,12 +4405,31 @@ Reply with ONLY the matching word or NO_MATCH.`
               const choiceReinforcer = REINFORCERS.find(r=>t.includes(r.label.toLowerCase()));
               const newChoice = choiceWord || (choiceReinforcer ? {...choiceReinforcer, display:choiceReinforcer.label} : null);
               if(newChoice){
+                // Fetch image for this choice from Pexels
+                const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY||"";
+                const wordStr = (newChoice.word||"").toLowerCase();
+                const cachedImg = mem.get(`word_img_v3_${wordStr.replace(/\s+/g,'_')}`, null);
+                const enrichedChoice = {...newChoice, imgUrl: cachedImg||null};
+
+                if(PEXELS_KEY && !cachedImg){
+                  // Fetch in background
+                  fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(wordStr+" child school")}&per_page=1&orientation=square&size=small`,
+                    {headers:{Authorization:PEXELS_KEY}})
+                  .then(r=>r.json()).then(d=>{
+                    const url = d.photos?.[0]?.src?.small;
+                    if(url){
+                      mem.set(`word_img_v3_${wordStr.replace(/\s+/g,'_')}`, url);
+                      setChoiceItems(prev=>prev.map(c=>
+                        c.id===newChoice.id ? {...c, imgUrl:url} : c
+                      ));
+                    }
+                  }).catch(()=>{});
+                }
+
                 setChoiceItems(prev=>{
                   if(prev.length >= 6) return prev;
                   if(prev.find(c=>c.id===newChoice.id)) return prev;
-                  const updated = [...prev, newChoice];
-                  if(updated.length >= 2) setChoiceStage("display");
-                  return updated;
+                  return [...prev, enrichedChoice];
                 });
               }
               return;
@@ -4421,9 +4586,12 @@ Reply with ONLY the matching word or NO_MATCH.`
   );
   if(autoStart && appMode==="choice") return(
     <ChoiceBoard
-      items={choiceItems} selected={choiceSelected} stage="choice"
+      items={choiceItems} selected={choiceSelected}
+      stage={choiceStage||"listening"}
+      onDone={()=>setChoiceStage("display")}
       onSelect={item=>{
         setChoiceSelected(item);
+        setChoiceStage("selected");
         logTrial(activeId, item.id||item.word, true, 0);
       }}/>
   );
@@ -4559,9 +4727,12 @@ Reply with ONLY the matching word or NO_MATCH.`
   );
   if(appMode==="choice") return(
     <ChoiceBoard
-      items={choiceItems} selected={choiceSelected} stage="choice"
+      items={choiceItems} selected={choiceSelected}
+      stage={choiceStage||"listening"}
+      onDone={()=>setChoiceStage("display")}
       onSelect={item=>{
         setChoiceSelected(item);
+        setChoiceStage("selected");
         logTrial(activeId, item.id||item.word, true, 0);
       }}/>
   );
