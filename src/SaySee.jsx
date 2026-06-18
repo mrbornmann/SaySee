@@ -1546,8 +1546,12 @@ function ReinforcerSurveyScreen({user, onBack, onSave}){
 }
 
 // ── Teach Screen (Student Data Dashboard) ────────────────────────
-function TeachScreen({user, students, trialData, onBack, onManageStudents}){
+function TeachScreen({user, students:studentsProp, trialData:trialDataProp, onBack, onManageStudents}){
   const [selectedStu, setSelectedStu] = useState(null);
+  // Load per-teacher data from local memory when the parent doesn't pass it in
+  // (same keys/pattern as DataScreen). Props still win if they're supplied.
+  const students  = studentsProp  || mem.get(`stu_${user.id}`, []);
+  const trialData = trialDataProp || mem.get(`trials_${user.id}`, {});
 
   const getWordStats = (stuId=null) => {
     const wordCounts = {};
@@ -5824,7 +5828,8 @@ export default function SaySee(){
         </ErrorBoundary>
       ) : homeMode==="teach" ? (
         <ErrorBoundary>
-          <TeachScreen user={user} onBack={()=>setHomeMode("home")}/>
+          <TeachScreen user={user} onBack={()=>setHomeMode("home")}
+            onManageStudents={()=>setHomeMode("settings")}/>
         </ErrorBoundary>
       ) : homeMode==="data" ? (
         <ErrorBoundary>
