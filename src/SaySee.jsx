@@ -847,7 +847,81 @@ function WorkingForBoard({item, onPickNew, onBackToAAC, studentName}){
 }
 
 // ── First Then Board ──────────────────────────────────────────────
-function FirstThenBoard({firstItem, thenItem}){
+function FirstThenBoard({firstItem, thenItem, onExit}){
+  return(
+    <div style={{position:"fixed", inset:0, zIndex:200,
+      display:"flex", flexDirection:"column", overflow:"hidden", background:"#E3F2FD"}}>
+      {/* Exit button */}
+      {onExit&&(
+        <button onClick={onExit}
+          style={{position:"absolute", top:10, right:10, zIndex:10,
+          background:"rgba(0,0,0,0.25)", border:"none", borderRadius:10,
+          padding:"7px 12px", color:"#fff", fontFamily:"'Nunito',sans-serif",
+          fontWeight:900, fontSize:15, cursor:"pointer", lineHeight:1}}>
+          ✕
+        </button>
+      )}
+
+      {/* FIRST — top half */}
+      <div style={{flex:1, display:"flex", flexDirection:"column",
+        alignItems:"center", justifyContent:"center",
+        background:"#E3F2FD", borderBottom:"4px solid #1B65B8", padding:16, gap:10, minHeight:0}}>
+        <div style={{background:"#1B65B8", borderRadius:14, padding:"6px 28px"}}>
+          <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(20px,6vw,30px)",
+            color:"#fff", letterSpacing:2}}>FIRST</div>
+        </div>
+        {firstItem ? (
+          <div style={{display:"flex", flexDirection:"column", alignItems:"center",
+            gap:8, animation:"popIn 0.4s ease", minHeight:0}}>
+            {firstItem.imgUrl
+              ? <img src={firstItem.imgUrl} alt={firstItem.word}
+                  style={{width:"min(40vw,30vh)", height:"min(40vw,30vh)",
+                    objectFit:"cover", borderRadius:20}}
+                  onError={e=>{e.target.style.display='none';}}/>
+              : <div style={{fontSize:"min(28vw,26vh)", lineHeight:1}}>{firstItem.emoji}</div>}
+            <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(22px,7vw,40px)",
+              color:"#1B65B8", textAlign:"center"}}>{firstItem.display||firstItem.label}</div>
+          </div>
+        ):(
+          <div style={{opacity:0.35, textAlign:"center"}}>
+            <div style={{fontSize:"min(16vw,12vh)"}}>❓</div>
+            <div style={{fontFamily:"'Nunito',sans-serif", fontSize:14, color:"#1B65B8",
+              fontWeight:700}}>Say the task after "first" or "if"</div>
+          </div>
+        )}
+      </div>
+
+      {/* THEN — bottom half */}
+      <div style={{flex:1, display:"flex", flexDirection:"column",
+        alignItems:"center", justifyContent:"center",
+        background:"#E8F5E9", padding:16, gap:10, minHeight:0}}>
+        <div style={{background:"#5AAB2A", borderRadius:14, padding:"6px 28px"}}>
+          <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(20px,6vw,30px)",
+            color:"#fff", letterSpacing:2}}>THEN</div>
+        </div>
+        {thenItem ? (
+          <div style={{display:"flex", flexDirection:"column", alignItems:"center",
+            gap:8, animation:"popIn 0.4s ease", minHeight:0}}>
+            {thenItem.imgUrl
+              ? <img src={thenItem.imgUrl} alt={thenItem.word}
+                  style={{width:"min(40vw,30vh)", height:"min(40vw,30vh)",
+                    objectFit:"cover", borderRadius:20}}
+                  onError={e=>{e.target.style.display='none';}}/>
+              : <div style={{fontSize:"min(28vw,26vh)", lineHeight:1}}>{thenItem.emoji}</div>}
+            <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(22px,7vw,40px)",
+              color:"#5AAB2A", textAlign:"center"}}>{thenItem.display||thenItem.label}</div>
+          </div>
+        ):(
+          <div style={{opacity:0.35, textAlign:"center"}}>
+            <div style={{fontSize:"min(16vw,12vh)"}}>🌟</div>
+            <div style={{fontFamily:"'Nunito',sans-serif", fontSize:14, color:"#5AAB2A",
+              fontWeight:700}}>Say "then" + the reward</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}){
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#E3F2FD",borderBottom:"3px solid #1B65B8",padding:16,gap:8}}>
@@ -887,7 +961,133 @@ function FirstThenBoard({firstItem, thenItem}){
 }
 
 // ── Choice Board ──────────────────────────────────────────────────
-function ChoiceBoard({items, selected, onSelect, stage, onDone}){
+function ChoiceBoard({items, selected, onSelect, stage, onDone, onExit}){
+  const isWorkingFor = stage === "workingfor_pick";
+  const headerColor  = isWorkingFor ? "#F5A623" : "#8E44AD";
+  const headerText   = isWorkingFor ? "🌟 Working for?"
+                     : stage === "listening" ? "🎯 Add choices…"
+                     : "Choice Board";
+
+  // Always lay out as a fixed 6-slot grid (2 columns × 3 rows) so a small
+  // number of choices are not stretched/elongated. Items fill from the top.
+  const SLOTS = 6;
+  const slots = Array.from({length:SLOTS}, (_,i)=>items[i]||null);
+
+  return(
+    <div style={{
+      position:"fixed", inset:0,
+      background: isWorkingFor ? "#FFF8E7" : "#F3E5F5",
+      display:"flex", flexDirection:"column",
+      zIndex:200, overflow:"hidden",
+    }}>
+      {/* Header */}
+      <div style={{background:headerColor, padding:"10px 14px",
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        gap:8, flexShrink:0}}>
+        <div style={{fontFamily:"'Fredoka One',cursive", fontSize:18,
+          color:"#fff", letterSpacing:1, whiteSpace:"nowrap",
+          overflow:"hidden", textOverflow:"ellipsis"}}>
+          {headerText}
+        </div>
+        <div style={{display:"flex", gap:8, flexShrink:0}}>
+          {stage==="listening"&&items.length>=1&&(
+            <button onClick={onDone}
+              style={{background:"rgba(255,255,255,0.9)",border:"none",
+              borderRadius:10,padding:"7px 16px",color:headerColor,
+              fontFamily:"'Nunito',sans-serif",fontWeight:900,
+              fontSize:13,cursor:"pointer"}}>
+              ✓ Done
+            </button>
+          )}
+          <button onClick={onExit}
+            style={{background:"rgba(255,255,255,0.25)",border:"none",
+            borderRadius:10,padding:"7px 12px",color:"#fff",
+            fontFamily:"'Nunito',sans-serif",fontWeight:900,
+            fontSize:15,cursor:"pointer",lineHeight:1}}>
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {/* Listening status — keeps prompting until all 6 slots are used */}
+      {stage==="listening"&&items.length<SLOTS&&(
+        <div style={{background:"rgba(142,68,173,0.10)",padding:"8px 14px",
+          textAlign:"center",flexShrink:0}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
+            color:"#8E44AD",fontWeight:800}}>
+            {items.length===0
+              ? "Say the first choice… (up to 6)"
+              : `${items.length} added — say another, or tap ✓ Done`}
+          </div>
+        </div>
+      )}
+
+      {/* Fixed 2 × 3 choice grid */}
+      <div style={{
+        flex:1, display:"grid",
+        gridTemplateColumns:"repeat(2, 1fr)",
+        gridTemplateRows:"repeat(3, 1fr)",
+        gap:8, padding:8, minHeight:0,
+      }}>
+        {slots.map((item,i)=>{
+          if(!item){
+            // Empty placeholder keeps the grid shape so cells stay proportionate
+            return(
+              <div key={`empty-${i}`} style={{
+                borderRadius:18,
+                border: stage==="listening" ? "2px dashed rgba(142,68,173,0.25)" : "none",
+                background: stage==="listening" ? "rgba(255,255,255,0.35)" : "transparent",
+              }}/>
+            );
+          }
+          const isSelected = selected?.id===item.id;
+          return(
+            <button key={item.id||i} onClick={()=>onSelect(item)}
+              style={{
+                display:"flex", flexDirection:"column",
+                alignItems:"center", justifyContent:"center",
+                gap:4, padding:6, borderRadius:18, border:"none",
+                cursor:"pointer", minHeight:0, width:"100%", height:"100%",
+                background: isSelected ? headerColor : "#fff",
+                boxShadow: isSelected ? `0 6px 24px ${headerColor}66` : "0 3px 12px rgba(0,0,0,0.1)",
+                transform: isSelected ? "scale(0.97)" : "scale(1)",
+                transition:"all 0.2s", overflow:"hidden",
+              }}>
+              <div style={{flex:1, width:"100%", minHeight:0,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                overflow:"hidden", borderRadius:12}}>
+                {item.imgUrl?(
+                  <img src={item.imgUrl} alt={item.word}
+                    style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:12}}
+                    onError={e=>{e.target.style.display='none';}}/>
+                ):(
+                  <div style={{fontSize:"clamp(32px,9vw,64px)",lineHeight:1}}>{item.emoji||"🎯"}</div>
+                )}
+              </div>
+              <div style={{fontFamily:"'Fredoka One',cursive",
+                fontSize:"clamp(13px,4vw,20px)",
+                color: isSelected ? "#fff" : "#333",
+                textAlign:"center", lineHeight:1.1, flexShrink:0, paddingBottom:2}}>
+                {(item.display||item.label||item.word||"").toUpperCase()}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Selected confirmation bar */}
+      {selected&&(
+        <div style={{background:headerColor, padding:"10px 20px",
+          textAlign:"center", flexShrink:0, animation:"popIn 0.3s ease"}}>
+          <div style={{fontFamily:"'Fredoka One',cursive", fontSize:18, color:"#fff"}}>
+            {isWorkingFor?"🌟":"✅"}{" "}
+            {(selected.display||selected.label||selected.word||"").toUpperCase()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}){
   // Auto-calculate best grid layout based on item count
   const count = items.length;
   const cols = count <= 2 ? 2
@@ -2636,7 +2836,7 @@ function WordDetailPanel({word, user, onClose}){
     setImgLoading(true);
 
     const wordStr = (word.display||word.word||'').toLowerCase().trim();
-    const cacheKey = `word_img_v3_${wordStr.replace(/\s+/g,'_')}`;
+    const cacheKey = `word_img_v4_${wordStr.replace(/\s+/g,'_')}`;
 
     // Clear cache on forceNew
     if(forceNew) mem.set(cacheKey, null);
@@ -2652,137 +2852,138 @@ function WordDetailPanel({word, user, onClose}){
     // ── Highly specific AAC word → Pexels query map ──────────────
     // Every query is hand-crafted to return exactly the right image
     const QUERY_MAP = {
-      // Needs & requests
-      'yes':         'child nodding yes thumbs up',
-      'no':          'child shaking head no hand stop',
-      'more':        'child pointing more food plate',
-      'help':        'teacher helping student desk',
-      'please':      'child hands together polite please',
-      'stop':        'stop sign red octagon street',
-      'wait':        'child sitting waiting patiently bench',
-      'go':          'child walking forward school',
-      'want':        'child reaching hand want toy',
-      'mine':        'child holding toy possession',
-      'done':        'child finished plate empty done',
-      'open':        'hands opening door handle',
-      'close':       'child closing door handle',
-      'on':          'light switch on wall',
-      'off':         'light switch off wall',
-      'up':          'child arms up overhead',
-      'down':        'child pointing down floor',
-      'in':          'child going inside building door',
-      'out':         'child going outside building',
+      // Principle: ONE clear subject, plain/white background, no clutter.
+      // Needs & requests (single child, simple background)
+      'yes':         'child thumbs up plain background',
+      'no':          'child hand stop plain background',
+      'more':        'child hand reaching plain background',
+      'help':        'child raising hand plain background',
+      'please':      'child hands together plain background',
+      'stop':        'red stop sign white background',
+      'wait':        'child sitting still plain background',
+      'go':          'green arrow white background',
+      'want':        'child reaching hand plain background',
+      'mine':        'child hugging toy plain background',
+      'done':        'empty plate white background',
+      'open':        'open door plain background',
+      'close':       'closed door plain background',
+      'on':          'light bulb on white background',
+      'off':         'light bulb off white background',
+      'up':          'arrow pointing up white background',
+      'down':        'arrow pointing down white background',
+      'in':          'open box white background',
+      'out':         'child outdoors plain background',
       // Bathroom / hygiene
-      'potty':       'toilet white bathroom clean',
-      'bathroom':    'school bathroom sink toilet',
-      'restroom':    'restroom sign door school hallway',
-      'wash':        'child washing hands soap sink',
-      'bath':        'child bathtub bubbles smiling',
-      'brush teeth': 'child brushing teeth toothbrush',
-      'flush':       'toilet flush handle bathroom',
-      // Food & drink
-      'eat':         'child eating food lunch smiling',
-      'drink':       'child drinking water glass cup',
-      'hungry':      'child pointing stomach hungry',
-      'thirsty':     'child drinking water thirsty',
-      'breakfast':   'breakfast food eggs toast plate table',
-      'lunch':       'school lunch tray food cafeteria',
-      'dinner':      'family dinner food table evening',
-      'snack':       'healthy snack fruit crackers plate',
-      'water':       'glass water clear drinking',
-      'milk':        'glass milk white breakfast',
-      'juice':       'glass orange juice fruit',
-      'apple':       'red apple fruit table',
-      'banana':      'yellow banana fruit',
-      'cookie':      'chocolate chip cookie plate',
-      'pizza':       'pizza slice cheese plate',
-      'sandwich':    'sandwich bread lunch plate',
+      'potty':       'white toilet plain background',
+      'bathroom':    'white toilet plain background',
+      'restroom':    'restroom sign white background',
+      'wash':        'child washing hands plain background',
+      'bath':        'rubber duck bathtub plain background',
+      'brush teeth': 'toothbrush toothpaste white background',
+      'flush':       'white toilet plain background',
+      // Food & drink (clean product-style, isolated)
+      'eat':         'child eating plain background',
+      'drink':       'child drinking cup plain background',
+      'hungry':      'empty plate white background',
+      'thirsty':     'glass of water white background',
+      'breakfast':   'bowl of cereal white background',
+      'lunch':       'sandwich on plate white background',
+      'dinner':      'plate of food white background',
+      'snack':       'apple slices white background',
+      'water':       'glass of water white background',
+      'milk':        'glass of milk white background',
+      'juice':       'glass of juice white background',
+      'apple':       'single red apple white background',
+      'banana':      'single banana white background',
+      'cookie':      'single cookie white background',
+      'pizza':       'pizza slice white background',
+      'sandwich':    'sandwich white background',
       // Sleep & rest
-      'sleep':       'child sleeping bed pillow night',
-      'tired':       'tired child yawning sleepy',
-      'rest':        'child resting lying down bed',
-      // Emotions
-      'happy':       'happy smiling child joyful school',
-      'sad':         'sad child unhappy crying face',
-      'angry':       'angry frustrated child face',
-      'scared':      'scared child hiding face fear',
-      'excited':     'excited child arms up jumping joyful',
-      'calm':        'calm child sitting peacefully relaxed',
-      'worried':     'worried child anxious face thinking',
-      'proud':       'proud child award certificate trophy',
-      'frustrated':  'frustrated child arms crossed',
-      'hurt':        'child with bandage arm injury',
-      'sick':        'sick child thermometer resting blanket',
-      // Actions
-      'sit':         'child sitting school chair desk',
-      'sit down':    'child sitting down chair classroom',
-      'stand':       'child standing upright classroom',
-      'stand up':    'child standing up from chair',
-      'walk':        'child walking school hallway',
-      'run':         'child running playground outdoor',
-      'jump':        'child jumping air playground',
-      'play':        'children playing toys blocks school',
-      'dance':       'child dancing movement music',
-      'draw':        'child drawing crayon paper art',
-      'read':        'child reading picture book',
-      'write':       'child writing pencil paper desk',
-      'listen':      'child listening teacher attentive',
-      'look':        'child looking pointing eyes',
-      'clean up':    'child putting toys away bin',
-      'clean':       'child cleaning wiping table',
-      'line up':     'children standing line school hallway',
-      'be quiet':    'child finger lips quiet shh',
-      'come':        'teacher gesturing child come here',
-      'wait here':   'child waiting standing patient',
-      // School items
-      'pencil':      'yellow pencil school desk close up',
-      'crayon':      'colorful crayons box school',
-      'scissors':    'safety scissors yellow school',
-      'paper':       'white paper stack school desk',
-      'book':        'colorful children picture book open',
-      'backpack':    'colorful school backpack child',
-      'chair':       'elementary school chair classroom',
-      'table':       'classroom desk table student',
-      'computer':    'child using computer school lab',
-      'tablet':      'child using tablet ipad school',
-      'marker':      'colorful markers school art',
-      'glue':        'glue stick school craft',
-      // People
-      'mom':         'mother smiling hugging child home',
-      'dad':         'father smiling with child home',
-      'baby':        'baby infant smiling happy',
-      'teacher':     'teacher smiling classroom whiteboard',
-      'friend':      'children friends smiling school',
-      'doctor':      'doctor white coat stethoscope office',
-      'nurse':       'nurse scrubs hospital clinic',
-      // Animals
-      'dog':         'friendly golden retriever dog sitting',
-      'cat':         'orange tabby cat sitting friendly',
-      'bird':        'small colorful bird perched branch',
-      'fish':        'goldfish bowl water orange',
-      'rabbit':      'white rabbit fluffy pet',
+      'sleep':       'child sleeping plain background',
+      'tired':       'child yawning plain background',
+      'rest':        'child resting plain background',
+      // Emotions (single child face, plain background)
+      'happy':       'happy child face plain background',
+      'sad':         'sad child face plain background',
+      'angry':       'angry child face plain background',
+      'scared':      'scared child face plain background',
+      'excited':     'excited child face plain background',
+      'calm':        'calm child face plain background',
+      'worried':     'worried child face plain background',
+      'proud':       'proud child smiling plain background',
+      'frustrated':  'frustrated child face plain background',
+      'hurt':        'child with bandage plain background',
+      'sick':        'child holding thermometer plain background',
+      // Actions (one child, simple background)
+      'sit':         'child sitting chair plain background',
+      'sit down':    'child sitting chair plain background',
+      'stand':       'child standing plain background',
+      'stand up':    'child standing plain background',
+      'walk':        'child walking plain background',
+      'run':         'child running plain background',
+      'jump':        'child jumping plain background',
+      'play':        'child playing toy plain background',
+      'dance':       'child dancing plain background',
+      'draw':        'child drawing plain background',
+      'read':        'child reading book plain background',
+      'write':       'child writing plain background',
+      'listen':      'child listening plain background',
+      'look':        'child pointing plain background',
+      'clean up':    'child tidying toys plain background',
+      'clean':       'child wiping table plain background',
+      'line up':     'children standing in line plain background',
+      'be quiet':    'child finger on lips plain background',
+      'come':        'child waving come plain background',
+      'wait here':   'child standing still plain background',
+      // School items (isolated objects)
+      'pencil':      'single yellow pencil white background',
+      'crayon':      'crayons white background',
+      'scissors':    'safety scissors white background',
+      'paper':       'sheet of paper white background',
+      'book':        'single book white background',
+      'backpack':    'school backpack white background',
+      'chair':       'single chair white background',
+      'table':       'small table white background',
+      'computer':    'laptop computer white background',
+      'tablet':      'tablet device white background',
+      'marker':      'markers white background',
+      'glue':        'glue stick white background',
+      // People (single person, plain background)
+      'mom':         'smiling mother plain background',
+      'dad':         'smiling father plain background',
+      'baby':        'smiling baby plain background',
+      'teacher':     'smiling teacher plain background',
+      'friend':      'two children smiling plain background',
+      'doctor':      'doctor plain background',
+      'nurse':       'nurse plain background',
+      // Animals (single animal, plain background)
+      'dog':         'single dog plain background',
+      'cat':         'single cat plain background',
+      'bird':        'single bird plain background',
+      'fish':        'single goldfish plain background',
+      'rabbit':      'single rabbit plain background',
       // Places
-      'home':        'house family home exterior sunny',
-      'school':      'elementary school building exterior',
-      'park':        'children playing park playground sunny',
-      'store':       'grocery store supermarket entrance',
-      'bus':         'yellow school bus road',
-      'car':         'family car sedan parked',
+      'home':        'house white background',
+      'school':      'school building plain background',
+      'park':        'playground plain background',
+      'store':       'shopping cart white background',
+      'bus':         'yellow school bus white background',
+      'car':         'single car white background',
       // Health & safety
-      'medicine':    'child taking medicine spoon syrup',
-      'bandage':     'bandage adhesive bandaid skin',
-      'danger':      'warning sign caution yellow',
-      'hot':         'hot food steam careful',
-      'cold':        'ice cold winter jacket child',
+      'medicine':    'medicine bottle white background',
+      'bandage':     'adhesive bandage white background',
+      'danger':      'warning sign white background',
+      'hot':         'red thermometer white background',
+      'cold':        'snowflake white background',
       // Good behavior
-      'good job':    'child receiving praise star sticker',
-      'nice work':   'teacher praising student thumbs up',
-      'thank you':   'child saying thank you polite',
-      'sorry':       'child apologizing sorry sad face',
-      // Clothing
-      'shoes':       'child shoes colorful sneakers',
-      'coat':        'child wearing winter coat',
-      'hat':         'child wearing hat colorful',
+      'good job':    'gold star white background',
+      'nice work':   'gold star sticker white background',
+      'thank you':   'child waving plain background',
+      'sorry':       'sad child face plain background',
+      // Clothing (isolated)
+      'shoes':       'pair of shoes white background',
+      'coat':        'winter coat white background',
+      'hat':         'hat white background',
     };
 
     // Get the search query — map first, then Claude AI for custom words
@@ -2799,7 +3000,7 @@ function WordDetailPanel({word, user, onClose}){
             max_tokens: 40,
             messages: [{
               role: 'user',
-              content: `Pexels image search query for AAC word "${wordStr}". Must return a clear, modern, child-appropriate COLOR photo. 3-5 words max. Think literally — what exact object or action would a child with autism recognize? Reply with ONLY the search query.`
+              content: `Give a Pexels photo search query for the AAC word "${wordStr}", for a child with autism learning language. The photo MUST be a single clear subject on a plain or white background, no clutter, no text, COLOR. For objects use "single X white background". For actions/feelings use "child X plain background". 3-5 words. Reply with ONLY the query.`
             }]
           })
         });
@@ -2812,14 +3013,14 @@ function WordDetailPanel({word, user, onClose}){
     }
 
     // Final fallback
-    if(!searchQuery) searchQuery = `${wordStr} child school`;
+    if(!searchQuery) searchQuery = `${wordStr} plain white background`;
 
-    // ── Search Pexels ─────────────────────────────────────────────
+    // ── Search Pexels (high quality) ──────────────────────────────
     if(PEXELS_KEY){
       try {
         const page = forceNew ? Math.floor(Math.random()*3)+1 : 1;
         const pexRes = await fetch(
-          `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=5&page=${page}&orientation=square&size=medium`,
+          `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=8&page=${page}&orientation=square&size=large`,
           { headers: { Authorization: PEXELS_KEY } }
         );
         if(pexRes.ok){
@@ -2829,7 +3030,9 @@ function WordDetailPanel({word, user, onClose}){
             const pick = forceNew
               ? photos[Math.floor(Math.random()*photos.length)]
               : photos[0];
-            const imgUrl = pick?.src?.medium || pick?.src?.small;
+            // Prefer the large/high-res source for a crisp Level-1 image
+            const s = pick?.src || {};
+            const imgUrl = s.large2x || s.large || s.medium || s.original || s.small;
             if(imgUrl){
               setUnsplashUrl(imgUrl);
               mem.set(cacheKey, imgUrl);
@@ -2839,6 +3042,9 @@ function WordDetailPanel({word, user, onClose}){
           }
         }
       } catch(e){ console.log('Pexels error:', e.message); }
+    } else {
+      // No Pexels key configured — surface a clear status to the teacher
+      setAiError && setAiError("Add VITE_PEXELS_KEY in Vercel to auto-load photos.");
     }
 
     setImgLoading(false);
@@ -4264,13 +4470,14 @@ Reply with ONLY the matching word or NO_MATCH.`
 
             // ── 1d. First-Then ──
             // Handle full sentence: "first sit down then you can have a snack"
-            const hasFirst = t.includes("first");
+            // Also supports "if you sit down then you can have a snack"
+            const hasFirst = t.includes("first") || /\bif\b/.test(t);
             const hasThen  = t.includes("then");
 
             if(hasFirst && hasThen){
               // Full sentence detected — parse both parts at once
               setAppMode("firstthen");
-              const firstPart = t.split(/\bthen\b/i)[0].replace(/^first\s*/i,"").trim();
+              const firstPart = t.split(/\bthen\b/i)[0].replace(/^(first|if)\s*/i,"").trim();
               const thenPart  = t.split(/\bthen\b/i)[1]?.replace(/^(you can|you get|you may|have|get)\s*/i,"").trim()||"";
               const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>firstPart.includes(tr)));
               if(taskMatch) setFirstItem(taskMatch);
@@ -4288,7 +4495,7 @@ Reply with ONLY the matching word or NO_MATCH.`
               setAppMode("firstthen");
               setFirstThenStage("first");
               setThenItem(null);
-              const afterFirst = t.replace(/^first\s*/i,"").trim();
+              const afterFirst = t.replace(/^(first|if)\s*/i,"").trim();
               if(afterFirst.length > 1){
                 const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterFirst.includes(tr)));
                 if(taskMatch) setFirstItem(taskMatch);
@@ -4330,17 +4537,18 @@ Reply with ONLY the matching word or NO_MATCH.`
                 // Fetch image for this choice from Pexels
                 const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY||"";
                 const wordStr = (newChoice.word||"").toLowerCase();
-                const cachedImg = mem.get(`word_img_v3_${wordStr.replace(/\s+/g,'_')}`, null);
+                const cachedImg = mem.get(`word_img_v4_${wordStr.replace(/\s+/g,'_')}`, null);
                 const enrichedChoice = {...newChoice, imgUrl: cachedImg||null};
 
                 if(PEXELS_KEY && !cachedImg){
                   // Fetch in background
-                  fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(wordStr+" child school")}&per_page=1&orientation=square&size=small`,
+                  fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(wordStr+" plain white background")}&per_page=1&orientation=square&size=medium`,
                     {headers:{Authorization:PEXELS_KEY}})
                   .then(r=>r.json()).then(d=>{
-                    const url = d.photos?.[0]?.src?.small;
+                    const p = d.photos?.[0]?.src||{};
+                    const url = p.large||p.medium||p.small;
                     if(url){
-                      mem.set(`word_img_v3_${wordStr.replace(/\s+/g,'_')}`, url);
+                      mem.set(`word_img_v4_${wordStr.replace(/\s+/g,'_')}`, url);
                       setChoiceItems(prev=>prev.map(c=>
                         c.id===newChoice.id ? {...c, imgUrl:url} : c
                       ));
@@ -4517,13 +4725,18 @@ Reply with ONLY the matching word or NO_MATCH.`
   if(autoStart && appMode==="firstthen") return(
     <FirstThenBoard
       firstItem={firstItem} thenItem={thenItem} stage={firstThenStage}
-      onExit={()=>{setAppMode("aac");setFirstItem(null);setThenItem(null);setFirstThenStage("first");}}/>
+      onExit={()=>{setAppMode("aac");appModeRef.current="aac";setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}/>
   );
   if(autoStart && appMode==="choice") return(
     <ChoiceBoard
       items={choiceItems} selected={choiceSelected}
       stage={choiceStage||"listening"}
       onDone={()=>setChoiceStage("display")}
+      onExit={()=>{
+        setAppMode("aac"); appModeRef.current="aac";
+        setChoiceItems([]); setChoiceSelected(null);
+        setChoiceStage("idle"); choiceStageRef.current="idle";
+      }}
       onSelect={item=>{
         setChoiceSelected(item);
         setChoiceStage("selected");
@@ -4658,13 +4871,18 @@ Reply with ONLY the matching word or NO_MATCH.`
   if(appMode==="firstthen") return(
     <FirstThenBoard
       firstItem={firstItem} thenItem={thenItem} stage={firstThenStage}
-      onExit={()=>{setAppMode("aac");setFirstItem(null);setThenItem(null);setFirstThenStage("first");}}/>
+      onExit={()=>{setAppMode("aac");appModeRef.current="aac";setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}/>
   );
   if(appMode==="choice") return(
     <ChoiceBoard
       items={choiceItems} selected={choiceSelected}
       stage={choiceStage||"listening"}
       onDone={()=>setChoiceStage("display")}
+      onExit={()=>{
+        setAppMode("aac"); appModeRef.current="aac";
+        setChoiceItems([]); setChoiceSelected(null);
+        setChoiceStage("idle"); choiceStageRef.current="idle";
+      }}
       onSelect={item=>{
         setChoiceSelected(item);
         setChoiceStage("selected");
