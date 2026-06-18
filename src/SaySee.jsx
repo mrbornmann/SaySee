@@ -650,6 +650,36 @@ function readFileAsDataURL(file){
   });
 }
 
+// Downscale + compress an image for fast loading and full-screen display.
+// The listening screen shows photos in a square, full-bleed box, so we cap the
+// short side at ~1080px (crisp on tablets) and the long side at ~1600px, then
+// re-encode as JPEG ~0.85. NEVER upscales. On any failure it returns the
+// original src untouched, so uploads can't break. Returns a JPEG data URL.
+function resizeImage(src, { shortCap=1080, longCap=1600, quality=0.85 }={}){
+  return new Promise((resolve)=>{
+    try{
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+          if(!w||!h){ resolve(src); return; }
+          const shortSide=Math.min(w,h), longSide=Math.max(w,h);
+          const scale=Math.min(shortCap/shortSide, longCap/longSide, 1); // never upscale
+          const tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale));
+          const canvas=document.createElement("canvas");
+          canvas.width=tw; canvas.height=th;
+          const ctx=canvas.getContext("2d");
+          ctx.fillStyle="#fff"; ctx.fillRect(0,0,tw,th); // flatten any transparency
+          ctx.drawImage(img,0,0,tw,th);
+          resolve(canvas.toDataURL("image/jpeg",quality));
+        }catch(e){ resolve(src); }
+      };
+      img.onerror=()=>resolve(src);
+      img.src=src;
+    }catch(e){ resolve(src); }
+  });
+}
+
 // ── Tiny shared UI ────────────────────────────────────────────
 function Btn({children,onClick,color="#1B65B8",outline,danger,full,disabled,small,style={}}){
   const bg=outline?"transparent":danger?"#E74C3C":color;
@@ -2910,7 +2940,7 @@ SEARCH: [term1, term2, term3]`}]
     if(!file) return;
     const reader = new FileReader();
     reader.onload = async ev => {
-      const url = ev.target.result;
+      const url = await resizeImage(ev.target.result);  // shrink + compress for fast loading
       // Show immediately in this panel
       setCustomPhoto(url);
       setUnsplashUrl(null);
@@ -5327,7 +5357,8 @@ function PhotoModal({entry, onSaved, onClose}){
     setSaving(true);
     try{
       const dataUrl=await readFileAsDataURL(file);
-      setPreview(dataUrl);
+      const small=await resizeImage(dataUrl);  // shrink + compress for fast loading
+      setPreview(small);
       setSaving(false);
     }catch(err){ setSaving(false); }
     e.target.value="";
@@ -5904,8 +5935,8 @@ export default function SaySee(){
         </ErrorBoundary>
       ) : homeMode==="settings" ? (
         <ErrorBoundary>
-          <SettingsScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}
-            onLogout={logout}/>
+          <SettingsScreen user={user} onBack={()=>setHomeMode("home")}
+            onLogout={logout} onNavigate={setHomeMode}/>
         </ErrorBoundary>
       ) : homeMode==="reinforcers" ? (
         <ReinforcerSurveyScreen user={user} onBack={()=>setHomeMode("home")} onSave={()=>{}}/>
