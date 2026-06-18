@@ -359,9 +359,28 @@ const sbData = {
   assignLicense: async (lid, tid) => { if (supabase) await supabase.from("licenses").update({ assigned_to_teacher_id:tid, status:"active", assigned_date:new Date().toISOString() }).eq("id", lid); }
 };
 
-// ── In-memory fallback for artifact preview ───────────────────────
+// ── Persistent local store (survives reload) ─────────────────────
+// Namespaced localStorage wrapper with an in-memory mirror. Falls back to
+// memory-only if storage is unavailable (SSR / private mode) or a write
+// exceeds quota, so it never throws. Keys are namespaced so they don't
+// collide with the few direct-localStorage keys (saysee_master_words, etc.).
+const MEM_PREFIX = "saysee_mem_";
 let _store = {};
-const mem = { get:(k,fb)=>k in _store?_store[k]:fb, set:(k,v)=>{_store[k]=v;} };
+const mem = {
+  get:(k,fb)=>{
+    if(k in _store) return _store[k];
+    try{
+      const raw = localStorage.getItem(MEM_PREFIX+k);
+      if(raw!=null){ const v=JSON.parse(raw); _store[k]=v; return v; }
+    }catch(e){}
+    return fb;
+  },
+  set:(k,v)=>{
+    _store[k]=v;
+    try{ localStorage.setItem(MEM_PREFIX+k, JSON.stringify(v)); }
+    catch(e){ /* quota exceeded or non-serializable — keep in memory only */ }
+  },
+};
 
 // ── Data ─────────────────────────────────────────────────────────
 const MASTER_WORDS = [
@@ -2616,6 +2635,7 @@ function WordDetailPanel({word, user, onClose}){
   );
   const [l4Color, setL4Color]         = useState("#1B65B8");
   const [l4Font, setL4Font]           = useState("'Fredoka One',cursive");
+  const [photoNote, setPhotoNote]     = useState("");
   const fileRef   = useRef(null);
   const cameraRef = useRef(null);
 
@@ -2889,13 +2909,36 @@ SEARCH: [term1, term2, term3]`}]
     const file = e.target.files?.[0];
     if(!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       const url = ev.target.result;
-      // Replace immediately
+      // Show immediately in this panel
       setCustomPhoto(url);
       setUnsplashUrl(null);
+      // Tie it to the word for the listening screen. Everything here is
+      // user-scoped — this photo is PRIVATE to this teacher, never shared.
+      // Update the same per-teacher photo map the Say screen reads on load.
+      const map = {...mem.get(`photos_${user?.id}`, {}), [word.id]: url};
+      mem.set(`photos_${user?.id}`, map);
+      mem.set(`photo_${word.id}_${user?.id}`, url);
       mem.set(`word_photo_${word.id||word.word}_${user?.id}`, url);
       mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`, null);
+      // Persist to Supabase (private bucket, owner-scoped) for permanent,
+      // cross-device storage. Never enters any shared/default pool.
+      try {
+        const synced = await sbAuth.uploadPhoto(word.id, user?.id, url);
+        if(synced){
+          setCustomPhoto(synced);
+          const m2 = {...mem.get(`photos_${user?.id}`, {}), [word.id]: synced};
+          mem.set(`photos_${user?.id}`, m2);
+          mem.set(`photo_${word.id}_${user?.id}`, synced);
+          setPhotoNote("✅ Saved & synced to your account");
+        } else {
+          setPhotoNote("⚠️ Saved on this device only — sign in to sync everywhere");
+        }
+      } catch(err){
+        setPhotoNote("⚠️ Saved on this device only — couldn't sync");
+      }
+      setTimeout(()=>setPhotoNote(""),4000);
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -3040,17 +3083,34 @@ SEARCH: [term1, term2, term3]`}]
                 </button>
               </div>
               {(customPhoto||unsplashUrl)&&(
-                <button onClick={()=>{
+                <button onClick={async()=>{
+                    // Revert to the default image: remove ONLY this teacher's
+                    // private photo, then fall back to admin-default → Pexels → emoji.
                     setCustomPhoto(null);
                     setUnsplashUrl(null);
-                    mem.set(`word_photo_${word.id||word.word}_${user?.id}`,null);
-                    mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`,null);
+                    const map = {...mem.get(`photos_${user?.id}`, {})}; delete map[word.id];
+                    mem.set(`photos_${user?.id}`, map);
+                    mem.set(`photo_${word.id}_${user?.id}`, null);
+                    mem.set(`word_photo_${word.id||word.word}_${user?.id}`, null);
+                    mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`, null);
+                    // remove this teacher's private copy from Supabase too
+                    try{ await sbAuth.deletePhoto(word.id, user?.id); }catch(err){}
+                    // re-fetch the default (Pexels) image; the emoji shows if none
+                    fetchWordImage(true);
+                    setPhotoNote("↩ Reverted to the default image");
+                    setTimeout(()=>setPhotoNote(""),3000);
                   }}
                   style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EEF0F4",
-                  background:"transparent",color:"#AAA",fontFamily:"'Nunito',sans-serif",
+                  background:"transparent",color:"#888",fontFamily:"'Nunito',sans-serif",
                   fontSize:11,cursor:"pointer",marginBottom:6}}>
-                  ✕ Remove image
+                  ↩ Revert to default image
                 </button>
+              )}
+              {photoNote&&(
+                <div style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",fontSize:11,
+                  fontWeight:700,color:photoNote.startsWith("⚠️")?"#B7791F":"#276749",marginBottom:6}}>
+                  {photoNote}
+                </div>
               )}
               {/* Camera input - opens camera directly on mobile */}
               <input ref={cameraRef} type="file" accept="image/*"
@@ -4156,7 +4216,7 @@ Reply with ONLY the matching word or NO_MATCH.`
       return updated;
     });
   },[]);
-  const [photos,setPhotos]       = useState(()=>{ const p={}; /* load any saved photos */ return p; });
+  const [photos,setPhotos]       = useState(()=>mem.get(`photos_${user.id}`, {})); // hydrate saved photos so they don't vanish on reload
   const [photoModal,setPhotoModal] = useState(null); // word entry awaiting photo
   const allWords                 = [...words.filter(w=>w.cat!=="custom"),...customW];
 
@@ -4536,17 +4596,24 @@ Reply with ONLY the matching word or NO_MATCH.`
     });
     mem.set(`photo_${wordId}_${user.id}`, dataUrl);
 
-    // Upload to Supabase Storage for permanent persistence
+    // Upload to Supabase Storage for permanent, cross-device persistence
     try {
       const publicUrl = await sbAuth.uploadPhoto(wordId, user.id, dataUrl);
       if(publicUrl){
-        // Replace local dataUrl with permanent Supabase URL
-        setPhotos(p=>({...p,[wordId]:publicUrl}));
+        // Replace local dataUrl with the permanent (signed) Supabase URL
+        setPhotos(p=>{ const u={...p,[wordId]:publicUrl}; mem.set(`photos_${user.id}`, u); return u; });
         mem.set(`photo_${wordId}_${user.id}`, publicUrl);
+        setAiStatus("✅ Photo saved — synced to your account");
+        setTimeout(()=>setAiStatus(""),2500);
+      } else {
+        // No Supabase session (e.g. a demo login) or offline — kept on this device only
+        setAiStatus("⚠️ Saved on this device only. Sign in with your SaySee account to sync everywhere.");
+        setTimeout(()=>setAiStatus(""),5000);
       }
     } catch(e){
       console.log("Photo upload to Supabase failed, keeping local:", e);
-      // Photo stays as local dataUrl — still works this session
+      setAiStatus("⚠️ Saved on this device only — couldn't sync (check connection).");
+      setTimeout(()=>setAiStatus(""),5000);
     }
   };
 
@@ -5338,7 +5405,7 @@ function PhotoModal({entry, onSaved, onClose}){
 
       <div style={{marginTop:16,padding:"10px 14px",background:"#F0FFF4",borderRadius:10,border:"1px solid #C6F6D5"}}>
         <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#276749",lineHeight:1.6}}>
-          ✅ <strong>Your photos stay private.</strong> They're stored on your device and never shared without your permission. No stock photos, no copyright issues.
+          🔒 <strong>Your photos are private to your account.</strong> They're never shown to other teachers and never added to the shared word library — they appear only when you're signed in.
         </div>
       </div>
     </Modal>
