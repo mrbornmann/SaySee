@@ -4180,6 +4180,41 @@ Reply with ONLY the matching word or NO_MATCH.`
   const lastInstructionRef = useRef(null);
   const timerStartRef  = useRef(null);
 
+  // ── Silent audio keep-alive ──
+  // The browser's speech-recognition engine plays a system "earcon" (a beep)
+  // every time it starts/restarts. On tablets (the typical school device) it's
+  // loud, and the onend→start() loop makes it repeat. There is no Web Speech
+  // flag to mute it, but holding the audio-output session active with a
+  // zero-gain node suppresses the earcon. This produces NO audible sound
+  // (gain is exactly 0) — it only keeps the output stream "running".
+  const silentRef = useRef(null);
+  const startSilent = useCallback(()=>{
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      let s = silentRef.current;
+      if(!s){
+        const ctx  = new AC();
+        const gain = ctx.createGain();
+        gain.gain.value = 0;          // fully silent — never makes noise
+        const osc  = ctx.createOscillator();
+        osc.frequency.value = 30;     // sub-audible; irrelevant at gain 0
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        s = { ctx, osc, gain };
+        silentRef.current = s;
+      }
+      if(s.ctx.state === "suspended") s.ctx.resume().catch(()=>{});
+    }catch{}
+  },[]);
+  const stopSilent = useCallback(()=>{
+    const s = silentRef.current;
+    if(!s) return;
+    silentRef.current = null;
+    try{ s.osc.stop(); }catch{}
+    try{ s.ctx.close(); }catch{}
+  },[]);
+
   useEffect(()=>{wRef.current=allWords;},[allWords]);
   useEffect(()=>{ studentsRef.current = students; },[students]);
   useEffect(()=>{ activeIdRef.current = activeId; },[activeId]);
@@ -4209,6 +4244,7 @@ Reply with ONLY the matching word or NO_MATCH.`
 
   const startMic=useCallback(()=>{
     setMicError("");
+    startSilent(); // keep audio output active so the recognition "beep" stays silent
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR){
       setMicError("Needs Chrome or Edge browser for voice recognition.");
@@ -4218,7 +4254,7 @@ Reply with ONLY the matching word or NO_MATCH.`
     try{
       const rec=new SR();
       rec.continuous=true; rec.interimResults=true; rec.lang="en-US"; rec.maxAlternatives=3;
-      rec.onstart=()=>{ setListening(true); setMicError(""); };
+      rec.onstart=()=>{ setListening(true); setMicError(""); startSilent(); };
       rec.onresult=(e)=>{
         for(let i=e.resultIndex;i<e.results.length;i++){
           // Use interim results for faster display
@@ -4468,9 +4504,10 @@ Reply with ONLY the matching word or NO_MATCH.`
   const stopMic=useCallback(()=>{
     lisRef.current=false; setListening(false); setMicError("");
     try{recRef.current?.stop();}catch{} recRef.current=null;
+    stopSilent();
   },[]);
 
-  useEffect(()=>{ return()=>{ lisRef.current=false; try{recRef.current?.stop();}catch{}; }; },[]);
+  useEffect(()=>{ return()=>{ lisRef.current=false; try{recRef.current?.stop();}catch{}; try{silentRef.current?.osc.stop();}catch{} try{silentRef.current?.ctx.close();}catch{} silentRef.current=null; }; },[]);
 
   // Auto-start mic and close drawer when coming from Say tile
   useEffect(()=>{
