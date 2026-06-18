@@ -921,43 +921,6 @@ function FirstThenBoard({firstItem, thenItem, onExit}){
       </div>
     </div>
   );
-}){
-  return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#E3F2FD",borderBottom:"3px solid #1B65B8",padding:16,gap:8}}>
-        <div style={{background:"#1B65B8",borderRadius:12,padding:"6px 24px"}}>
-          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#fff",letterSpacing:2}}>FIRST</div>
-        </div>
-        {firstItem ? (
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,animation:"popIn 0.4s ease"}}>
-            <div style={{fontSize:"min(22vw,22vh)",lineHeight:1}}>{firstItem.emoji}</div>
-            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(20px,6vw,36px)",color:"#1B65B8"}}>{firstItem.display||firstItem.label}</div>
-          </div>
-        ):(
-          <div style={{opacity:0.35,textAlign:"center"}}>
-            <div style={{fontSize:48}}>❓</div>
-            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#1B65B8",fontWeight:700}}>Say the task after "first"</div>
-          </div>
-        )}
-      </div>
-      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#E8F5E9",padding:16,gap:8}}>
-        <div style={{background:"#5AAB2A",borderRadius:12,padding:"6px 24px"}}>
-          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#fff",letterSpacing:2}}>THEN</div>
-        </div>
-        {thenItem ? (
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,animation:"popIn 0.4s ease"}}>
-            <div style={{fontSize:"min(22vw,22vh)",lineHeight:1}}>{thenItem.emoji}</div>
-            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(20px,6vw,36px)",color:"#5AAB2A"}}>{thenItem.display||thenItem.label}</div>
-          </div>
-        ):(
-          <div style={{opacity:0.35,textAlign:"center"}}>
-            <div style={{fontSize:48}}>🌟</div>
-            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#5AAB2A",fontWeight:700}}>Say "then" + the reward</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 // ── Choice Board ──────────────────────────────────────────────────
@@ -974,36 +937,30 @@ function ChoiceBoard({items, selected, onSelect, stage, onDone, onExit}){
   const slots = Array.from({length:SLOTS}, (_,i)=>items[i]||null);
 
   return(
-    <div style={{
-      position:"fixed", inset:0,
+    <div style={{position:"fixed", inset:0,
       background: isWorkingFor ? "#FFF8E7" : "#F3E5F5",
-      display:"flex", flexDirection:"column",
-      zIndex:200, overflow:"hidden",
-    }}>
+      display:"flex", flexDirection:"column", zIndex:200, overflow:"hidden"}}>
       {/* Header */}
       <div style={{background:headerColor, padding:"10px 14px",
         display:"flex", alignItems:"center", justifyContent:"space-between",
         gap:8, flexShrink:0}}>
-        <div style={{fontFamily:"'Fredoka One',cursive", fontSize:18,
-          color:"#fff", letterSpacing:1, whiteSpace:"nowrap",
-          overflow:"hidden", textOverflow:"ellipsis"}}>
+        <div style={{fontFamily:"'Fredoka One',cursive", fontSize:18, color:"#fff",
+          letterSpacing:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>
           {headerText}
         </div>
         <div style={{display:"flex", gap:8, flexShrink:0}}>
           {stage==="listening"&&items.length>=1&&(
             <button onClick={onDone}
-              style={{background:"rgba(255,255,255,0.9)",border:"none",
-              borderRadius:10,padding:"7px 16px",color:headerColor,
-              fontFamily:"'Nunito',sans-serif",fontWeight:900,
-              fontSize:13,cursor:"pointer"}}>
+              style={{background:"rgba(255,255,255,0.9)",border:"none",borderRadius:10,
+              padding:"7px 16px",color:headerColor,fontFamily:"'Nunito',sans-serif",
+              fontWeight:900,fontSize:13,cursor:"pointer"}}>
               ✓ Done
             </button>
           )}
           <button onClick={onExit}
-            style={{background:"rgba(255,255,255,0.25)",border:"none",
-            borderRadius:10,padding:"7px 12px",color:"#fff",
-            fontFamily:"'Nunito',sans-serif",fontWeight:900,
-            fontSize:15,cursor:"pointer",lineHeight:1}}>
+            style={{background:"rgba(255,255,255,0.25)",border:"none",borderRadius:10,
+            padding:"7px 12px",color:"#fff",fontFamily:"'Nunito',sans-serif",
+            fontWeight:900,fontSize:15,cursor:"pointer",lineHeight:1}}>
             ✕
           </button>
         </div>
@@ -1013,8 +970,7 @@ function ChoiceBoard({items, selected, onSelect, stage, onDone, onExit}){
       {stage==="listening"&&items.length<SLOTS&&(
         <div style={{background:"rgba(142,68,173,0.10)",padding:"8px 14px",
           textAlign:"center",flexShrink:0}}>
-          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
-            color:"#8E44AD",fontWeight:800}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#8E44AD",fontWeight:800}}>
             {items.length===0
               ? "Say the first choice… (up to 6)"
               : `${items.length} added — say another, or tap ✓ Done`}
@@ -1023,39 +979,29 @@ function ChoiceBoard({items, selected, onSelect, stage, onDone, onExit}){
       )}
 
       {/* Fixed 2 × 3 choice grid */}
-      <div style={{
-        flex:1, display:"grid",
-        gridTemplateColumns:"repeat(2, 1fr)",
-        gridTemplateRows:"repeat(3, 1fr)",
-        gap:8, padding:8, minHeight:0,
-      }}>
+      <div style={{flex:1, display:"grid",
+        gridTemplateColumns:"repeat(2, 1fr)", gridTemplateRows:"repeat(3, 1fr)",
+        gap:8, padding:8, minHeight:0}}>
         {slots.map((item,i)=>{
           if(!item){
-            // Empty placeholder keeps the grid shape so cells stay proportionate
             return(
-              <div key={`empty-${i}`} style={{
-                borderRadius:18,
+              <div key={`empty-${i}`} style={{borderRadius:18,
                 border: stage==="listening" ? "2px dashed rgba(142,68,173,0.25)" : "none",
-                background: stage==="listening" ? "rgba(255,255,255,0.35)" : "transparent",
-              }}/>
+                background: stage==="listening" ? "rgba(255,255,255,0.35)" : "transparent"}}/>
             );
           }
           const isSelected = selected?.id===item.id;
           return(
             <button key={item.id||i} onClick={()=>onSelect(item)}
-              style={{
-                display:"flex", flexDirection:"column",
-                alignItems:"center", justifyContent:"center",
-                gap:4, padding:6, borderRadius:18, border:"none",
+              style={{display:"flex", flexDirection:"column", alignItems:"center",
+                justifyContent:"center", gap:4, padding:6, borderRadius:18, border:"none",
                 cursor:"pointer", minHeight:0, width:"100%", height:"100%",
                 background: isSelected ? headerColor : "#fff",
                 boxShadow: isSelected ? `0 6px 24px ${headerColor}66` : "0 3px 12px rgba(0,0,0,0.1)",
                 transform: isSelected ? "scale(0.97)" : "scale(1)",
-                transition:"all 0.2s", overflow:"hidden",
-              }}>
-              <div style={{flex:1, width:"100%", minHeight:0,
-                display:"flex", alignItems:"center", justifyContent:"center",
-                overflow:"hidden", borderRadius:12}}>
+                transition:"all 0.2s", overflow:"hidden"}}>
+              <div style={{flex:1, width:"100%", minHeight:0, display:"flex",
+                alignItems:"center", justifyContent:"center", overflow:"hidden", borderRadius:12}}>
                 {item.imgUrl?(
                   <img src={item.imgUrl} alt={item.word}
                     style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:12}}
@@ -1064,10 +1010,9 @@ function ChoiceBoard({items, selected, onSelect, stage, onDone, onExit}){
                   <div style={{fontSize:"clamp(32px,9vw,64px)",lineHeight:1}}>{item.emoji||"🎯"}</div>
                 )}
               </div>
-              <div style={{fontFamily:"'Fredoka One',cursive",
-                fontSize:"clamp(13px,4vw,20px)",
-                color: isSelected ? "#fff" : "#333",
-                textAlign:"center", lineHeight:1.1, flexShrink:0, paddingBottom:2}}>
+              <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(13px,4vw,20px)",
+                color: isSelected ? "#fff" : "#333", textAlign:"center", lineHeight:1.1,
+                flexShrink:0, paddingBottom:2}}>
                 {(item.display||item.label||item.word||"").toUpperCase()}
               </div>
             </button>
@@ -1077,155 +1022,9 @@ function ChoiceBoard({items, selected, onSelect, stage, onDone, onExit}){
 
       {/* Selected confirmation bar */}
       {selected&&(
-        <div style={{background:headerColor, padding:"10px 20px",
-          textAlign:"center", flexShrink:0, animation:"popIn 0.3s ease"}}>
+        <div style={{background:headerColor, padding:"10px 20px", textAlign:"center",
+          flexShrink:0, animation:"popIn 0.3s ease"}}>
           <div style={{fontFamily:"'Fredoka One',cursive", fontSize:18, color:"#fff"}}>
-            {isWorkingFor?"🌟":"✅"}{" "}
-            {(selected.display||selected.label||selected.word||"").toUpperCase()}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}){
-  // Auto-calculate best grid layout based on item count
-  const count = items.length;
-  const cols = count <= 2 ? 2
-              : count <= 4 ? 2
-              : count <= 6 ? 3
-              : 3;
-
-  const isWorkingFor = stage === "workingfor_pick";
-  const headerColor  = isWorkingFor ? "#F5A623" : "#8E44AD";
-  const headerText   = isWorkingFor ? "🌟 What are you working for?"
-                     : stage === "listening" ? "🎯 Listening for choices..."
-                     : "Choice Board";
-
-  return(
-    <div style={{
-      position:"fixed", inset:0,
-      background: isWorkingFor ? "#FFF8E7" : "#F3E5F5",
-      display:"flex", flexDirection:"column",
-      zIndex:200, overflow:"hidden",
-    }}>
-      {/* Header */}
-      <div style={{background:headerColor, padding:"10px 16px",
-        display:"flex", alignItems:"center", justifyContent:"space-between",
-        flexShrink:0}}>
-        <div style={{fontFamily:"'Fredoka One',cursive", fontSize:20,
-          color:"#fff", letterSpacing:1}}>
-          {headerText}
-        </div>
-        {stage==="listening"&&(
-          <button onClick={onDone}
-            style={{background:"rgba(255,255,255,0.25)",border:"none",
-            borderRadius:10,padding:"6px 14px",color:"#fff",
-            fontFamily:"'Nunito',sans-serif",fontWeight:800,
-            fontSize:13,cursor:"pointer"}}>
-            ✓ Done
-          </button>
-        )}
-      </div>
-
-      {/* Listening status */}
-      {stage==="listening"&&items.length<2&&(
-        <div style={{background:"rgba(142,68,173,0.08)",padding:"10px 16px",
-          textAlign:"center",flexShrink:0}}>
-          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,
-            color:"#8E44AD",fontWeight:700}}>
-            {items.length===0
-              ? "Say the first choice..."
-              : `Got "${(items[0]?.display||items[0]?.word||"").toUpperCase()}" — say the next choice...`
-            }
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {items.length===0&&(
-        <div style={{flex:1,display:"flex",alignItems:"center",
-          justifyContent:"center",flexDirection:"column",gap:12}}>
-          <div style={{fontSize:56}}>🎯</div>
-          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:18,
-            color:"#8E44AD",textAlign:"center",padding:"0 20px"}}>
-            Say the choices one at a time...
-          </div>
-        </div>
-      )}
-
-      {/* Choice grid — fills all available space */}
-      {items.length>0&&(
-        <div style={{
-          flex:1,
-          display:"grid",
-          gridTemplateColumns:`repeat(${cols}, 1fr)`,
-          gridTemplateRows:`repeat(${Math.ceil(count/cols)}, 1fr)`,
-          gap:8, padding:8,
-          minHeight:0, // important — allows grid to shrink
-        }}>
-          {items.map((item,i)=>{
-            const isSelected = selected?.id===item.id;
-            return(
-              <button key={item.id||i}
-                onClick={()=>onSelect(item)}
-                style={{
-                  display:"flex", flexDirection:"column",
-                  alignItems:"center", justifyContent:"center",
-                  gap:6, padding:8,
-                  borderRadius:20, border:"none",
-                  cursor:"pointer", minHeight:0,
-                  width:"100%", height:"100%",
-                  background: isSelected ? headerColor : "#fff",
-                  boxShadow: isSelected
-                    ? `0 6px 24px ${headerColor}66`
-                    : "0 3px 12px rgba(0,0,0,0.1)",
-                  transform: isSelected ? "scale(0.97)" : "scale(1)",
-                  transition:"all 0.2s",
-                  overflow:"hidden",
-                }}>
-                {/* Image or emoji */}
-                <div style={{
-                  flex:1, width:"100%", minHeight:0,
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  overflow:"hidden", borderRadius:12,
-                }}>
-                  {item.imgUrl?(
-                    <img src={item.imgUrl} alt={item.word}
-                      style={{width:"100%",height:"100%",
-                        objectFit:"cover",borderRadius:12}}
-                      onError={e=>e.target.style.display='none'}/>
-                  ):(
-                    <div style={{fontSize:count<=2?"64px":count<=4?"48px":"36px",
-                      lineHeight:1}}>
-                      {item.emoji||"🎯"}
-                    </div>
-                  )}
-                </div>
-                {/* Label */}
-                <div style={{
-                  fontFamily:"'Fredoka One',cursive",
-                   fontSize:count<=2?"22px":count<=4?"18px":"14px",
-                  color: isSelected ? "#fff" : "#333",
-                  textAlign:"center", lineHeight:1.1,
-                  flexShrink:0, paddingBottom:2,
-                }}>
-                  {(item.display||item.label||item.word||"").toUpperCase()}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Selected confirmation bar */}
-      {selected&&(
-        <div style={{
-          background:headerColor, padding:"10px 20px",
-          textAlign:"center", flexShrink:0,
-          animation:"popIn 0.3s ease",
-        }}>
-          <div style={{fontFamily:"'Fredoka One',cursive",
-            fontSize:18, color:"#fff"}}>
             {isWorkingFor?"🌟":"✅"}{" "}
             {(selected.display||selected.label||selected.word||"").toUpperCase()}
           </div>
