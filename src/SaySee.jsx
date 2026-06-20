@@ -3927,6 +3927,8 @@ function AdminPanel({words,setWords,onLogout}){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
             <div style={{fontFamily:"'Fredoka One',cursive",fontSize:24}}>Master Word Library</div>
           <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#888",marginTop:4}}>Base categories and words visible to all teachers on the platform</div>
+            
+            <BulkDefaultImporter words={words} setWords={setWords}/>
             <button onClick={()=>setAddW(true)} style={{padding:"9px 18px",borderRadius:10,border:"none",background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,cursor:"pointer"}}>+ Add Word</button>
           </div>
           <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:18}}>
