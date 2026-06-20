@@ -6039,9 +6039,12 @@ export default function SaySee(){
         </ErrorBoundary>
       ) : homeMode==="teach" ? (
         <ErrorBoundary>
-          <TeachScreen user={user} students={mem.get(`stu_${user.id}`,[])}
-            trialData={mem.get(`trials_${user.id}`,{})}
-            onBack={()=>setHomeMode("home")}/>
+          <TeachScreen user={user} onBack={()=>setHomeMode("home")}
+            onManageStudents={()=>setHomeMode("students")}/>
+        </ErrorBoundary>
+      ) : homeMode==="students" ? (
+        <ErrorBoundary>
+          <StudentsSection user={user} onBack={()=>setHomeMode("teach")}/>
         </ErrorBoundary>
       ) : homeMode==="data" ? (
         <ErrorBoundary>
