@@ -1546,7 +1546,7 @@ function ReinforcerSurveyScreen({user, onBack, onSave}){
 }
 
 // ── Teach Screen (Student Data Dashboard) ────────────────────────
-function TeachScreen({user, students, trialData, onBack, onManageStudents}){
+function TeachScreen({user, students=[], trialData={}, onBack, onManageStudents}){
   const [selectedStu, setSelectedStu] = useState(null);
 
   const getWordStats = (stuId=null) => {
@@ -1612,7 +1612,7 @@ function TeachScreen({user, students, trialData, onBack, onManageStudents}){
             color:!selectedStu?"#fff":"#666"}}>
             📊 Class
           </button>
-          {students.map(s=>(
+          {(students||[]).map(s=>(
             <button key={s.id} onClick={()=>setSelectedStu(s)}
               style={{width:"100%",padding:"12px 8px",
               background:selectedStu?.id===s.id?"#F3E5F5":"transparent",
@@ -4111,6 +4111,23 @@ function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome,autoStart=false}
     }
   },[students, saveTrials, user.id]);
 
+  // Choice-board selections are PREFERENCE data — recorded separately, never mixed
+  // into word-level (academic) trial data. `count` = times picked; `reward` = times
+  // picked from the "Working for?" reinforcer picker.
+  const recordPreference = (studentId, item, isReward)=>{
+    if(!studentId || !item) return;
+    const key = `prefs_${user.id}`;
+    const store = mem.get(key, {});
+    const sid = String(studentId);
+    if(!store[sid]) store[sid] = {};
+    const itemKey = String(item.id||item.word||item.label||"item");
+    if(!store[sid][itemKey]) store[sid][itemKey] = { label:"", count:0, reward:0 };
+    store[sid][itemKey].label = item.display||item.label||item.word||itemKey;
+    store[sid][itemKey].count += 1;
+    if(isReward) store[sid][itemKey].reward += 1;
+    mem.set(key, {...store});
+  };
+
   // Semantic matching via Claude API
   // FERPA COMPLIANCE: Student names and identifying information are
   // NEVER sent to the API. Only anonymous classroom phrases are matched
@@ -4237,6 +4254,24 @@ Reply with ONLY the matching word or NO_MATCH.`
   const choiceStageRef = useRef("idle");
   useEffect(()=>{ appModeRef.current = appMode; },[appMode]);
   useEffect(()=>{ choiceStageRef.current = choiceStage; },[choiceStage]);
+
+  // First-Then usage measure — counts each completed First-Then for the active student.
+  // Measures USE of the First-Then support only; not a correct/incorrect judgement,
+  // and kept separate from word-level (academic) trial data.
+  useEffect(()=>{
+    if(firstThenStage === "complete"){
+      const sid = activeIdRef.current;
+      if(sid){
+        const key = `ftUsage_${user.id}`;
+        const store = mem.get(key, {});
+        const k = String(sid);
+        if(!store[k]) store[k] = { count:0, last:null };
+        store[k].count += 1;
+        store[k].last = new Date().toISOString();
+        mem.set(key, {...store});
+      }
+    }
+  },[firstThenStage, user.id]);
 
   useEffect(()=>{mem.set(`stu_${user.id}`,students);},[students]);
   useEffect(()=>{mem.set(`cw_${user.id}`,customW);},[customW]);
@@ -4620,7 +4655,7 @@ Reply with ONLY the matching word or NO_MATCH.`
       onSelect={item=>{
         setChoiceSelected(item);
         setChoiceStage("selected");
-        logTrial(activeId, item.id||item.word, "independent", 0);
+        recordPreference(activeId, item, choiceStageRef.current === "workingfor_pick");
       }}/>
   );
   if(autoStart && appMode==="workingfor") return(
@@ -4754,7 +4789,7 @@ Reply with ONLY the matching word or NO_MATCH.`
       onSelect={item=>{
         setChoiceSelected(item);
         setChoiceStage("selected");
-        logTrial(activeId, item.id||item.word, "independent", 0);
+        recordPreference(activeId, item, choiceStageRef.current === "workingfor_pick");
       }}/>
   );
   if(appMode==="workingfor") return(
@@ -5851,7 +5886,9 @@ export default function SaySee(){
         </ErrorBoundary>
       ) : homeMode==="teach" ? (
         <ErrorBoundary>
-          <TeachScreen user={user} onBack={()=>setHomeMode("home")}/>
+          <TeachScreen user={user} students={mem.get(`stu_${user.id}`,[])}
+            trialData={mem.get(`trials_${user.id}`,{})}
+            onBack={()=>setHomeMode("home")}/>
         </ErrorBoundary>
       ) : homeMode==="data" ? (
         <ErrorBoundary>
