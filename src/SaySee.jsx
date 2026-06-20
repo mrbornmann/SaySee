@@ -3757,6 +3757,149 @@ function SubscriberManager(){
 }
 
 // ── Admin panel ───────────────────────────────────────────────
+// ── Bulk admin-default image importer (admin only) ───────────────
+// Filenames: "word__description__category.ext". Each file either matches an
+// existing word (sets its admin-default image) or creates a new word. Images are
+// resized + flattened to white and stored as owner_id=null rows at defaults/{wordId}.
+function resizeForDefault(dataUrl){
+  return new Promise(resolve=>{
+    try{
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const maxShort=1080, maxLong=1600;
+          const short=Math.min(img.width,img.height), long=Math.max(img.width,img.height);
+          const scale=Math.min(1, maxShort/short, maxLong/long); // never upscale
+          const cw=Math.max(1,Math.round(img.width*scale)), ch=Math.max(1,Math.round(img.height*scale));
+          const canvas=document.createElement("canvas");
+          canvas.width=cw; canvas.height=ch;
+          const ctx=canvas.getContext("2d");
+          ctx.fillStyle="#fff"; ctx.fillRect(0,0,cw,ch); // flatten transparency to white
+          ctx.drawImage(img,0,0,cw,ch);
+          resolve(canvas.toDataURL("image/jpeg",0.85));
+        }catch(e){ resolve(dataUrl); }
+      };
+      img.onerror=()=>resolve(dataUrl);
+      img.src=dataUrl;
+    }catch(e){ resolve(dataUrl); }
+  });
+}
+
+function parseDefaultFilename(filename){
+  const base=filename.replace(/\.[^.]+$/,"");          // strip extension
+  const parts=base.split("__").map(s=>s.trim()).filter(Boolean);
+  return { word:parts[0]||"", desc:parts[1]||"", cat:parts[2]||"" };
+}
+
+function BulkDefaultImporter({words, setWords}){
+  const fileRef=useRef(null);
+  const [busy,setBusy]=useState(false);
+  const [progress,setProgress]=useState({done:0,total:0});
+  const [report,setReport]=useState(null);
+  const validCatIds=CATS.map(c=>c.id);
+
+  const run=async(fileList)=>{
+    const files=Array.from(fileList||[]);
+    if(!files.length) return;
+    if(!supabase){ setReport({matched:0,created:0,errors:[{file:"—",reason:"No database connection"}]}); return; }
+
+    setBusy(true); setReport(null); setProgress({done:0,total:files.length});
+
+    const errors=[], newWords=[], descFills={};
+    let matched=0, created=0, createdCount=0;
+    const baseId=Date.now();
+    const lookup=[...words];   // grows as we create, so dupes in one batch match instead of re-create
+
+    for(let i=0;i<files.length;i++){
+      const file=files[i];
+      try{
+        const {word,desc,cat}=parseDefaultFilename(file.name);
+        if(!word){ errors.push({file:file.name,reason:"No word before the first __"}); setProgress({done:i+1,total:files.length}); continue; }
+        const key=word.toLowerCase();
+        const hit=lookup.find(w=>(w.word||"").toLowerCase().trim()===key || (w.display||"").toLowerCase().trim()===key);
+
+        let wid;
+        if(hit){
+          wid=hit.id; matched++;
+          if(desc && !(hit.photo||"").trim()) descFills[hit.id]=desc;   // fill-if-empty
+        }else{
+          wid=baseId+createdCount; createdCount++;
+          const catId=validCatIds.includes(cat.toLowerCase())?cat.toLowerCase():"custom";
+          const color=(CATS.find(c=>c.id===catId)||{}).color||"#6C5CE7";
+          const w={id:wid, cat:catId, word:key, display:word.toUpperCase(), emoji:"🆕", photo:desc||"", color, triggers:[key]};
+          newWords.push(w); lookup.push(w); created++;
+        }
+
+        const dataUrl=await readFileAsDataURL(file);
+        const resized=await resizeForDefault(dataUrl);
+        const blob=await (await fetch(resized)).blob();
+        const path=`defaults/${wid}.jpg`;
+        const { error:upErr }=await supabase.storage.from("photos").upload(path, blob, {upsert:true, contentType:"image/jpeg"});
+        if(upErr) throw upErr;
+        await supabase.from("photos").delete().eq("word_id",String(wid)).is("owner_id",null);
+        const { error:rowErr }=await supabase.from("photos").insert({
+          word_id:String(wid), owner_id:null, storage_path:path, public_url:path, updated_at:new Date().toISOString()
+        });
+        if(rowErr) throw rowErr;
+      }catch(e){
+        errors.push({file:file.name,reason:(e&&e.message)||"Upload failed"});
+      }
+      setProgress({done:i+1,total:files.length});
+    }
+
+    if(newWords.length || Object.keys(descFills).length){
+      setWords(prev=>{
+        const updated=prev.map(w=>descFills[w.id]?{...w,photo:descFills[w.id]}:w);
+        const ids=new Set(updated.map(w=>w.id));
+        return [...updated, ...newWords.filter(w=>!ids.has(w.id))];
+      });
+    }
+    setBusy(false);
+    setReport({matched,created,errors});
+  };
+
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:10}}>
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple
+        style={{display:"none"}} onChange={e=>{ run(e.target.files); e.target.value=""; }}/>
+      <button onClick={()=>fileRef.current&&fileRef.current.click()} disabled={busy}
+        style={{padding:"9px 18px",borderRadius:10,border:"none",background:busy?"#444":"#6C5CE7",
+        color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,cursor:busy?"not-allowed":"pointer"}}>
+        {busy?`Importing ${progress.done}/${progress.total}…`:"⬆ Bulk import defaults"}
+      </button>
+      {report&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(10,10,30,0.7)",display:"flex",
+          alignItems:"center",justifyContent:"center",zIndex:3000}} onClick={()=>setReport(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1A1C24",color:"#fff",borderRadius:18,
+            padding:24,width:"min(92vw,460px)",maxHeight:"80vh",overflowY:"auto",border:"1px solid rgba(255,255,255,0.1)"}}>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,marginBottom:12}}>Import complete</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:14,lineHeight:1.8}}>
+              ✅ {report.matched} matched and updated<br/>
+              🆕 {report.created} new word{report.created===1?"":"s"} created<br/>
+              {report.errors.length>0?`⚠️ ${report.errors.length} skipped`:"No errors"}
+            </div>
+            {report.errors.length>0&&(
+              <div style={{marginTop:12,padding:12,background:"rgba(231,76,60,0.12)",borderRadius:10,
+                fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#FFB4A8",maxHeight:220,overflowY:"auto"}}>
+                {report.errors.map((er,idx)=>(
+                  <div key={idx} style={{marginBottom:6}}><b>{er.file}</b> — {er.reason}</div>
+                ))}
+              </div>
+            )}
+            {report.created>0&&(
+              <div style={{marginTop:12,fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#A29BFE"}}>
+                New words default to the My Words category with a 🆕 placeholder emoji — set their category and emoji in the list below.
+              </div>
+            )}
+            <button onClick={()=>setReport(null)} style={{marginTop:16,width:"100%",padding:"11px",
+              borderRadius:10,border:"none",background:"#6C5CE7",color:"#fff",fontFamily:"'Nunito',sans-serif",
+              fontWeight:800,fontSize:14,cursor:"pointer"}}>Done</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 function AdminPanel({words,setWords,onLogout}){
   const [tab,setTab]=useState("words");
   const [editW,setEditW]=useState(null);
