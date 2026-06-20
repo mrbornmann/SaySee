@@ -359,28 +359,9 @@ const sbData = {
   assignLicense: async (lid, tid) => { if (supabase) await supabase.from("licenses").update({ assigned_to_teacher_id:tid, status:"active", assigned_date:new Date().toISOString() }).eq("id", lid); }
 };
 
-// ── Persistent local store (survives reload) ─────────────────────
-// Namespaced localStorage wrapper with an in-memory mirror. Falls back to
-// memory-only if storage is unavailable (SSR / private mode) or a write
-// exceeds quota, so it never throws. Keys are namespaced so they don't
-// collide with the few direct-localStorage keys (saysee_master_words, etc.).
-const MEM_PREFIX = "saysee_mem_";
+// ── In-memory fallback for artifact preview ───────────────────────
 let _store = {};
-const mem = {
-  get:(k,fb)=>{
-    if(k in _store) return _store[k];
-    try{
-      const raw = localStorage.getItem(MEM_PREFIX+k);
-      if(raw!=null){ const v=JSON.parse(raw); _store[k]=v; return v; }
-    }catch(e){}
-    return fb;
-  },
-  set:(k,v)=>{
-    _store[k]=v;
-    try{ localStorage.setItem(MEM_PREFIX+k, JSON.stringify(v)); }
-    catch(e){ /* quota exceeded or non-serializable — keep in memory only */ }
-  },
-};
+const mem = { get:(k,fb)=>k in _store?_store[k]:fb, set:(k,v)=>{_store[k]=v;} };
 
 // ── Data ─────────────────────────────────────────────────────────
 const MASTER_WORDS = [
@@ -647,36 +628,6 @@ function readFileAsDataURL(file){
     r.onload=e=>res(e.target.result);
     r.onerror=rej;
     r.readAsDataURL(file);
-  });
-}
-
-// Downscale + compress an image for fast loading and full-screen display.
-// The listening screen shows photos in a square, full-bleed box, so we cap the
-// short side at ~1080px (crisp on tablets) and the long side at ~1600px, then
-// re-encode as JPEG ~0.85. NEVER upscales. On any failure it returns the
-// original src untouched, so uploads can't break. Returns a JPEG data URL.
-function resizeImage(src, { shortCap=1080, longCap=1600, quality=0.85 }={}){
-  return new Promise((resolve)=>{
-    try{
-      const img=new Image();
-      img.onload=()=>{
-        try{
-          const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
-          if(!w||!h){ resolve(src); return; }
-          const shortSide=Math.min(w,h), longSide=Math.max(w,h);
-          const scale=Math.min(shortCap/shortSide, longCap/longSide, 1); // never upscale
-          const tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale));
-          const canvas=document.createElement("canvas");
-          canvas.width=tw; canvas.height=th;
-          const ctx=canvas.getContext("2d");
-          ctx.fillStyle="#fff"; ctx.fillRect(0,0,tw,th); // flatten any transparency
-          ctx.drawImage(img,0,0,tw,th);
-          resolve(canvas.toDataURL("image/jpeg",quality));
-        }catch(e){ resolve(src); }
-      };
-      img.onerror=()=>resolve(src);
-      img.src=src;
-    }catch(e){ resolve(src); }
   });
 }
 
@@ -1595,12 +1546,8 @@ function ReinforcerSurveyScreen({user, onBack, onSave}){
 }
 
 // ── Teach Screen (Student Data Dashboard) ────────────────────────
-function TeachScreen({user, students:studentsProp, trialData:trialDataProp, onBack, onManageStudents}){
+function TeachScreen({user, students, trialData, onBack, onManageStudents}){
   const [selectedStu, setSelectedStu] = useState(null);
-  // Load per-teacher data from local memory when the parent doesn't pass it in
-  // (same keys/pattern as DataScreen). Props still win if they're supplied.
-  const students  = studentsProp  || mem.get(`stu_${user.id}`, []);
-  const trialData = trialDataProp || mem.get(`trials_${user.id}`, {});
 
   const getWordStats = (stuId=null) => {
     const wordCounts = {};
@@ -2665,7 +2612,6 @@ function WordDetailPanel({word, user, onClose}){
   );
   const [l4Color, setL4Color]         = useState("#1B65B8");
   const [l4Font, setL4Font]           = useState("'Fredoka One',cursive");
-  const [photoNote, setPhotoNote]     = useState("");
   const fileRef   = useRef(null);
   const cameraRef = useRef(null);
 
@@ -2939,36 +2885,13 @@ SEARCH: [term1, term2, term3]`}]
     const file = e.target.files?.[0];
     if(!file) return;
     const reader = new FileReader();
-    reader.onload = async ev => {
-      const url = await resizeImage(ev.target.result);  // shrink + compress for fast loading
-      // Show immediately in this panel
+    reader.onload = ev => {
+      const url = ev.target.result;
+      // Replace immediately
       setCustomPhoto(url);
       setUnsplashUrl(null);
-      // Tie it to the word for the listening screen. Everything here is
-      // user-scoped — this photo is PRIVATE to this teacher, never shared.
-      // Update the same per-teacher photo map the Say screen reads on load.
-      const map = {...mem.get(`photos_${user?.id}`, {}), [word.id]: url};
-      mem.set(`photos_${user?.id}`, map);
-      mem.set(`photo_${word.id}_${user?.id}`, url);
       mem.set(`word_photo_${word.id||word.word}_${user?.id}`, url);
       mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`, null);
-      // Persist to Supabase (private bucket, owner-scoped) for permanent,
-      // cross-device storage. Never enters any shared/default pool.
-      try {
-        const synced = await sbAuth.uploadPhoto(word.id, user?.id, url);
-        if(synced){
-          setCustomPhoto(synced);
-          const m2 = {...mem.get(`photos_${user?.id}`, {}), [word.id]: synced};
-          mem.set(`photos_${user?.id}`, m2);
-          mem.set(`photo_${word.id}_${user?.id}`, synced);
-          setPhotoNote("✅ Saved & synced to your account");
-        } else {
-          setPhotoNote("⚠️ Saved on this device only — sign in to sync everywhere");
-        }
-      } catch(err){
-        setPhotoNote("⚠️ Saved on this device only — couldn't sync");
-      }
-      setTimeout(()=>setPhotoNote(""),4000);
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -3113,34 +3036,17 @@ SEARCH: [term1, term2, term3]`}]
                 </button>
               </div>
               {(customPhoto||unsplashUrl)&&(
-                <button onClick={async()=>{
-                    // Revert to the default image: remove ONLY this teacher's
-                    // private photo, then fall back to admin-default → Pexels → emoji.
+                <button onClick={()=>{
                     setCustomPhoto(null);
                     setUnsplashUrl(null);
-                    const map = {...mem.get(`photos_${user?.id}`, {})}; delete map[word.id];
-                    mem.set(`photos_${user?.id}`, map);
-                    mem.set(`photo_${word.id}_${user?.id}`, null);
-                    mem.set(`word_photo_${word.id||word.word}_${user?.id}`, null);
-                    mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`, null);
-                    // remove this teacher's private copy from Supabase too
-                    try{ await sbAuth.deletePhoto(word.id, user?.id); }catch(err){}
-                    // re-fetch the default (Pexels) image; the emoji shows if none
-                    fetchWordImage(true);
-                    setPhotoNote("↩ Reverted to the default image");
-                    setTimeout(()=>setPhotoNote(""),3000);
+                    mem.set(`word_photo_${word.id||word.word}_${user?.id}`,null);
+                    mem.set(`word_img_${(word.word||word.id||'').toLowerCase()}`,null);
                   }}
                   style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EEF0F4",
-                  background:"transparent",color:"#888",fontFamily:"'Nunito',sans-serif",
+                  background:"transparent",color:"#AAA",fontFamily:"'Nunito',sans-serif",
                   fontSize:11,cursor:"pointer",marginBottom:6}}>
-                  ↩ Revert to default image
+                  ✕ Remove image
                 </button>
-              )}
-              {photoNote&&(
-                <div style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",fontSize:11,
-                  fontWeight:700,color:photoNote.startsWith("⚠️")?"#B7791F":"#276749",marginBottom:6}}>
-                  {photoNote}
-                </div>
               )}
               {/* Camera input - opens camera directly on mobile */}
               <input ref={cameraRef} type="file" accept="image/*"
@@ -4046,8 +3952,13 @@ function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome,autoStart=false}
   const timerRef   = useRef(null);
   const trialRef   = useRef({});   // {studentId_wordId: {correct:0, incorrect:0, level:1}}
 
-  // Praise words that indicate correct response
+  // Praise words that indicate an INDEPENDENT correct response (advances the streak)
   const PRAISE = ["good job","great job","nice work","excellent","perfect","yes","good","nice","wonderful","amazing","fantastic","right","correct","good work","well done","that's right","awesome"];
+
+  // Correction / error words — teacher signalling the response was wrong.
+  // Only counted while a trial is OPEN (see closeTrial), so stray words never penalize.
+  // Tune these to your classroom's language.
+  const CORRECTION = ["no","nope","not quite","not yet","try again","try it again","almost","that's not it","not that one","wrong","incorrect"];
 
   // Load trial data from memory
   useEffect(()=>{
@@ -4147,46 +4058,53 @@ function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome,autoStart=false}
     return trialRef.current[key]?.level || 1;
   },[]);
 
-  // Log a trial result and check for level advancement
-  const logTrial = useCallback((studentId, wordId, correct, responseTime)=>{
+  // Log a trial result and adjust level.
+  // outcome: "independent" (praise, no prompt) | "prompted" (teacher re-cued the word)
+  //        | "correction" (teacher said it was wrong, or repeated the prompt)
+  // Independent advances the streak (3 in a row -> level up).
+  // Prompted/correction reset the streak and count toward a level-down (2 in a row -> down).
+  const logTrial = useCallback((studentId, wordId, outcome, responseTime)=>{
     const key = `${studentId}_${wordId}`;
     if(!trialRef.current[key]){
-      trialRef.current[key] = { correct:0, incorrect:0, level:1, streak:0 };
+      trialRef.current[key] = { correct:0, prompted:0, incorrect:0, level:1, streak:0, missStreak:0 };
     }
     const trial = trialRef.current[key];
     const currentLevel = trial.level;
+    const stuName = students.find(s=>s.id===studentId)?.name || "Student";
 
-    if(correct){
+    if(outcome === "independent"){
       trial.correct++;
       trial.streak = (trial.streak||0) + 1;
-      // Advance level after 3 consecutive correct responses
+      trial.missStreak = 0;
       if(trial.streak >= 3 && trial.level < 4){
         trial.level++;
         trial.streak = 0;
-        setAiStatus(`✨ ${students.find(s=>s.id===studentId)?.name} advanced to Level ${trial.level} on "${wordId}"!`);
+        setAiStatus(`✨ ${stuName} advanced to Level ${trial.level} on "${wordId}"!`);
         setTimeout(()=>setAiStatus(""),4000);
       }
     } else {
-      trial.incorrect++;
+      // non-independent: prompted OR correction — both break the independent streak
+      if(outcome === "prompted") trial.prompted = (trial.prompted||0) + 1;
+      else trial.incorrect++;            // correction — noted as an error
       trial.streak = 0;
-      // Drop level if 2 incorrect in a row
-      if(trial.incorrect >= 2 && trial.level > 1){
+      trial.missStreak = (trial.missStreak||0) + 1;
+      if(trial.missStreak >= 2 && trial.level > 1){
         trial.level--;
-        trial.incorrect = 0;
+        trial.missStreak = 0;
         setAiStatus(`↩️ Adjusting to Level ${trial.level} for better support`);
         setTimeout(()=>setAiStatus(""),3000);
       }
     }
 
-    // Log to session trail
+    // Log to session trail — `outcome` documents the exact type; `correct` kept for existing UI
     setTrialLog(prev=>[...prev,{
-      studentId, wordId, correct, responseTime,
+      studentId, wordId, outcome, correct: outcome === "independent", responseTime,
       level: currentLevel, timestamp: new Date().toISOString()
     }]);
 
     saveTrials();
-    // Also persist to Supabase asynchronously
-    const trialData = trialRef.current[`${studentId}_${wordId}`];
+    // Persist to Supabase asynchronously (correct = independent, incorrect = corrections)
+    const trialData = trialRef.current[key];
     if(trialData && supabase){
       sbAuth.saveProgress(studentId, wordId, trialData.level, trialData.correct, trialData.incorrect, user.id)
         .catch(e=>console.log("Progress save error:", e));
@@ -4246,7 +4164,7 @@ Reply with ONLY the matching word or NO_MATCH.`
       return updated;
     });
   },[]);
-  const [photos,setPhotos]       = useState(()=>mem.get(`photos_${user.id}`, {})); // hydrate saved photos so they don't vanish on reload
+  const [photos,setPhotos]       = useState(()=>{ const p={}; /* load any saved photos */ return p; });
   const [photoModal,setPhotoModal] = useState(null); // word entry awaiting photo
   const allWords                 = [...words.filter(w=>w.cat!=="custom"),...customW];
 
@@ -4273,6 +4191,8 @@ Reply with ONLY the matching word or NO_MATCH.`
   const aiModeRef      = useRef(true);
   const lastInstructionRef = useRef(null);
   const timerStartRef  = useRef(null);
+  const promptCountRef  = useRef(0);    // re-prompts within the current open trial
+  const trialTimeoutRef = useRef(null); // 15s "assume followed" timeout for the open trial
 
   // ── Silent audio keep-alive ──
   // The browser's speech-recognition engine plays a system "earcon" (a beep)
@@ -4359,9 +4279,12 @@ Reply with ONLY the matching word or NO_MATCH.`
             setTrans(t);
 
             // ── 1. Check for student name — auto-switch profile ──
-            const studentMatch = studentsRef.current.find(s=>
-              t.includes(s.name.split(" ")[0].toLowerCase())
-            );
+            const studentMatch = studentsRef.current.find(s=>{
+              const first = (s.name||"").split(" ")[0].toLowerCase().trim();
+              if(!first) return false;
+              try { return new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`,'i').test(t); }
+              catch { return t.includes(first); }
+            });
             if(studentMatch && studentMatch.id !== activeIdRef.current){
               setActiveId(studentMatch.id);
               activeIdRef.current = studentMatch.id;
@@ -4494,78 +4417,105 @@ Reply with ONLY the matching word or NO_MATCH.`
               return;
             }
 
-            // ── 2. Check for praise — log correct response ──
-            const isPraise = PRAISE.some(p=>t.includes(p));
-            if(isPraise && lastInstructionRef.current && timerStartRef.current){
-              const responseTime = Date.now() - timerStartRef.current;
-              const activeStudent = activeIdRef.current;
-              if(activeStudent && lastInstructionRef.current){
-                logTrial(activeStudent, lastInstructionRef.current.id, true, responseTime);
-                // Update display level for active student
-                const newLevel = getStudentWordLevel(activeStudent, lastInstructionRef.current.id);
-                setLevel(newLevel);
-              }
-              timerStartRef.current = null;
-              lastInstructionRef.current = null;
-              clearInterval(timerRef.current);
-              setResponseTimer(null);
-            }
-
-            // ── 3. Direct word match ──
-            // Word boundary matching - prevents "go" matching inside "good job", "going" etc.
-            const matchesTrigger = (transcript, trigger) => {
-              if(trigger.length <= 3) {
-                // Short words need word boundary - must be whole word
-                const regex = new RegExp(`\\b${trigger}\\b`, 'i');
-                return regex.test(transcript);
-              }
+            // ── trial helpers: word-boundary matching + open/close (defined per result) ──
+            const escRx = (s)=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+            const phraseHit = (text, phrase)=>{ try { return new RegExp(`\\b${escRx(phrase)}\\b`,'i').test(text); } catch { return text.includes(phrase); } };
+            const matchesTrigger = (transcript, trigger)=>{
+              // short words need a word boundary so "go" doesn't match inside "good"/"going"
+              if(String(trigger).length <= 3){ try { return new RegExp(`\\b${escRx(trigger)}\\b`,'i').test(transcript); } catch { return transcript.includes(trigger); } }
               return transcript.includes(trigger);
             };
-            const directMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>matchesTrigger(t,tr)));
-            if(directMatch){
-              // A directive / one-word statement returns us to the listening (Say) page
+            const closeTrial = (outcome, responseTime)=>{
+              const word = lastInstructionRef.current;
+              const studentId = activeIdRef.current;
+              clearTimeout(trialTimeoutRef.current);
+              clearInterval(timerRef.current);
+              setResponseTimer(null);
+              lastInstructionRef.current = null;
+              timerStartRef.current = null;
+              promptCountRef.current = 0;
+              // "benign" = 15s passed with no prompt/correction -> assume directive followed -> MAINTAIN (no score)
+              if(!word || !studentId || outcome === "benign") return;
+              logTrial(studentId, word.id, outcome, responseTime||0);
+              setLevel(getStudentWordLevel(studentId, word.id));
+            };
+            const startTrialTimeout = ()=>{
+              clearTimeout(trialTimeoutRef.current);
+              trialTimeoutRef.current = setTimeout(()=>{
+                if(!lastInstructionRef.current) return;
+                const rt = Date.now() - (timerStartRef.current||Date.now());
+                // a prompt was given but nothing resolved it -> prompted; clean silence -> benign (maintain)
+                closeTrial(promptCountRef.current >= 1 ? "prompted" : "benign", rt);
+              }, 15000);
+            };
+            const openTrial = (word)=>{
+              // a directive / one-word statement returns us to the listening (Say) page
               if(appModeRef.current==="firstthen" || appModeRef.current==="choice"){
                 setAppMode("aac"); appModeRef.current="aac";
                 setFirstItem(null); setThenItem(null); setFirstThenStage("idle");
                 setChoiceItems([]); setChoiceSelected(null);
                 setChoiceStage("idle"); choiceStageRef.current="idle";
               }
-              setCurWord(directMatch);
+              clearTimeout(trialTimeoutRef.current);
+              setCurWord(word);
               setFlash(true);
               setTimeout(()=>setFlash(false),700);
-              lastInstructionRef.current = directMatch;
+              lastInstructionRef.current = word;
               timerStartRef.current = Date.now();
-              // Start response timer
+              promptCountRef.current = 0;
               clearInterval(timerRef.current);
-              timerRef.current = setInterval(()=>{
-                setResponseTimer(Date.now() - timerStartRef.current);
-              },100);
-              // Set level based on student's learned level for this word
-              if(activeIdRef.current && aiModeRef.current){
-                const wordLevel = getStudentWordLevel(activeIdRef.current, directMatch.id);
-                setLevel(wordLevel);
+              timerRef.current = setInterval(()=>{ setResponseTimer(Date.now() - (timerStartRef.current||Date.now())); },100);
+              if(activeIdRef.current && aiModeRef.current){ setLevel(getStudentWordLevel(activeIdRef.current, word.id)); }
+              startTrialTimeout();
+            };
+
+            // ── 2. Teacher feedback on an OPEN trial (Say screen only) ──
+            if(appModeRef.current === "aac" && lastInstructionRef.current){
+              const openWord = lastInstructionRef.current;
+              const trigs = openWord.triggers || [openWord.word];
+              const saidTargetWord = trigs.some(tr=>matchesTrigger(t,tr));
+              // strip the target word out before testing praise/correction, so a TARGET word
+              // that is itself a feedback word (e.g. "no", "yes") isn't misread as feedback
+              let fb = " "+t+" ";
+              trigs.forEach(tr=>{ try{ fb = fb.replace(new RegExp(`\\b${escRx(tr)}\\b`,'gi')," "); }catch{} });
+              const praiseHit = PRAISE.some(p=>phraseHit(fb,p));
+              const correctionHit = CORRECTION.some(c=>phraseHit(fb,c));
+              const rt = Date.now() - (timerStartRef.current||Date.now());
+
+              if(correctionHit){
+                closeTrial("correction", rt);
+                setAiStatus("🔄 Correction noted"); setTimeout(()=>setAiStatus(""),1800);
+                return;
               }
+              if(praiseHit){
+                // praise after a prompt is still a prompted trial; praise with no prompt is independent
+                closeTrial(promptCountRef.current >= 1 ? "prompted" : "independent", rt);
+                return;
+              }
+              if(saidTargetWord){
+                // teacher repeated the target word -> a prompt
+                promptCountRef.current += 1;
+                if(promptCountRef.current >= 2){
+                  closeTrial("correction", rt); // repeated prompt escalates to a correction (error)
+                  setAiStatus("🔄 Repeated prompt — logged as correction"); setTimeout(()=>setAiStatus(""),2200);
+                } else {
+                  setAiStatus("✋ Prompt given"); setTimeout(()=>setAiStatus(""),1500);
+                  startTrialTimeout(); // restart the 15s window after the prompt
+                }
+                return;
+              }
+              // not feedback for this trial — fall through (could be a brand-new instruction)
+            }
+
+            // ── 3. Direct word match -> open a new trial ──
+            const directMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>matchesTrigger(t,tr)));
+            if(directMatch){
+              openTrial(directMatch);
             } else if(t.length > 3 && aiModeRef.current){
               // ── 4. No direct match — try semantic matching ──
               trackUnmatched(t);
               semanticMatch(t, wRef.current).then(semanticWord=>{
-                if(semanticWord){
-                  if(appModeRef.current==="firstthen" || appModeRef.current==="choice"){
-                    setAppMode("aac"); appModeRef.current="aac";
-                    setFirstItem(null); setThenItem(null); setFirstThenStage("idle");
-                    setChoiceItems([]); setChoiceSelected(null);
-                    setChoiceStage("idle"); choiceStageRef.current="idle";
-                  }
-                  setCurWord(semanticWord);
-                  setFlash(true);
-                  setTimeout(()=>setFlash(false),700);
-                  lastInstructionRef.current = semanticWord;
-                  timerStartRef.current = Date.now();
-                  if(activeIdRef.current){
-                    const wordLevel = getStudentWordLevel(activeIdRef.current, semanticWord.id);
-                    setLevel(wordLevel);
-                  }
-                }
+                if(semanticWord){ openTrial(semanticWord); }
               });
             }
           } else setTrans(t);
@@ -4626,24 +4576,17 @@ Reply with ONLY the matching word or NO_MATCH.`
     });
     mem.set(`photo_${wordId}_${user.id}`, dataUrl);
 
-    // Upload to Supabase Storage for permanent, cross-device persistence
+    // Upload to Supabase Storage for permanent persistence
     try {
       const publicUrl = await sbAuth.uploadPhoto(wordId, user.id, dataUrl);
       if(publicUrl){
-        // Replace local dataUrl with the permanent (signed) Supabase URL
-        setPhotos(p=>{ const u={...p,[wordId]:publicUrl}; mem.set(`photos_${user.id}`, u); return u; });
+        // Replace local dataUrl with permanent Supabase URL
+        setPhotos(p=>({...p,[wordId]:publicUrl}));
         mem.set(`photo_${wordId}_${user.id}`, publicUrl);
-        setAiStatus("✅ Photo saved — synced to your account");
-        setTimeout(()=>setAiStatus(""),2500);
-      } else {
-        // No Supabase session (e.g. a demo login) or offline — kept on this device only
-        setAiStatus("⚠️ Saved on this device only. Sign in with your SaySee account to sync everywhere.");
-        setTimeout(()=>setAiStatus(""),5000);
       }
     } catch(e){
       console.log("Photo upload to Supabase failed, keeping local:", e);
-      setAiStatus("⚠️ Saved on this device only — couldn't sync (check connection).");
-      setTimeout(()=>setAiStatus(""),5000);
+      // Photo stays as local dataUrl — still works this session
     }
   };
 
@@ -4677,7 +4620,7 @@ Reply with ONLY the matching word or NO_MATCH.`
       onSelect={item=>{
         setChoiceSelected(item);
         setChoiceStage("selected");
-        logTrial(activeId, item.id||item.word, true, 0);
+        logTrial(activeId, item.id||item.word, "independent", 0);
       }}/>
   );
   if(autoStart && appMode==="workingfor") return(
@@ -4741,19 +4684,7 @@ Reply with ONLY the matching word or NO_MATCH.`
               textShadow:`0 2px 20px ${ac}66`,textAlign:"center"}}>
               {curWord.display}
             </div>}
-            {/* Correct/No Response buttons */}
-            <div style={{display:"flex",gap:12,marginTop:8}}>
-              <button onClick={()=>logTrial(activeId,curWord.id,true,Date.now()-timerStartRef.current)}
-                style={{padding:"10px 24px",borderRadius:30,border:"none",
-                background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",
-                fontWeight:800,fontSize:14,cursor:"pointer"}}>✅ Correct</button>
-              <button onClick={()=>{logTrial(activeId,curWord.id,false,0);setCurWord(null);}}
-                style={{padding:"10px 24px",borderRadius:30,border:"none",
-                background:"rgba(255,255,255,0.15)",color:"#fff",
-                fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,cursor:"pointer"}}>
-                No Response
-              </button>
-            </div>
+            {/* scoring is fully voice-driven — manual correct/no-response buttons removed */}
           </div>
         ):(
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:20}}>
@@ -4823,7 +4754,7 @@ Reply with ONLY the matching word or NO_MATCH.`
       onSelect={item=>{
         setChoiceSelected(item);
         setChoiceStage("selected");
-        logTrial(activeId, item.id||item.word, true, 0);
+        logTrial(activeId, item.id||item.word, "independent", 0);
       }}/>
   );
   if(appMode==="workingfor") return(
@@ -4974,12 +4905,7 @@ Reply with ONLY the matching word or NO_MATCH.`
           <span style={{fontFamily:"'Nunito',sans-serif",fontSize:12,fontWeight:700,color:"#1B65B8"}}>Response timer: {(responseTimer/1000).toFixed(1)}s</span>
         </div>}
 
-        {/* Manual override buttons */}
-        {curWord&&aiMode&&<div style={{display:"flex",gap:10,alignItems:"center"}}>
-          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#AAA",fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>Override:</div>
-          <button onClick={()=>{if(!activeId)return;logTrial(activeId,curWord.id,true,0);setLevel(getStudentWordLevel(activeId,curWord.id));}} style={{padding:"7px 16px",borderRadius:30,border:"none",background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,cursor:"pointer",boxShadow:"0 2px 10px #5AAB2A55"}}>✅ Correct</button>
-          <button onClick={()=>{if(!activeId)return;logTrial(activeId,curWord.id,false,0);setLevel(getStudentWordLevel(activeId,curWord.id));}} style={{padding:"7px 16px",borderRadius:30,border:"none",background:"#E74C3C",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,cursor:"pointer",boxShadow:"0 2px 10px #E74C3C55"}}>↩️ No Response</button>
-        </div>}
+        {/* manual override removed — feedback is detected from teacher speech */}
 
         {/* Suggested words */}
         {suggestedWords.length>0&&<div style={{background:"#FFFBEB",border:"1px solid #FEEBC8",borderRadius:12,padding:"10px 16px",maxWidth:400,width:"100%"}}>
@@ -5357,8 +5283,7 @@ function PhotoModal({entry, onSaved, onClose}){
     setSaving(true);
     try{
       const dataUrl=await readFileAsDataURL(file);
-      const small=await resizeImage(dataUrl);  // shrink + compress for fast loading
-      setPreview(small);
+      setPreview(dataUrl);
       setSaving(false);
     }catch(err){ setSaving(false); }
     e.target.value="";
@@ -5436,7 +5361,7 @@ function PhotoModal({entry, onSaved, onClose}){
 
       <div style={{marginTop:16,padding:"10px 14px",background:"#F0FFF4",borderRadius:10,border:"1px solid #C6F6D5"}}>
         <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"#276749",lineHeight:1.6}}>
-          🔒 <strong>Your photos are private to your account.</strong> They're never shown to other teachers and never added to the shared word library — they appear only when you're signed in.
+          ✅ <strong>Your photos stay private.</strong> They're stored on your device and never shared without your permission. No stock photos, no copyright issues.
         </div>
       </div>
     </Modal>
@@ -5926,8 +5851,7 @@ export default function SaySee(){
         </ErrorBoundary>
       ) : homeMode==="teach" ? (
         <ErrorBoundary>
-          <TeachScreen user={user} onBack={()=>setHomeMode("home")}
-            onManageStudents={()=>setHomeMode("settings")}/>
+          <TeachScreen user={user} onBack={()=>setHomeMode("home")}/>
         </ErrorBoundary>
       ) : homeMode==="data" ? (
         <ErrorBoundary>
@@ -5935,8 +5859,8 @@ export default function SaySee(){
         </ErrorBoundary>
       ) : homeMode==="settings" ? (
         <ErrorBoundary>
-          <SettingsScreen user={user} onBack={()=>setHomeMode("home")}
-            onLogout={logout} onNavigate={setHomeMode}/>
+          <SettingsScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}
+            onLogout={logout}/>
         </ErrorBoundary>
       ) : homeMode==="reinforcers" ? (
         <ReinforcerSurveyScreen user={user} onBack={()=>setHomeMode("home")} onSave={()=>{}}/>
