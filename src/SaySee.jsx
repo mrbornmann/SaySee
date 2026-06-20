@@ -180,30 +180,38 @@ const sbAuth = {
   },
 
   // Load all photos for a user — generate fresh signed URLs
-  getPhotos: async (userId) => {
+getPhotos: async (userId) => {
     if (!supabase) return {};
-    const { data } = await supabase.from('photos')
-      .select('word_id, public_url, storage_path')
-      .eq('owner_id', userId);
-    if(!data || data.length === 0) return {};
 
-    // Generate signed URLs for all photos
-    const map = {};
-    await Promise.all(data.map(async p => {
-      const storagePath = p.storage_path || p.public_url;
-      if(!storagePath) return;
-      try {
-        const { data: signed } = await supabase.storage
-          .from('photos')
-          .createSignedUrl(storagePath, 604800); // 1 hour expiry
-        if(signed?.signedUrl){
-          map[p.word_id] = signed.signedUrl;
+    // Sign a set of photo rows into a { word_id: signedUrl } map
+    const signRows = async (rows) => {
+      const m = {};
+      await Promise.all((rows || []).map(async p => {
+        const storagePath = p.storage_path || p.public_url;
+        if(!storagePath) return;
+        try {
+          const { data: signed } = await supabase.storage
+            .from('photos')
+            .createSignedUrl(storagePath, 604800); // 7-day expiry
+          if(signed?.signedUrl){
+            m[p.word_id] = signed.signedUrl;
+          }
+        } catch(e) {
+          console.log('Signed URL error for', p.word_id, e);
         }
-      } catch(e) {
-        console.log('Signed URL error for', p.word_id, e);
-      }
-    }));
-    return map;
+      }));
+      return m;
+    };
+
+    // Admin defaults (owner_id IS NULL) are the shared base pool;
+    // this teacher's own uploads (owner_id = userId) override them per word.
+    const [defRes, ownRes] = await Promise.all([
+      supabase.from('photos').select('word_id, public_url, storage_path').is('owner_id', null),
+      supabase.from('photos').select('word_id, public_url, storage_path').eq('owner_id', userId),
+    ]);
+    const defaults = await signRows(defRes.data);
+    const own      = await signRows(ownRes.data);
+    return { ...defaults, ...own }; // teacher's own photo wins over the admin default
   },
 
   // Delete a photo
