@@ -3983,6 +3983,20 @@ function AdminPanel({words,setWords,onLogout}){
   const [showAdminCat,setShowAdminCat]=useState(false);
   const [addW,setAddW]=useState(false);
   const [cat,setCat]=useState("all");
+  const [defPhotos,setDefPhotos]=useState({});
+  const refreshDefaults=async()=>{
+    if(!supabase) return;
+    try{
+      const { data }=await supabase.from("photos").select("word_id, storage_path, public_url").is("owner_id",null);
+      const map={};
+      await Promise.all((data||[]).map(async p=>{
+        const path=p.storage_path||p.public_url; if(!path) return;
+        try{ const { data:su }=await supabase.storage.from("photos").createSignedUrl(path,604800); if(su?.signedUrl) map[String(p.word_id)]=su.signedUrl; }catch(e){}
+      }));
+      setDefPhotos(map);
+    }catch(e){}
+  };
+  useEffect(()=>{ refreshDefaults(); },[]);
 
   const shown=cat==="all"?words:words.filter(w=>w.cat===cat);
 
