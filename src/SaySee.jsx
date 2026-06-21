@@ -4101,7 +4101,7 @@ function AdminPanel({words,setWords,onLogout}){
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,backdropFilter:"blur(6px)"}} onClick={()=>setEditW(null)}>
           <div style={{background:"#1A1A2E",borderRadius:20,padding:28,width:"min(94vw,500px)",maxHeight:"90vh",overflowY:"auto",border:"1px solid rgba(255,255,255,0.1)",animation:"popIn 0.3s cubic-bezier(.34,1.56,.64,1)"}} onClick={e=>e.stopPropagation()}>
             <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#fff",marginBottom:20}}>Edit Word</div>
-            <AdminWordForm word={editW} onSave={w=>{setWords(p=>p.map(x=>x.id===w.id?w:x));setEditW(null);}} onDelete={id=>{setWords(p=>p.filter(x=>x.id!==id));setEditW(null);}} onClose={()=>setEditW(null)}/>
+            <AdminWordForm word={editW} defaultPhoto={defPhotos[String(editW.id)]} onPhotoChange={(url)=>setDefPhotos(p=>{const n={...p};if(url){n[String(editW.id)]=url;}else{delete n[String(editW.id)];}return n;})} onSave={w=>{setWords(p=>p.map(x=>x.id===w.id?w:x));setEditW(null);}} onDelete={id=>{setWords(p=>p.filter(x=>x.id!==id));setEditW(null);}} onClose={()=>setEditW(null)}/>
           </div>
         </div>
       )}
