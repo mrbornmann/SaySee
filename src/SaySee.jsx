@@ -4028,8 +4028,11 @@ function AdminPanel({words,setWords,onLogout}){
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:10}}>
             {shown.map(w=>(
-              <div key={w.id} onClick={()=>setEditW({...w})} style={{background:"rgba(255,255,255,0.05)",borderRadius:12,padding:"12px 14px",cursor:"pointer",border:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",gap:10,transition:"background 0.15s"}}>
-                <span style={{fontSize:28}}>{w.emoji}</span>
+            <div key={w.id} onClick={()=>setEditW({...w})} style={{background:"rgba(255,255,255,0.05)",borderRadius:12,padding:"12px 14px",cursor:"pointer",border:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",gap:10,transition:"background 0.15s"}}>
+                {defPhotos[String(w.id)]
+                  ? <img src={defPhotos[String(w.id)]} alt="" style={{width:38,height:38,borderRadius:8,objectFit:"cover",flexShrink:0}}/>
+                  : <div style={{width:38,height:38,borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px dashed rgba(255,255,255,0.13)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,opacity:0.4,flexShrink:0}}>📷</div>}
+                <span style={{fontSize:24}}>{w.emoji}</span>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:800,fontSize:13}}>{w.display}</div>
                   <div style={{fontSize:11,color:"#666",marginTop:2}}>{w.cat} · {(w.triggers||[]).length} triggers</div>
