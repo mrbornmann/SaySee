@@ -3787,7 +3787,7 @@ function resizeForDefault(dataUrl){
 
 function parseDefaultFilename(filename){
   const base=filename.replace(/\.[^.]+$/,"");          // strip extension
-  const parts=base.split("__").map(s=>s.trim()).filter(Boolean);
+  const parts=base.split(/_+/).map(s=>s.trim()).filter(Boolean);
   return { word:parts[0]||"", desc:parts[1]||"", cat:parts[2]||"" };
 }
 
