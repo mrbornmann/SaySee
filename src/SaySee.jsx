@@ -4125,6 +4125,7 @@ function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}
   const lbl={fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:5,display:"block",fontFamily:"'Nunito',sans-serif"};
   return(
     <div>
+      <AdminWordLevels wordId={f.id} emoji={f.emoji} display={f.display} color={f.color} initialPhoto={defaultPhoto} onPhotoChange={onPhotoChange}/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         {[["Word — what the teacher says","word"],["Display Text — what students see","display"],["Emoji Icon","emoji"],["Photo Search Hint","photo"]].map(([l,k])=>(
           <div key={k}><label style={lbl}>{l}</label><input value={f[k]||""} onChange={e=>s(k,e.target.value)} style={dark}/></div>
