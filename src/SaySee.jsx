@@ -440,9 +440,6 @@ const LEVELS = [
 const AVATARS = ["🐱","🐶","🐸","🦊","🐼","🐨","🦁","🐯","🦄","🐙","🦋","🐬","🦉","🐻","🐺"];
 
 const DEMO_ACCOUNTS = [
-  // ── SaySee Admin ─────────────────────────────────────────────
-  {id:"admin",    email:"admin@saysee.app",      password:"saysee2024!",  name:"SaySee Admin",       role:"admin",          plan:"admin",   maxStudents:999},
-
   // ── Demo accounts — bypass all trials, always work ───────────
   {id:"demoT",   email:"teacher@saysee.io",      password:"SaySee2026!",  name:"Demo Teacher",       role:"teacher",        plan:"monthly", maxStudents:28},
   {id:"demoD",   email:"district@saysee.io",     password:"SaySee2026!",  name:"Demo District",      role:"district_admin", plan:"school",  maxStudents:999},
