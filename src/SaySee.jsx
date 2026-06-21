@@ -3897,6 +3897,85 @@ function BulkDefaultImporter({words, setWords}){
     </div>
   );
 }
+// ── Admin per-word level preview + Level 1 photo control ─────────
+function AdminWordLevels({wordId, emoji, display, color, initialPhoto, onPhotoChange}){
+  const fileRef=useRef(null);
+  const [photo,setPhoto]=useState(initialPhoto||null);
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{ setPhoto(initialPhoto||null); },[initialPhoto,wordId]);
+
+  const upload=async(file)=>{
+    if(!file||!supabase||!wordId) return;
+    setBusy(true);
+    try{
+      const dataUrl=await readFileAsDataURL(file);
+      const resized=await resizeForDefault(dataUrl);
+      const blob=await (await fetch(resized)).blob();
+      const path=`defaults/${wordId}.jpg`;
+      const { error:upErr }=await supabase.storage.from("photos").upload(path, blob, {upsert:true, contentType:"image/jpeg"});
+      if(upErr) throw upErr;
+      await supabase.from("photos").delete().eq("word_id",String(wordId)).is("owner_id",null);
+      const { error:rowErr }=await supabase.from("photos").insert({ word_id:String(wordId), owner_id:null, storage_path:path, public_url:path, updated_at:new Date().toISOString() });
+      if(rowErr) throw rowErr;
+      const { data:su }=await supabase.storage.from("photos").createSignedUrl(path,604800);
+      const url=su?.signedUrl||null;
+      setPhoto(url);
+      if(onPhotoChange) onPhotoChange(url);
+    }catch(e){ alert("Upload failed: "+((e&&e.message)||e)); }
+    setBusy(false);
+  };
+
+  const remove=async()=>{
+    if(!supabase||!wordId) return;
+    setBusy(true);
+    try{
+      await supabase.from("photos").delete().eq("word_id",String(wordId)).is("owner_id",null);
+      try{ await supabase.storage.from("photos").remove([`defaults/${wordId}.jpg`]); }catch(e){}
+      setPhoto(null);
+      if(onPhotoChange) onPhotoChange(null);
+    }catch(e){ alert("Remove failed: "+((e&&e.message)||e)); }
+    setBusy(false);
+  };
+
+  const cell={borderRadius:10,overflow:"hidden",height:84,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"};
+  const tag={position:"absolute",top:4,left:5,fontSize:9,fontWeight:800,color:"rgba(255,255,255,0.9)",background:"rgba(0,0,0,0.45)",padding:"1px 5px",borderRadius:6,fontFamily:"'Nunito',sans-serif"};
+  return(
+    <div style={{marginBottom:18}}>
+      <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6,fontFamily:"'Nunito',sans-serif"}}>How students see this — all four levels</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:10}}>
+        <div style={{...cell,background:photo?"#000":`${color}14`,border:photo?"none":`2px dashed ${color}66`}}>
+          <span style={tag}>L1</span>
+          {photo
+            ? <img src={photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+            : <span style={{fontSize:30,opacity:0.5}}>{emoji||"🖼️"}</span>}
+        </div>
+        <div style={{...cell,background:`${color}14`}}>
+          <span style={tag}>L2</span>
+          <span style={{fontSize:38}}>{emoji}</span>
+        </div>
+        <div style={{...cell,background:"#F4F5F7"}}>
+          <span style={tag}>L3</span>
+          <span style={{fontSize:38,filter:"grayscale(100%) contrast(0.55)"}}>{emoji}</span>
+        </div>
+        <div style={{...cell,background:"#F4F5F7"}}>
+          <span style={tag}>L4</span>
+          <span style={{fontFamily:"'Fredoka One',cursive",fontSize:15,color:color,textAlign:"center",padding:"0 4px",lineHeight:1.05,wordBreak:"break-word"}}>{display||"—"}</span>
+        </div>
+      </div>
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" style={{display:"none"}} onChange={e=>{ const fl=e.target.files; upload(fl&&fl[0]); e.target.value=""; }}/>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <button onClick={()=>{ if(!wordId){ alert("Save the word first, then add its Level 1 photo."); return; } fileRef.current&&fileRef.current.click(); }} disabled={busy}
+          style={{padding:"7px 14px",borderRadius:9,border:"none",background:busy?"#444":"#6C5CE7",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,cursor:busy?"default":"pointer"}}>
+          {busy?"Working…":(photo?"⬆ Replace L1 photo":"⬆ Upload L1 photo")}
+        </button>
+        {photo&&!busy&&(
+          <button onClick={remove} style={{padding:"7px 14px",borderRadius:9,border:"1px solid rgba(231,76,60,0.5)",background:"transparent",color:"#E88",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:12,cursor:"pointer"}}>Remove</button>
+        )}
+        <span style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#777"}}>L2/L3 follow the emoji · L4 is the display text</span>
+      </div>
+    </div>
+  );
+}
 function AdminPanel({words,setWords,onLogout}){
   const [tab,setTab]=useState("words");
   const [editW,setEditW]=useState(null);
