@@ -4118,7 +4118,7 @@ function AdminPanel({words,setWords,onLogout}){
   );
 }
 
-function AdminWordForm({word,onSave,onDelete,onClose}){
+function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}){
   const [f,setF]=useState(word||{cat:"core",word:"",display:"",emoji:"",photo:"",color:"#1B65B8",triggers:[""]});
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const dark={width:"100%",padding:"9px 12px",border:"2px solid rgba(255,255,255,0.12)",borderRadius:10,fontSize:14,fontFamily:"'Nunito',sans-serif",outline:"none",boxSizing:"border-box",background:"rgba(255,255,255,0.06)",color:"#fff"};
