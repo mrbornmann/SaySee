@@ -368,8 +368,13 @@ const sbData = {
 };
 
 // ── In-memory fallback for artifact preview ───────────────────────
+// ── localStorage-backed key/value store (survives reloads) ────────
 let _store = {};
-const mem = { get:(k,fb)=>k in _store?_store[k]:fb, set:(k,v)=>{_store[k]=v;} };
+try { const _raw = localStorage.getItem("saysee_mem_v1"); if(_raw) _store = JSON.parse(_raw) || {}; } catch(e){ _store = {}; }
+const mem = {
+  get:(k,fb)=> k in _store ? _store[k] : fb,
+  set:(k,v)=>{ _store[k]=v; try{ localStorage.setItem("saysee_mem_v1", JSON.stringify(_store)); }catch(e){} },
+};
 
 // ── Data ─────────────────────────────────────────────────────────
 const MASTER_WORDS = [
