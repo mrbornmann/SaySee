@@ -2622,6 +2622,7 @@ function WordDetailPanel({word, user, onClose}){
   const [customPhoto, setCustomPhoto] = useState(
     mem.get(`word_photo_${word.id||word.word}_${user?.id}`, null)
   );
+  const [adminDefault, setAdminDefault] = useState(null);
   const [l4Color, setL4Color]         = useState("#1B65B8");
   const [l4Font, setL4Font]           = useState("'Fredoka One',cursive");
   const fileRef   = useRef(null);
