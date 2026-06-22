@@ -3084,7 +3084,7 @@ SEARCH: [term1, term2, term3]`}]
                   style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EEF0F4",
                   background:"transparent",color:"#AAA",fontFamily:"'Nunito',sans-serif",
                   fontSize:11,cursor:"pointer",marginBottom:6}}>
-                  ✕ Remove image
+                  {adminDefault?"↺ Revert to SaySee default":"✕ Remove image"}
                 </button>
               )}
               {/* Camera input - opens camera directly on mobile */}
