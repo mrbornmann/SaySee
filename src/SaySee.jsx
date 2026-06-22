@@ -435,6 +435,12 @@ const CATS = [
   {id:"custom",     label:"My Words",    icon:"✏️",  color:"#95A5A6"},
 ];
 
+// Category membership — a word's `cats` array (multi-category) wins; falls back to the legacy single `cat`.
+function inCat(w, c){
+  if(Array.isArray(w.cats) && w.cats.length) return w.cats.includes(c);
+  return w.cat===c;
+}
+
 const LEVELS = [
   {id:1,label:"Photo",    icon:"📷"},
   {id:2,label:"Color Art",icon:"🎨"},
@@ -1311,7 +1317,7 @@ function SeeScreen({user, words, onBack}){
   // Filter
   const filtered = allWords.filter(w=>{
     const matchAge = activeAge==="all" || w.age===activeAge;
-    const matchCat = activeCat==="all" || w.cat===activeCat;
+    const matchCat = activeCat==="all" || inCat(w,activeCat);
     const matchSearch = !search || 
       w.word.toLowerCase().includes(search.toLowerCase()) ||
       w.display?.toLowerCase().includes(search.toLowerCase());
@@ -3819,7 +3825,7 @@ function resizeForDefault(dataUrl){
 function parseDefaultFilename(filename){
   const base=filename.replace(/\.[^.]+$/,"");          // strip extension
   const parts=base.split(/_+/).map(s=>s.trim()).filter(Boolean);
-  return { word:parts[0]||"", desc:parts[1]||"", cat:parts[2]||"" };
+  return { word:parts[0]||"", desc:parts[1]||"", cats:parts.slice(2) };  // fields 3+ = categories
 }
 
 function BulkDefaultImporter({words, setWords}){
@@ -3836,7 +3842,7 @@ function BulkDefaultImporter({words, setWords}){
 
     setBusy(true); setReport(null); setProgress({done:0,total:files.length});
 
-    const errors=[], newWords=[], descFills={};
+    const errors=[], newWords=[], descFills={}, catAdds={};
     let matched=0, created=0, createdCount=0;
     const baseId=Date.now();
     const lookup=[...words];   // grows as we create, so dupes in one batch match instead of re-create
@@ -3844,20 +3850,25 @@ function BulkDefaultImporter({words, setWords}){
     for(let i=0;i<files.length;i++){
       const file=files[i];
       try{
-        const {word,desc,cat}=parseDefaultFilename(file.name);
-        if(!word){ errors.push({file:file.name,reason:"No word before the first __"}); setProgress({done:i+1,total:files.length}); continue; }
+        const {word,desc,cats:rawCats}=parseDefaultFilename(file.name);
+        if(!word){ errors.push({file:file.name,reason:"No word before the first _"}); setProgress({done:i+1,total:files.length}); continue; }
         const key=word.toLowerCase();
+        const cats=(rawCats||[]).map(c=>c.toLowerCase()).filter(c=>validCatIds.includes(c));
         const hit=lookup.find(w=>(w.word||"").toLowerCase().trim()===key || (w.display||"").toLowerCase().trim()===key);
 
         let wid;
         if(hit){
           wid=hit.id; matched++;
           if(desc && !(hit.photo||"").trim()) descFills[hit.id]=desc;   // fill-if-empty
+          if(cats.length){
+            const existing=catAdds[hit.id]||hit.cats||(hit.cat?[hit.cat]:[]);
+            catAdds[hit.id]=Array.from(new Set([...existing,...cats]));  // union filename cats into existing
+          }
         }else{
           wid=baseId+createdCount; createdCount++;
-          const catId=validCatIds.includes(cat.toLowerCase())?cat.toLowerCase():"custom";
-          const color=(CATS.find(c=>c.id===catId)||{}).color||"#6C5CE7";
-          const w={id:wid, cat:catId, word:key, display:word.toUpperCase(), emoji:"🆕", photo:desc||"", color, triggers:[key]};
+          const finalCats=cats.length?cats:["custom"];
+          const color=(CATS.find(c=>c.id===finalCats[0])||{}).color||"#6C5CE7";
+          const w={id:wid, cat:finalCats[0], cats:finalCats, word:key, display:word.toUpperCase(), emoji:"🆕", photo:desc||"", color, triggers:[key]};
           newWords.push(w); lookup.push(w); created++;
         }
 
@@ -3878,9 +3889,14 @@ function BulkDefaultImporter({words, setWords}){
       setProgress({done:i+1,total:files.length});
     }
 
-    if(newWords.length || Object.keys(descFills).length){
+    if(newWords.length || Object.keys(descFills).length || Object.keys(catAdds).length){
       setWords(prev=>{
-        const updated=prev.map(w=>descFills[w.id]?{...w,photo:descFills[w.id]}:w);
+        const updated=prev.map(w=>{
+          let nw=w;
+          if(descFills[w.id]) nw={...nw,photo:descFills[w.id]};
+          if(catAdds[w.id]) nw={...nw,cats:catAdds[w.id],cat:catAdds[w.id][0]||nw.cat};
+          return nw;
+        });
         const ids=new Set(updated.map(w=>w.id));
         return [...updated, ...newWords.filter(w=>!ids.has(w.id))];
       });
@@ -4032,7 +4048,7 @@ function AdminPanel({words,setWords,onLogout}){
   };
   useEffect(()=>{ refreshDefaults(); },[]);
 
-  const shown=cat==="all"?words:words.filter(w=>w.cat===cat);
+  const shown=cat==="all"?words:words.filter(w=>inCat(w,cat));
 
   return(
     <div style={{minHeight:"100vh",background:"#0F1117",color:"#fff",fontFamily:"'Nunito',sans-serif"}}>
@@ -4153,7 +4169,11 @@ function AdminPanel({words,setWords,onLogout}){
 }
 
 function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}){
-  const [f,setF]=useState(word||{cat:"core",word:"",display:"",emoji:"",photo:"",color:"#1B65B8",triggers:[""]});
+  const [f,setF]=useState(()=>{
+    const b = word||{cat:"core",word:"",display:"",emoji:"",photo:"",color:"#1B65B8",triggers:[""]};
+    const cats = (Array.isArray(b.cats)&&b.cats.length) ? b.cats : (b.cat?[b.cat]:[]);
+    return {...b, cats, cat: cats[0]||b.cat||""};
+  });
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const dark={width:"100%",padding:"9px 12px",border:"2px solid rgba(255,255,255,0.12)",borderRadius:10,fontSize:14,fontFamily:"'Nunito',sans-serif",outline:"none",boxSizing:"border-box",background:"rgba(255,255,255,0.06)",color:"#fff"};
   const lbl={fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:5,display:"block",fontFamily:"'Nunito',sans-serif"};
@@ -4165,10 +4185,22 @@ function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}
           <div key={k}><label style={lbl}>{l}</label><input value={f[k]||""} onChange={e=>s(k,e.target.value)} style={dark}/></div>
         ))}
         <div>
-          <label style={lbl}>Category</label>
-          <select value={f.cat} onChange={e=>s("cat",e.target.value)} style={{...dark,color:f.cat?"#fff":"rgba(255,255,255,0.4)"}}>
-            {CATS.map(c=><option key={c.id} value={c.id} style={{background:"#1A1A2E"}}>{c.label}</option>)}
-          </select>
+          <label style={lbl}>Categories (check all that apply)</label>
+          <div style={{maxHeight:118,overflowY:"auto",border:"2px solid rgba(255,255,255,0.12)",borderRadius:10,padding:"6px 9px",background:"rgba(255,255,255,0.06)"}}>
+            {CATS.map(c=>{
+              const on=(f.cats||[]).includes(c.id);
+              return (
+                <div key={c.id} onClick={()=>setF(p=>{
+                    const cats=(p.cats||[]).includes(c.id)?p.cats.filter(x=>x!==c.id):[...(p.cats||[]),c.id];
+                    return {...p,cats,cat:cats[0]||""};
+                  })}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",cursor:"pointer",fontFamily:"'Nunito',sans-serif",fontSize:13,color:on?"#fff":"rgba(255,255,255,0.7)"}}>
+                  <input type="checkbox" checked={on} readOnly style={{cursor:"pointer"}}/>
+                  <span>{c.icon} {c.label}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
         <div>
           <label style={lbl}>Color</label>
@@ -4912,7 +4944,7 @@ Reply with ONLY the matching word or NO_MATCH.`
   };
 
   const ac=curWord?.color||(CATS.find(c=>c.id===activeCat)?.color||"#1B65B8");
-  const filtered=allWords.filter(w=>w.cat===activeCat);
+  const filtered=allWords.filter(w=>inCat(w,activeCat));
 
   if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>{ setStuMode(false); if(onGoHome) onGoHome(); }}/>;
 
@@ -5270,7 +5302,7 @@ Reply with ONLY the matching word or NO_MATCH.`
                       {/* progress bars */}
                       <div style={{marginTop:8,display:"flex",gap:4}}>
                         {CATS.filter(c=>c.id!=="custom").map(c=>{
-                          const cw=allWords.filter(w=>w.cat===c.id);
+                          const cw=allWords.filter(w=>inCat(w,c.id));
                           const cl=cw.filter(w=>s.progress?.[w.id]).length;
                           const pct=cw.length?cl/cw.length*100:0;
                           return(
