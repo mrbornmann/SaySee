@@ -2639,9 +2639,24 @@ function WordDetailPanel({word, user, onClose}){
 
   // Auto-show image on mount — prebuilt first, then AI
   // Auto-fetch real image on mount
-  useEffect(()=>{
+ useEffect(()=>{
     if(!aiImageUrl && l1Guide) setAiImageUrl(l1Guide);
-    if(!customPhoto && !unsplashUrl) fetchWordImage();
+    let alive=true;
+    (async()=>{
+      let hasDefault=false;
+      if(supabase && word?.id){
+        try{
+          const { data }=await supabase.from("photos").select("storage_path, public_url").is("owner_id",null).eq("word_id",String(word.id)).maybeSingle();
+          const path=data&&(data.storage_path||data.public_url);
+          if(path){
+            const { data:su }=await supabase.storage.from("photos").createSignedUrl(path,604800);
+            if(su?.signedUrl){ if(alive) setAdminDefault(su.signedUrl); hasDefault=true; }
+          }
+        }catch(e){}
+      }
+      if(alive && !customPhoto && !hasDefault && !unsplashUrl) fetchWordImage();
+    })();
+    return ()=>{ alive=false; };
   },[]);
 
   const fetchWordImage = async (forceNew=false) => {
