@@ -3006,6 +3006,17 @@ SEARCH: [term1, term2, term3]`}]
                       ✅ Your photo
                     </div>
                   </>
+                ):adminDefault?(
+                  <>
+                    <img src={adminDefault} alt={word.word}
+                      style={{width:"100%",maxHeight:260,objectFit:"cover",display:"block"}}/>
+                    <div style={{position:"absolute",bottom:8,left:8,
+                      background:"rgba(108,92,231,0.9)",borderRadius:8,
+                      padding:"3px 10px",fontFamily:"'Nunito',sans-serif",
+                      fontSize:11,color:"#fff",fontWeight:700}}>
+                      ⭐ SaySee default
+                    </div>
+                  </>
                 ):unsplashUrl?(
                   <>
                     <img src={unsplashUrl} alt={word.word}
