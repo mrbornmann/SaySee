@@ -1551,8 +1551,10 @@ function ReinforcerSurveyScreen({user, onBack, onSave}){
 }
 
 // ── Teach Screen (Student Data Dashboard) ────────────────────────
-function TeachScreen({user, students=[], trialData={}, onBack, onManageStudents}){
+function TeachScreen({user, onBack, onManageStudents}){
   const [selectedStu, setSelectedStu] = useState(null);
+  const students  = mem.get(`stu_${user.id}`) || [];
+  const trialData = mem.get(`trials_${user.id}`, {});
 
   const getWordStats = (stuId=null) => {
     const wordCounts = {};
