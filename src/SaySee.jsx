@@ -419,21 +419,46 @@ const MASTER_WORDS = [
   {id:39,cat:"actions",   word:"try again",  display:"TRY AGAIN",    emoji:"🔄", photo:"child trying again",               color:"#1ABC9C", triggers:["try again","let's try again"]},
 ];
 
+const CATS_VERSION = 2;
 const CATS = [
-  {id:"core",       label:"Core",        icon:"⭐", color:"#1B65B8"},
-  {id:"actions",    label:"Actions",     icon:"🏃", color:"#1ABC9C"},
-  {id:"emotions",   label:"Emotions",    icon:"😊", color:"#F1C40F"},
-  {id:"needs",      label:"Needs",       icon:"🙏", color:"#E67E22"},
-  {id:"people",     label:"People",      icon:"👨‍👩‍👧", color:"#8E44AD"},
-  {id:"food",       label:"Food",        icon:"🍎", color:"#E74C3C"},
-  {id:"animals",    label:"Animals",     icon:"🐶", color:"#27AE60"},
-  {id:"classroom",  label:"Classroom",   icon:"🏫", color:"#2980B9"},
-  {id:"academic",   label:"Academic",    icon:"📚", color:"#8E44AD"},
-  {id:"community",  label:"Community",   icon:"🏘️", color:"#16A085"},
-  {id:"health",     label:"Health",      icon:"❤️",  color:"#E74C3C"},
-  {id:"safety",     label:"Safety",      icon:"⚠️",  color:"#F39C12"},
-  {id:"custom",     label:"My Words",    icon:"✏️",  color:"#95A5A6"},
+  {id:"core",             label:"Core",             icon:"⭐", color:"#1B65B8"},
+  {id:"actions",          label:"Actions",          icon:"🏃", color:"#1ABC9C"},
+  {id:"emotions",         label:"Emotions",         icon:"😊", color:"#F1C40F"},
+  {id:"needs",            label:"Needs",            icon:"🙏", color:"#E67E22"},
+  {id:"people",           label:"People",           icon:"🧑", color:"#8E44AD"},
+  {id:"food",             label:"Food",             icon:"🍎", color:"#E74C3C"},
+  {id:"animals",          label:"Animals",          icon:"🐶", color:"#27AE60"},
+  {id:"classroom",        label:"Classroom",        icon:"🏫", color:"#2980B9"},
+  {id:"academic",         label:"Academic",         icon:"📚", color:"#8E44AD"},
+  {id:"math",             label:"Math",             icon:"🔢", color:"#3498DB"},
+  {id:"writing",          label:"Writing",          icon:"📝", color:"#9B59B6"},
+  {id:"reading",          label:"Reading",          icon:"📖", color:"#D98324"},
+  {id:"science",          label:"Science",          icon:"🔬", color:"#16A085"},
+  {id:"community",        label:"Community",        icon:"🏘️", color:"#138D75"},
+  {id:"health",           label:"Health",           icon:"❤️", color:"#E74C3C"},
+  {id:"safety",           label:"Safety",           icon:"⚠️", color:"#F39C12"},
+  {id:"speech",           label:"Speech",           icon:"💬", color:"#00B894"},
+  {id:"ot",               label:"OT",               icon:"✋", color:"#E84393"},
+  {id:"ape",              label:"APE",              icon:"🤸", color:"#FD79A8"},
+  {id:"physical_therapy", label:"Physical Therapy", icon:"🦵", color:"#6C5CE7"},
+  {id:"toys",             label:"Toys",             icon:"🧸", color:"#E17055"},
+  {id:"sensory",          label:"Sensory",          icon:"🌈", color:"#FF7675"},
+  {id:"reinforcers",      label:"Reinforcers",      icon:"🎉", color:"#F1C40F"},
+  {id:"nurse",            label:"Nurse",            icon:"🩺", color:"#FF6B6B"},
+  {id:"transportation",   label:"Transportation",   icon:"🚗", color:"#0984E3"},
+  {id:"bedroom",          label:"Bedroom",          icon:"🛏️", color:"#A569BD"},
+  {id:"restroom",         label:"Restroom",         icon:"🚻", color:"#00CEC9"},
+  {id:"clothing",         label:"Clothing",         icon:"👕", color:"#FAB1A0"},
+  {id:"grocery",          label:"Grocery Store",    icon:"🛒", color:"#00B894"},
+  {id:"restaurant",       label:"Restaurant",       icon:"🍽️", color:"#E67E22"},
+  {id:"backpack",         label:"Backpack Items",   icon:"🎒", color:"#74B9FF"},
+  {id:"desk",             label:"Desk Items",       icon:"📐", color:"#5AAB2A"},
+  {id:"universal_signs",  label:"Universal Signs",  icon:"🚸", color:"#636E72"},
+  {id:"custom",           label:"My Words",         icon:"✏️", color:"#95A5A6"},
 ];
+// One-time sync of the saved category list to the current canonical default.
+// Fires once per CATS_VERSION bump; any edits/additions/deletions you make afterward persist normally.
+try{ if(mem.get("cats_version",0)!==CATS_VERSION){ mem.set("admin_cats", CATS); mem.set("cats_version", CATS_VERSION); } }catch(e){}
 
 // Category membership — a word's `cats` array (multi-category) wins; falls back to the legacy single `cat`.
 function inCat(w, c){
@@ -4076,8 +4101,8 @@ function AdminPanel({words,setWords,onLogout}){
             <button onClick={()=>setAddW(true)} style={{padding:"9px 18px",borderRadius:10,border:"none",background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,cursor:"pointer"}}>+ Add Word</button>
           </div>
           <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:18}}>
-            {["all",...adminCats.map(c=>c.id)].map(id=>(
-              <button key={id} onClick={()=>setCat(id)} style={{padding:"5px 12px",borderRadius:30,border:"none",cursor:"pointer",background:cat===id?(adminCats.find(c=>c.id===id)?.color||"#6C5CE7"):"rgba(255,255,255,0.08)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,textTransform:"capitalize"}}>{id}</button>
+            {[{id:"all",label:"All",color:"#6C5CE7"},...adminCats].map(c=>(
+              <button key={c.id} onClick={()=>setCat(c.id)} style={{padding:"5px 12px",borderRadius:30,border:"none",cursor:"pointer",background:cat===c.id?(c.color||"#6C5CE7"):"rgba(255,255,255,0.08)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12}}>{c.label}</button>
             ))}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:10}}>
@@ -4089,7 +4114,7 @@ function AdminPanel({words,setWords,onLogout}){
                 <span style={{fontSize:24}}>{w.emoji}</span>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:800,fontSize:13}}>{w.display}</div>
-                  <div style={{fontSize:11,color:"#666",marginTop:2}}>{w.cat} · {(w.triggers||[]).length} triggers</div>
+                  <div style={{fontSize:11,color:"#666",marginTop:2}}>{(w.cats&&w.cats.length?w.cats:[w.cat]).filter(Boolean).map(id=>adminCats.find(c=>c.id===id)?.label||id).join(", ")} · {(w.triggers||[]).length} triggers</div>
                 </div>
                 <div style={{width:9,height:9,borderRadius:"50%",background:w.color,flexShrink:0}}/>
               </div>
@@ -4121,9 +4146,11 @@ function AdminPanel({words,setWords,onLogout}){
                   </div>
                   <div style={{display:"flex",gap:6}}>
                     <button onClick={()=>setEditCat(cat)} style={{flex:1,padding:"6px",borderRadius:8,border:"none",background:"rgba(108,92,231,0.22)",color:"#A29BFE",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>Edit</button>
-                    {cat.id.startsWith("cat_")&&(
-                      <button onClick={()=>{const updated=adminCats.filter(c=>c.id!==cat.id);setAdminCats(updated);mem.set("admin_cats",updated);}} style={{flex:1,padding:"6px",borderRadius:8,border:"none",background:"rgba(231,76,60,0.2)",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>Delete</button>
-                    )}
+                    <button onClick={()=>{
+                      if(adminCats.length<=1){alert("You need at least one category.");return;}
+                      if(!window.confirm(`Delete "${cat.label}"? Any words tagged with it keep their data but lose this tag from the menus.`))return;
+                      const updated=adminCats.filter(c=>c.id!==cat.id);setAdminCats(updated);mem.set("admin_cats",updated);
+                    }} style={{flex:1,padding:"6px",borderRadius:8,border:"none",background:"rgba(231,76,60,0.2)",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -5368,7 +5395,7 @@ Reply with ONLY the matching word or NO_MATCH.`
                 {customW.map(w=>(
                   <div key={w.id} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px",background:"#F8F9FC",borderRadius:11,marginBottom:7}}>
                     <span style={{fontSize:24}}>{w.emoji}</span>
-                    <div style={{flex:1}}><div style={{fontWeight:800,fontSize:13,color:"#1A1A2E"}}>{w.display}</div><div style={{fontSize:11,color:"#BBB"}}>{w.cat}</div></div>
+                    <div style={{flex:1}}><div style={{fontWeight:800,fontSize:13,color:"#1A1A2E"}}>{w.display}</div><div style={{fontSize:11,color:"#BBB"}}>{(w.cats&&w.cats.length?w.cats:[w.cat]).filter(Boolean).map(id=>allCats.find(c=>c.id===id)?.label||id).join(", ")}</div></div>
                     <button onClick={()=>setCustomW(p=>p.filter(x=>x.id!==w.id))} style={{background:"none",border:"none",fontSize:15,cursor:"pointer",color:"#E74C3C"}}>🗑</button>
                   </div>
                 ))}
@@ -5766,7 +5793,16 @@ function StuModal({existing,onSave,onDelete,onClose,maxReached}){
 }
 
 // ── Add Category Modal ───────────────────────────────────────────
-const CAT_EMOJIS = ["⭐","🏫","📚","⚽","🍽️","😊","🏃","✏️","🎨","🎵","🌍","🏠","🐾","💊","🧩","🌈","🔢","🔤","🖐️","❤️","🌟","🎯","🧠","💬","🎒"];
+const EMOJI_GROUPS = {
+  "Smileys": ["😀","😃","😄","😁","😆","😅","😂","🤣","🙂","🙃","😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙","😋","😛","😜","🤪","😝","🤗","🤭","🤫","🤔","🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥","😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮","🤧","🥵","🥶","🥴","😵","🤯","🤠","🥳","🥸","😎","🤓","🧐","😕","😟","🙁","😮","😯","😲","😳","🥺","😦","😧","😨","😰","😥","😢","😭","😱","😖","😣","😞","😓","😩","😫","🥱","😤","😡","😠","🤬","😈","👿","💀","💩","👻","👽","👾","🤖","😺","😸","😹","😻","😼","🙀"],
+  "People": ["👋","🤚","✋","🖖","👌","🤌","🤏","✌","🤞","🤊","🤟","🤘","🤙","👈","👉","👆","👇","☝","👍","👎","✊","👊","🤛","🤜","👏","🙌","👐","🤲","🤝","🙏","✍","💪","🦵","🦶","👂","👃","🧠","👀","👅","👄","👶","🧒","👦","👧","🧑","👨","👩","🧓","👴","👵","👮","🕵","💂","👷","🤴","👸","👳","👲","🧕","🤵","👰","🤰","👼","🎅","🤶","🦸","🦹","🧙","🧚","🧛","🧜","🧝","🚶","🧍","🧎","🏃","💃","🕺","🧘","🛀"],
+  "Animals": ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🐛","🦋","🐌","🐞","🐜","🦗","🕷","🦂","🐢","🐍","🦎","🦖","🦕","🐙","🦑","🦐","🦀","🐡","🐠","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍","🐘","🦛","🦏","🐪","🐫","🦒","🦘","🐃","🐂","🐄","🐎","🐖","🐏","🐑","🦙","🐐","🦌","🐕","🐈","🐓","🦃","🦚","🦢","🕊","🐇","🦝","🐾","🐉","🌵","🌲","🌳","🌴","🌱","🌿","☘","🍀","🍄","🌾","💐","🌷","🌹","🌺","🌻","🌼","🌻"],
+  "Food": ["🍇","🍈","🍉","🍊","🍋","🍌","🍍","🥭","🍎","🍏","🍐","🍑","🍒","🍓","🫐","🥝","🍅","🥥","🥑","🍆","🥔","🥕","🌽","🥒","🥬","🧄","🧅","🍄","🥜","🌰","🍞","🥐","🥖","🥨","🥯","🥞","🧇","🧀","🍖","🍗","🥩","🥓","🍔","🍟","🍕","🌭","🥪","🌮","🌯","🥙","🥚","🍳","🥘","🍲","🥣","🥗","🍿","🧂","🥫","🍱","🍘","🍙","🍚","🍛","🍜","🍝","🍠","🍢","🍣","🍤","🍥","🥮","🍡","🥟","🍦","🍧","🍨","🍩","🍪","🎂","🍰","🧁","🥧","🍫","🍬","🍭","🍮","🍯","🥛","☕","🍵","🍶","🍾","🍷","🍸","🍹","🍺","🥛","🥤","🧋","🧃","🍽"],
+  "Activities": ["⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉","🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍","🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿","🥊","🥋","🎽","🛹","🛼","⛸","🥌","🎿","⛷","🏂","🪂","🏋","🤼","🤸","⛹","🤺","🤾","🏌","🏇","🧘","🏄","🏊","🤽","🚣","🧗","🚵","🚴","🏆","🥇","🥈","🥉","🏅","🎖","🏵","🎫","🎪","🤹","🎭","🩰","🎨","🎬","🎤","🎧","🎼","🎹","🥁","🪘","🎷","🎺","🪗","🎸","🪕","🎻","🎲","🎯","🎳","🎮","🕹","🎰","🧩"],
+  "Travel": ["🚗","🚕","🚙","🚌","🚎","🏎","🚓","🚑","🚒","🚐","🛻","🚚","🚛","🚜","🦽","🦼","🛴","🚲","🛵","🏍","🛺","🚨","🚔","🚍","🚘","🚖","🚡","🚠","🚟","🚃","🚋","🚞","🚝","🚄","🚅","🚈","🚂","🚆","🚇","🚊","🚉","✈","🛫","🛬","🛩","💺","🛰","🚀","🛸","🚁","🛶","⛵","🚤","🛥","🛳","⛴","🚢","⚓","⛽","🚧","🚦","🗺","🗿","🗽","🗼","🏰","🏯","🏟","🎡","🎢","🎠","⛲","⛱","🏖","🏝","🏜","🌋","⛰","🏔","🏕","⛺","🛖","🏠","🏡","🏘","🏚","🏗","🏭","🏢","🏬","🏣","🏥","🏦","🏨","🏪","🏫","🏩","💒","⛪"],
+  "Objects": ["⌚","📱","💻","⌨","🖥","🖨","🖱","🕹","💽","💾","💿","📀","📷","📸","📹","🎥","📞","☎","📟","📠","📺","📻","🧭","⏱","⏰","⌛","⏳","📡","🔋","🔌","💡","🔦","🕯","🧯","💸","💵","🪙","💰","💳","🧾","💎","⚖","🪜","🧰","🪛","🔧","🔨","🛠","🔩","⚙","🧱","⛓","🧲","🔫","🔪","🛡","🧿","🔮","📿","💈","⚗","🔭","🔬","🩹","🩺","💊","💉","🧬","🦠","🧫","🧪","🌡","🧹","🪠","🧺","🧻","🚽","🚿","🛁","🧼","🪒","🧽","🛎","🔑","🗝","🚪","🪑","🛋","🛏","🧸","🖼","🪞","🛍","🛒","🎁","🎈","🎀","🪡","🎉","🏮","✉","📦","🏷","📜","📃","📊","📅","📁","🗃","📋","🗞","📰","📓","📕","📖","📚","🔖","📎","📐","📏","🧮","📌","📍","✂","🖊","✒","🖌","🖍","📝","✏","🔍","🔎"],
+  "Symbols": ["❤","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣","💕","💞","💓","💗","💖","💘","💝","💟","☮","✝","☪","🕉","☸","✡","🔯","☯","☦","🛐","⛎","♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓","⚛","☢","☣","❌","⭕","🛑","⛔","📛","🚫","💯","💢","♨","🚷","🚯","🔞","📵","🚭","❗","❕","❓","❔","‼","⁉","⚠","🚸","🔱","⚜","🔰","♻","✅","✴","✳","❎","🌐","💠","🌀","💤","♿","🅿","🚾","🚹","🚺","🚼","🏧","📶","ℹ","🔤","🔡","🔠","🆕","🆓","▶","⏸","⏹","⏭","⏮","⏩","⏪","⬆","⬇","➡","⬅","↗","↘","↙","↖","↕","↔","↩","↪","🔄","➕","➖","➗","✖","♾","🔙","✔","☑","🔴","🟠","🟡","🟢","🔵","🟣","🟤","⚫","⚪","🟥","🟧","🟨","🟩","🟦","🟪","🟫","⬛","⬜","🔶","🔷","🔸","🔹","🔺","🔻"],
+};
 const CAT_COLORS = ["#1B65B8","#5AAB2A","#E67E22","#8E44AD","#E74C3C","#00B894","#F1C40F","#1ABC9C","#E91E63","#FF5722","#607D8B","#795548"];
 
 function AddCatModal({onAdd, onClose, initial=null}){
@@ -5781,20 +5817,27 @@ function AddCatModal({onAdd, onClose, initial=null}){
 
       <div style={{marginBottom:16}}>
         <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,color:"#666",textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>Icon</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          {CAT_EMOJIS.map(e=>(
-            <button key={e} onClick={()=>setIcon(e)} style={{
-              fontSize:22,padding:"4px 8px",borderRadius:8,cursor:"pointer",
-              background:icon===e?color+"22":"#F4F5F7",
-              border:`2px solid ${icon===e?color:"transparent"}`,
-            }}>{e}</button>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <div style={{width:42,height:42,borderRadius:10,background:color+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{icon}</div>
+          <input value={icon} onChange={e=>{const v=e.target.value;try{const seg=[...new Intl.Segmenter().segment(v)];setIcon(seg.length?seg[seg.length-1].segment:"");}catch(_){setIcon([...v].slice(-2).join("")||"");}}} placeholder="Type or paste any emoji…" style={{flex:1,padding:"10px 12px",border:"2px solid #E8ECF0",borderRadius:10,fontSize:16,fontFamily:"'Nunito',sans-serif",outline:"none"}}/>
+        </div>
+        <div style={{maxHeight:172,overflowY:"auto",border:"2px solid #EEF0F4",borderRadius:10,padding:"4px 8px 8px",background:"#FAFBFC"}}>
+          {Object.entries(EMOJI_GROUPS).map(([grp,list])=>(
+            <div key={grp}>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:10,color:"#AAB2BD",textTransform:"uppercase",letterSpacing:0.5,margin:"6px 2px 3px"}}>{grp}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                {list.map((e,i)=>(
+                  <button key={grp+i} onClick={()=>setIcon(e)} style={{fontSize:19,lineHeight:1,padding:"4px 6px",borderRadius:8,cursor:"pointer",background:icon===e?color+"22":"#fff",border:`2px solid ${icon===e?color:"#EEF0F4"}`}}>{e}</button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
 
       <div style={{marginBottom:20}}>
         <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,color:"#666",textTransform:"uppercase",letterSpacing:0.5,marginBottom:8}}>Color</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
           {CAT_COLORS.map(c=>(
             <button key={c} onClick={()=>setColor(c)} style={{
               width:30,height:30,borderRadius:"50%",background:c,cursor:"pointer",
@@ -5802,6 +5845,7 @@ function AddCatModal({onAdd, onClose, initial=null}){
               boxShadow:color===c?`0 0 0 2px ${c}55`:"none"
             }}/>
           ))}
+          <input type="color" value={color} onChange={e=>setColor(e.target.value)} title="Custom color" style={{width:34,height:34,padding:0,border:"2px solid #E8ECF0",borderRadius:8,cursor:"pointer",background:"transparent"}}/>
         </div>
       </div>
 
