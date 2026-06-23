@@ -367,6 +367,38 @@ const sbData = {
   assignLicense: async (lid, tid) => { if (supabase) await supabase.from("licenses").update({ assigned_to_teacher_id:tid, status:"active", assigned_date:new Date().toISOString() }).eq("id", lid); }
 };
 
+// ── Categories (base = owner_id NULL, admin-managed, shared to all teachers) ──
+const sbCats = {
+  getBase: async () => {
+    if (!supabase) return null;
+    const { data, error } = await supabase.from("categories")
+      .select("id,label,icon,color,sort_order").is("owner_id", null).eq("is_active", true).order("sort_order");
+    if (error) return null;
+    return (data||[]).map(r=>({ id:r.id, label:r.label, icon:r.icon, color:r.color }));
+  },
+  upsertBase: async (cat, sortOrder=0) => {
+    if (!supabase) return;
+    const { error } = await supabase.from("categories").upsert({
+      id:cat.id, label:cat.label, icon:cat.icon, color:cat.color,
+      sort_order:sortOrder, owner_id:null, is_active:true, updated_at:new Date().toISOString()
+    });
+    if (error) throw error;
+  },
+  deleteBase: async (id) => {
+    if (!supabase) return;
+    const { error } = await supabase.from("categories").delete().is("owner_id", null).eq("id", id);
+    if (error) throw error;
+  },
+  seedBase: async (cats) => {
+    if (!supabase) return;
+    const rows = (cats||[]).map((c,i)=>({
+      id:c.id, label:c.label, icon:c.icon, color:c.color,
+      sort_order:i, owner_id:null, is_active:true, updated_at:new Date().toISOString()
+    }));
+    if (rows.length){ const { error } = await supabase.from("categories").upsert(rows); if (error) throw error; }
+  },
+};
+
 // ── In-memory fallback for artifact preview ───────────────────────
 // ── localStorage-backed key/value store (survives reloads) ────────
 let _store = {};
@@ -4060,6 +4092,19 @@ function AdminPanel({words,setWords,onLogout}){
   const [adminCats,setAdminCats]=useState(mem.get("admin_cats",[...CATS]));
   const [showAdminCat,setShowAdminCat]=useState(false);
   const [editCat,setEditCat]=useState(null);
+  // Base categories live in Supabase (categories table, owner_id NULL) — the source of
+  // truth. Load them on open; on the first run with an empty table, seed from the local list.
+  useEffect(()=>{
+    let off=false;
+    (async()=>{
+      try{
+        let base=await sbCats.getBase();
+        if(base&&base.length===0){ const local=mem.get("admin_cats",[...CATS]); await sbCats.seedBase(local); base=local; }
+        if(!off&&base&&base.length){ setAdminCats(base); mem.set("admin_cats",base); }
+      }catch(e){}
+    })();
+    return ()=>{ off=true; };
+  },[]);
   const [addW,setAddW]=useState(false);
   const [cat,setCat]=useState("all");
   const [defPhotos,setDefPhotos]=useState({});
@@ -4149,7 +4194,7 @@ function AdminPanel({words,setWords,onLogout}){
                     <button onClick={()=>{
                       if(adminCats.length<=1){alert("You need at least one category.");return;}
                       if(!window.confirm(`Delete "${cat.label}"? Any words tagged with it keep their data but lose this tag from the menus.`))return;
-                      const updated=adminCats.filter(c=>c.id!==cat.id);setAdminCats(updated);mem.set("admin_cats",updated);
+                      const updated=adminCats.filter(c=>c.id!==cat.id);setAdminCats(updated);mem.set("admin_cats",updated);sbCats.deleteBase(cat.id).catch(()=>alert("Deleted on this device, but couldn't sync to the server yet."));
                     }} style={{flex:1,padding:"6px",borderRadius:8,border:"none",background:"rgba(231,76,60,0.2)",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>Delete</button>
                   </div>
                 </div>
@@ -4157,12 +4202,12 @@ function AdminPanel({words,setWords,onLogout}){
             </div>
             {showAdminCat&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:3000}} onClick={()=>setShowAdminCat(false)}>
               <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:28,width:"min(94vw,420px)",maxHeight:"90vh",overflowY:"auto"}}>
-                <AddCatModal onAdd={cat=>{const updated=[...adminCats,cat];setAdminCats(updated);mem.set("admin_cats",updated);setShowAdminCat(false);}} onClose={()=>setShowAdminCat(false)}/>
+                <AddCatModal onAdd={cat=>{const updated=[...adminCats,cat];setAdminCats(updated);mem.set("admin_cats",updated);sbCats.upsertBase(cat,updated.length-1).catch(()=>alert("Saved on this device, but couldn't sync to the server yet. Re-open and re-save once you're back online."));setShowAdminCat(false);}} onClose={()=>setShowAdminCat(false)}/>
               </div>
             </div>}
             {editCat&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:3000}} onClick={()=>setEditCat(null)}>
               <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:28,width:"min(94vw,420px)",maxHeight:"90vh",overflowY:"auto"}}>
-                <AddCatModal initial={editCat} onAdd={cat=>{const updated=adminCats.map(c=>c.id===cat.id?cat:c);setAdminCats(updated);mem.set("admin_cats",updated);setEditCat(null);}} onClose={()=>setEditCat(null)}/>
+                <AddCatModal initial={editCat} onAdd={cat=>{const updated=adminCats.map(c=>c.id===cat.id?cat:c);setAdminCats(updated);mem.set("admin_cats",updated);sbCats.upsertBase(cat,updated.findIndex(c=>c.id===cat.id)).catch(()=>alert("Saved on this device, but couldn't sync to the server yet. Re-open and re-save once you're back online."));setEditCat(null);}} onClose={()=>setEditCat(null)}/>
               </div>
             </div>}
           </div>
@@ -6071,6 +6116,7 @@ export default function SaySee(){
   const [user,setUser]           = useState(null);
   const [loading,setLoading]     = useState(true);
   const [masterWords,setMasterWords] = useState([...MASTER_WORDS, ...DEV_WORDS]);
+  const [, setCatsTick] = useState(0);
   const [homeMode,setHomeMode]   = useState("home");
   const [showTerms,setShowTerms] = useState(false);
   const [termsAccepted,setTermsAccepted] = useState(()=>{
@@ -6146,6 +6192,20 @@ export default function SaySee(){
       }
     }catch(e){}
   },[]);
+
+  // Sync the base-category cache (mem["admin_cats"]) from Supabase so every screen —
+  // See, Teach, and per-teacher boards — reflects the latest categories across devices.
+  useEffect(()=>{
+    if(!user) return;
+    let off=false;
+    (async()=>{
+      try{
+        const base=await sbCats.getBase();
+        if(!off&&base&&base.length){ mem.set("admin_cats",base); setCatsTick(t=>t+1); }
+      }catch(e){}
+    })();
+    return ()=>{ off=true; };
+  },[user]);
 
   const login = async (email, password, setErr) => {
     const demo = DEMO_ACCOUNTS.find(a=>a.email===email.toLowerCase()&&a.password===password);
