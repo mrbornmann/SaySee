@@ -441,6 +441,9 @@ function inCat(w, c){
   return w.cat===c;
 }
 
+// Live category list — admin add/edit/delete persist to mem["admin_cats"]; falls back to base CATS.
+function getCats(){ const a=mem.get("admin_cats",null); return (Array.isArray(a)&&a.length)?a:CATS; }
+
 const LEVELS = [
   {id:1,label:"Photo",    icon:"📷"},
   {id:2,label:"Color Art",icon:"🎨"},
@@ -1325,7 +1328,7 @@ function SeeScreen({user, words, onBack}){
   });
 
   // Use CATS definition for consistent ordering and icons across all views
-  const cats = ["all", ...CATS.map(c=>c.id)];
+  const cats = ["all", ...getCats().map(c=>c.id)];
 
   return(
     <div style={{minHeight:"100vh",background:"#F4F6FB",display:"flex",flexDirection:"column"}}>
@@ -1377,7 +1380,7 @@ function SeeScreen({user, words, onBack}){
       <div style={{background:"#fff",padding:"8px 12px",display:"flex",
         gap:6,overflowX:"auto",scrollbarWidth:"none",borderBottom:"2px solid #EEF0F4"}}>
         {cats.map(c=>{
-          const catDef = CATS.find(x=>x.id===c);
+          const catDef = getCats().find(x=>x.id===c);
           const label = c==="all" ? "⭐ All" : `${catDef?.icon||""} ${catDef?.label||c}`;
           const activeColor = catDef?.color || "#1B65B8";
           return(
@@ -3321,7 +3324,7 @@ function AddWordInSeeModal({user, onClose, onAdd}){
           <select value={cat} onChange={e=>setCat(e.target.value)}
             style={{width:"100%",padding:"10px 12px",borderRadius:10,
             border:"2px solid #EEF0F4",fontFamily:"'Nunito',sans-serif",fontSize:13}}>
-            {CATS.map(c=>(
+            {getCats().map(c=>(
               <option key={c.id} value={c.id} style={{textTransform:"capitalize"}}>{c.icon} {c.label}</option>
             ))}
           </select>
@@ -3833,7 +3836,7 @@ function BulkDefaultImporter({words, setWords}){
   const [busy,setBusy]=useState(false);
   const [progress,setProgress]=useState({done:0,total:0});
   const [report,setReport]=useState(null);
-  const validCatIds=CATS.map(c=>c.id);
+  const validCatIds=getCats().map(c=>c.id);
 
   const run=async(fileList)=>{
     const files=Array.from(fileList||[]);
@@ -3867,7 +3870,7 @@ function BulkDefaultImporter({words, setWords}){
         }else{
           wid=baseId+createdCount; createdCount++;
           const finalCats=cats.length?cats:["custom"];
-          const color=(CATS.find(c=>c.id===finalCats[0])||{}).color||"#6C5CE7";
+          const color=(getCats().find(c=>c.id===finalCats[0])||{}).color||"#6C5CE7";
           const w={id:wid, cat:finalCats[0], cats:finalCats, word:key, display:word.toUpperCase(), emoji:"🆕", photo:desc||"", color, triggers:[key]};
           newWords.push(w); lookup.push(w); created++;
         }
@@ -4031,6 +4034,7 @@ function AdminPanel({words,setWords,onLogout}){
   const [editW,setEditW]=useState(null);
   const [adminCats,setAdminCats]=useState(mem.get("admin_cats",[...CATS]));
   const [showAdminCat,setShowAdminCat]=useState(false);
+  const [editCat,setEditCat]=useState(null);
   const [addW,setAddW]=useState(false);
   const [cat,setCat]=useState("all");
   const [defPhotos,setDefPhotos]=useState({});
@@ -4072,8 +4076,8 @@ function AdminPanel({words,setWords,onLogout}){
             <button onClick={()=>setAddW(true)} style={{padding:"9px 18px",borderRadius:10,border:"none",background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,cursor:"pointer"}}>+ Add Word</button>
           </div>
           <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:18}}>
-            {["all",...CATS.map(c=>c.id)].map(id=>(
-              <button key={id} onClick={()=>setCat(id)} style={{padding:"5px 12px",borderRadius:30,border:"none",cursor:"pointer",background:cat===id?(CATS.find(c=>c.id===id)?.color||"#6C5CE7"):"rgba(255,255,255,0.08)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,textTransform:"capitalize"}}>{id}</button>
+            {["all",...adminCats.map(c=>c.id)].map(id=>(
+              <button key={id} onClick={()=>setCat(id)} style={{padding:"5px 12px",borderRadius:30,border:"none",cursor:"pointer",background:cat===id?(adminCats.find(c=>c.id===id)?.color||"#6C5CE7"):"rgba(255,255,255,0.08)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,textTransform:"capitalize"}}>{id}</button>
             ))}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:10}}>
@@ -4115,15 +4119,23 @@ function AdminPanel({words,setWords,onLogout}){
                   <div style={{display:"flex",gap:6}}>
                     <div style={{flex:1,height:4,borderRadius:2,background:cat.color}}/>
                   </div>
-                  {cat.id.startsWith("cat_")&&(
-                    <button onClick={()=>setAdminCats(p=>p.filter(c=>c.id!==cat.id))} style={{padding:"6px",borderRadius:8,border:"none",background:"rgba(231,76,60,0.2)",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>Delete</button>
-                  )}
+                  <div style={{display:"flex",gap:6}}>
+                    <button onClick={()=>setEditCat(cat)} style={{flex:1,padding:"6px",borderRadius:8,border:"none",background:"rgba(108,92,231,0.22)",color:"#A29BFE",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>Edit</button>
+                    {cat.id.startsWith("cat_")&&(
+                      <button onClick={()=>{const updated=adminCats.filter(c=>c.id!==cat.id);setAdminCats(updated);mem.set("admin_cats",updated);}} style={{flex:1,padding:"6px",borderRadius:8,border:"none",background:"rgba(231,76,60,0.2)",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>Delete</button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
             {showAdminCat&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:3000}} onClick={()=>setShowAdminCat(false)}>
               <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:28,width:"min(94vw,420px)",maxHeight:"90vh",overflowY:"auto"}}>
                 <AddCatModal onAdd={cat=>{const updated=[...adminCats,cat];setAdminCats(updated);mem.set("admin_cats",updated);setShowAdminCat(false);}} onClose={()=>setShowAdminCat(false)}/>
+              </div>
+            </div>}
+            {editCat&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:3000}} onClick={()=>setEditCat(null)}>
+              <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:28,width:"min(94vw,420px)",maxHeight:"90vh",overflowY:"auto"}}>
+                <AddCatModal initial={editCat} onAdd={cat=>{const updated=adminCats.map(c=>c.id===cat.id?cat:c);setAdminCats(updated);mem.set("admin_cats",updated);setEditCat(null);}} onClose={()=>setEditCat(null)}/>
               </div>
             </div>}
           </div>
@@ -4187,7 +4199,7 @@ function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}
         <div>
           <label style={lbl}>Categories (check all that apply)</label>
           <div style={{maxHeight:118,overflowY:"auto",border:"2px solid rgba(255,255,255,0.12)",borderRadius:10,padding:"6px 9px",background:"rgba(255,255,255,0.06)"}}>
-            {CATS.map(c=>{
+            {getCats().map(c=>{
               const on=(f.cats||[]).includes(c.id);
               return (
                 <div key={c.id} onClick={()=>setF(p=>{
@@ -4589,7 +4601,7 @@ Reply with ONLY the matching word or NO_MATCH.`
   useEffect(()=>{mem.set(`stu_${user.id}`,students);},[students]);
   useEffect(()=>{mem.set(`cw_${user.id}`,customW);},[customW]);
   useEffect(()=>{mem.set(`cats_${user.id}`,userCats);},[userCats]);
-  const allCats = [...CATS, ...userCats];
+  const allCats = [...getCats(), ...userCats];
 
   // Save working for per student
   const getStudentReinforcer = (studentId) => mem.get(`wf_${studentId}`, null);
@@ -4943,7 +4955,7 @@ Reply with ONLY the matching word or NO_MATCH.`
     setShareInfo({stu,code});
   };
 
-  const ac=curWord?.color||(CATS.find(c=>c.id===activeCat)?.color||"#1B65B8");
+  const ac=curWord?.color||(allCats.find(c=>c.id===activeCat)?.color||"#1B65B8");
   const filtered=allWords.filter(w=>inCat(w,activeCat));
 
   if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>{ setStuMode(false); if(onGoHome) onGoHome(); }}/>;
@@ -5301,7 +5313,7 @@ Reply with ONLY the matching word or NO_MATCH.`
                       </div>
                       {/* progress bars */}
                       <div style={{marginTop:8,display:"flex",gap:4}}>
-                        {CATS.filter(c=>c.id!=="custom").map(c=>{
+                        {getCats().filter(c=>c.id!=="custom").map(c=>{
                           const cw=allWords.filter(w=>inCat(w,c.id));
                           const cl=cw.filter(w=>s.progress?.[w.id]).length;
                           const pct=cw.length?cl/cw.length*100:0;
@@ -5757,14 +5769,14 @@ function StuModal({existing,onSave,onDelete,onClose,maxReached}){
 const CAT_EMOJIS = ["⭐","🏫","📚","⚽","🍽️","😊","🏃","✏️","🎨","🎵","🌍","🏠","🐾","💊","🧩","🌈","🔢","🔤","🖐️","❤️","🌟","🎯","🧠","💬","🎒"];
 const CAT_COLORS = ["#1B65B8","#5AAB2A","#E67E22","#8E44AD","#E74C3C","#00B894","#F1C40F","#1ABC9C","#E91E63","#FF5722","#607D8B","#795548"];
 
-function AddCatModal({onAdd, onClose}){
-  const [label,setLabel]   = useState("");
-  const [icon,setIcon]     = useState("⭐");
-  const [color,setColor]   = useState("#1B65B8");
+function AddCatModal({onAdd, onClose, initial=null}){
+  const [label,setLabel]   = useState(initial?.label||"");
+  const [icon,setIcon]     = useState(initial?.icon||"⭐");
+  const [color,setColor]   = useState(initial?.color||"#1B65B8");
 
   return(
     <Modal onClose={onClose}>
-      <MH>➕ New Category</MH>
+      <MH>{initial?"✏️ Edit Category":"➕ New Category"}</MH>
       <Field label="Category Name *" value={label} onChange={setLabel} placeholder="e.g. Morning Routine"/>
 
       <div style={{marginBottom:16}}>
@@ -5803,9 +5815,10 @@ function AddCatModal({onAdd, onClose}){
         <Btn outline onClick={onClose} style={{flex:1}}>Cancel</Btn>
         <Btn onClick={()=>{
           if(!label.trim())return;
-          onAdd({id:`cat_${Date.now()}`,label:label.trim(),icon,color,scope:"teacher"});
+          if(initial) onAdd({...initial,label:label.trim(),icon,color});
+          else onAdd({id:`cat_${Date.now()}`,label:label.trim(),icon,color,scope:"teacher"});
           onClose();
-        }} color={color} style={{flex:2}}>Create Category</Btn>
+        }} color={color} style={{flex:2}}>{initial?"Save Changes":"Create Category"}</Btn>
       </div>
     </Modal>
   );
@@ -5834,7 +5847,7 @@ function CWModal({onAdd,onClose}){
       <div style={{marginBottom:14}}>
         <div style={{fontSize:12,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>Category</div>
         <select value={cat} onChange={e=>setCat(e.target.value)} style={{width:"100%",padding:"10px 12px",border:"2px solid #E8ECF0",borderRadius:10,fontSize:14,fontFamily:"'Nunito',sans-serif",outline:"none"}}>
-          {CATS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+          {getCats().map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
       </div>
       <div style={{marginBottom:18}}>
