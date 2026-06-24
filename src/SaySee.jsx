@@ -411,27 +411,18 @@ const sbWords = {
       word:r.word, display:r.display, emoji:r.emoji, photo:r.photo,
       cat:r.category, cats:Array.isArray(r.cats)?r.cats:(r.cats?JSON.parse(r.cats):[]),
       color:r.color, triggers:Array.isArray(r.triggers)?r.triggers:(r.triggers?JSON.parse(r.triggers):[]),
-      l2:Array.isArray(r.l2)?r.l2:(r.l2?JSON.parse(r.l2):null),
       ...(r.age?{age:r.age}:{})
     }));
   },
   upsertBase: async (w) => {
     if (!supabase) return;
-    const row = {
+    const { error } = await supabase.from("words").upsert({
       id:String(w.id), word:w.word, display:w.display||"", emoji:w.emoji||"", photo:w.photo||"",
       category:w.cat||(w.cats&&w.cats[0])||"", cats:w.cats||(w.cat?[w.cat]:[]),
       color:w.color||"#1B65B8", triggers:w.triggers||[], age:w.age||null,
-      l2:Array.isArray(w.l2)?w.l2:null,
       owner_id:null, is_active:true, updated_at:new Date().toISOString()
-    };
-    const { error } = await supabase.from("words").upsert(row);
-    if (error){
-      // Tolerate a schema that doesn't have the l2 column yet: retry without it
-      // so the rest of the word still syncs (run words_migration.sql to enable l2).
-      const { l2, ...rest } = row;
-      const retry = await supabase.from("words").upsert(rest);
-      if (retry.error) throw retry.error;
-    }
+    });
+    if (error) throw error;
   },
   deleteBase: async (id) => {
     if (!supabase) return;
@@ -444,17 +435,9 @@ const sbWords = {
       id:String(w.id), word:w.word, display:w.display||"", emoji:w.emoji||"", photo:w.photo||"",
       category:w.cat||(w.cats&&w.cats[0])||"", cats:w.cats||(w.cat?[w.cat]:[]),
       color:w.color||"#1B65B8", triggers:w.triggers||[], age:w.age||null,
-      l2:Array.isArray(w.l2)?w.l2:null,
       owner_id:null, is_active:true, sort_order:i, updated_at:new Date().toISOString()
     }));
-    if (rows.length){
-      const { error } = await supabase.from("words").upsert(rows);
-      if (error){
-        const stripped = rows.map(({l2, ...r})=>r);
-        const retry = await supabase.from("words").upsert(stripped);
-        if (retry.error) throw retry.error;
-      }
-    }
+    if (rows.length){ const { error } = await supabase.from("words").upsert(rows); if (error) throw error; }
   },
 };
 
@@ -2733,249 +2716,6 @@ const WORD_VISUALS = {
                  l2:["🛝","⬇️","🎉","🌈","⭐","🏃"], l3:["slope","□slide","▢down","◭","□/","—"] },
 };
 
-// ── Level-2 "Color Art" alternative suggestions ───────────────────
-// The L2 picker shows a Primary icon (always the word's own emoji) plus a few
-// alternatives so a teacher can pick the clipart that best matches their
-// student's world. These must be REAL representations of the SAME word — never
-// decorative filler. Resolution order: an admin-set override on the word
-// (word.l2) → the hand-curated WORD_VISUALS set → this keyword engine →
-// primary-only (if the word has no known alternatives yet).
-
-// Exact whole-word / whole-phrase matches. Precise sets, and they keep short
-// ambiguous words ("up", "on", "go") from leaking into multi-word words.
-const L2_EXACT = {
-  "yes":["✅","👍","🟢","☑️","🙂"], "no":["❌","🚫","👎","🔴","✋"],
-  "up":["⬆️","🔼","☝️","🆙","📈"], "down":["⬇️","🔽","👇","📉"],
-  "on":["💡","🔛","🟢","☀️"], "off":["🔴","⭕","🔕","🌑"],
-  "go":["🚦","🟢","➡️","🏃"], "stop":["🛑","✋","🚫","🔴"],
-  "in":["📥","➡️","🚪"], "out":["📤","⬅️","🚪"],
-  "more":["➕","🔁","👐","🔢"], "mine":["👐","🫵","💎","🙋"],
-  "please":["🙏","💛","😊","🌟"], "help":["🤝","🙋","🆘","🫂"],
-  "wait":["⏳","⏰","✋","🛑"], "done":["✅","🏁","👍","🎉"],
-  "look":["👀","👁️","🔍","🧐"], "want":["🙋","🫴","💭","👉"],
-  "give":["🤲","🎁","👐"], "open":["🔓","📂","🚪"], "close":["🔒","📁","🚪"],
-  "hello":["👋","🙂","🤗"], "hi":["👋","🙂","🤗"],
-  "bye":["👋","✌️","🤚"], "goodbye":["👋","✌️","🤚"],
-  "thank you":["🙏","😊","💛"], "thanks":["🙏","😊","💛"], "sorry":["😔","🙏","💔"],
-  "sit":["🪑","🧎","💺"], "sit down":["🪑","🧎","💺","⬇️"],
-  "stand up":["🧍","🚶","🆙","🙋","⬆️"], "line up":["🚶","🧑‍🤝‍🧑","➡️","1️⃣"],
-  "clean up":["🧹","🧼","🧽","🗑️"], "calm down":["😌","🧘","🌬️","☮️"],
-  "come here":["👋","🤚","🫴","➡️"], "raise hand":["✋","🙋","🤚"],
-  "sit quietly":["🧘","🤫","🪑"], "snack time":["🍎","🍪","🥨","🧀"],
-  "lunch time":["🥪","🍱","🍔","🥗"], "work time":["📝","✏️","💻","📚"],
-  "sit and eat":["🍽️","🪑","🍴"], "all done":["✅","🏁","👍","🎉"],
-};
-
-// Substring / token matches (token === key OR token startsWith key). Keys ≥ 3
-// chars; gerunds/plurals are caught by startsWith ("running" → "run").
-const L2_KEYWORDS = [
-  // recess / play
-  ["ball",["⚽","🏀","🏐","⚾","🎾","🏈"]],
-  ["swing",["🎠","🌳","🤸","⛓️","🏃"]],
-  ["slide",["🛝","🎢","⬇️","🌈","🏃"]],
-  ["play",["🎉","🎮","🧸","🪀","🎲"]],
-  ["recess",["⚽","🛝","🤸","🌳","🎉"]],
-  ["bubble",["🫧","🧼","💦","🐠"]],
-  ["toy",["🧸","🪀","🎲","🚂","🪁"]],
-  // movement / actions
-  ["stand",["🧍","🚶","🆙","🙋","⬆️"]],
-  ["walk",["🚶","🚶‍♀️","👣","🦶"]],
-  ["run",["🏃","🏃‍♀️","💨","👟"]],
-  ["jump",["🤸","🦘","⬆️","🦵"]],
-  ["dance",["💃","🕺","🪩","🎶"]],
-  ["climb",["🧗","🪜","⛰️"]],
-  ["throw",["🤾","🥏","⚾"]],
-  ["kick",["🦵","⚽","🤾"]],
-  ["push",["🖐️","➡️","🛒"]],
-  ["pull",["✊","⬅️","🪢"]],
-  ["listen",["👂","🎧","🔊","🗣️"]],
-  ["quiet",["🤫","🔇","🙊","🤐"]],
-  ["clean",["🧹","🧼","🧽","🗑️"]],
-  // emotions
-  ["happy",["😊","😀","😃","🙂","🥰"]],
-  ["sad",["😢","😭","🙁","😞","😔"]],
-  ["angry",["😠","😡","🤬","😤"]],
-  ["mad",["😠","😡","🤬","😤"]],
-  ["scared",["😨","😰","😱","🫣"]],
-  ["afraid",["😨","😰","😱","🫣"]],
-  ["tired",["😫","😴","🥱","😪"]],
-  ["excited",["🤩","🥳","😆","🙌"]],
-  ["silly",["🤪","😜","😝","🤭"]],
-  ["calm",["😌","🧘","🌬️","☮️"]],
-  ["frustrat",["😤","😣","😠","🫤"]],
-  ["lonely",["😞","🙍","😔","💔"]],
-  ["worried",["😟","😧","😰","😬"]],
-  ["nervous",["😬","😰","😟"]],
-  ["proud",["😎","🥲","🏅","💪"]],
-  ["brave",["💪","🦁","🛡️","🦸"]],
-  ["love",["❤️","🥰","😍","💕"]],
-  ["sick",["🤒","🤧","🤢","🤮"]],
-  ["hurt",["🤕","🩹","😣","🩸"]],
-  ["pain",["🤕","😖","🩹","⚡"]],
-  ["dizzy",["😵","💫","🌀","😵‍💫"]],
-  // people
-  ["mom",["👩","🤱","👩‍👦","💝"]],
-  ["mother",["👩","🤱","👩‍👦","💝"]],
-  ["dad",["👨","👨‍👦","💪","🧔"]],
-  ["father",["👨","👨‍👦","💪","🧔"]],
-  ["baby",["👶","🍼","🧸","🐣"]],
-  ["teacher",["🧑‍🏫","👩‍🏫","👨‍🏫","📚"]],
-  ["friend",["🧑‍🤝‍🧑","👫","👬","👭"]],
-  ["grandma",["👵","🧓"]],
-  ["grandpa",["👴","🧓"]],
-  ["doctor",["🧑‍⚕️","👨‍⚕️","👩‍⚕️","🩺"]],
-  ["nurse",["🧑‍⚕️","🩺","💉","💊"]],
-  ["police",["👮","🚓","🚨"]],
-  ["fire",["🧑‍🚒","🚒","🔥","🚨"]],
-  // animals
-  ["dog",["🐶","🐕","🦮","🐩"]],
-  ["puppy",["🐶","🐕","🦴"]],
-  ["cat",["🐱","🐈","🐾"]],
-  ["kitten",["🐱","🐈","🐾"]],
-  ["bird",["🐦","🐤","🦜","🦅"]],
-  ["fish",["🐟","🐠","🎣","🐡"]],
-  ["rabbit",["🐰","🐇","🥕"]],
-  ["bunny",["🐰","🐇","🥕"]],
-  ["cow",["🐄","🐮","🥛"]],
-  ["lion",["🦁","🐾"]],
-  ["monkey",["🐵","🐒","🍌"]],
-  ["horse",["🐴","🐎","🦄"]],
-  ["pig",["🐷","🐖","🐽"]],
-  ["bear",["🐻","🧸","🐾"]],
-  ["duck",["🦆","🐤"]],
-  ["frog",["🐸"]],
-  ["elephant",["🐘"]],
-  // food / drink
-  ["eat",["🍽️","🥄","🍴","😋","🥘"]],
-  ["drink",["🥤","🧃","🍵","🥛","💧"]],
-  ["snack",["🍎","🍪","🧀","🥨","🍇"]],
-  ["breakfast",["🥞","🍳","🥣","🥐","🧇"]],
-  ["lunch",["🥪","🍱","🍔","🥗","🍌"]],
-  ["dinner",["🍽️","🍝","🍗","🥘"]],
-  ["milk",["🥛","🍼","🐄"]],
-  ["water",["💧","🌊","🚰","🧊"]],
-  ["juice",["🧃","🍊","🥤"]],
-  ["apple",["🍎","🍏"]],
-  ["banana",["🍌"]],
-  ["cookie",["🍪"]],
-  ["pizza",["🍕"]],
-  ["sandwich",["🥪","🍞","🥖"]],
-  ["tray",["🍱","🍽️","🥘"]],
-  ["hungry",["🍽️","😋","🤤"]],
-  ["thirsty",["🥤","💧","😛"]],
-  // classroom / academic
-  ["read",["📖","📚","📕","🔖"]],
-  ["book",["📚","📖","📕","📗"]],
-  ["write",["✏️","📝","✍️","🖊️"]],
-  ["draw",["✏️","🎨","🖍️","🖌️"]],
-  ["pencil",["✏️","📝","🖊️"]],
-  ["paper",["📄","📃","📋"]],
-  ["backpack",["🎒"]],
-  ["scissor",["✂️"]],
-  ["marker",["🖊️","🖍️","✏️"]],
-  ["crayon",["🖍️","🎨"]],
-  ["count",["🔢","🧮","➕"]],
-  ["math",["🔢","➕","➖","✖️","🧮"]],
-  ["number",["🔢","💯","🧮"]],
-  ["letter",["🔤","🔠","🔡"]],
-  ["alphabet",["🔤","🔠","🔡"]],
-  ["color",["🎨","🌈","🖍️"]],
-  ["shape",["🔷","🔶","🔺","⬛"]],
-  ["science",["🔬","🧪","🧫","🔭"]],
-  ["computer",["💻","⌨️","🖥️"]],
-  ["music",["🎵","🎶","🎸","🥁"]],
-  // daily / needs
-  ["sleep",["😴","🛏️","💤","🌙"]],
-  ["bath",["🛁","🧼","🫧","🚿"]],
-  ["potty",["🚽","🚻","🧻"]],
-  ["toilet",["🚽","🚻","🧻"]],
-  ["bathroom",["🚽","🚻","🧻","🚾"]],
-  ["restroom",["🚻","🚽","🧻","🚾"]],
-  ["wash",["🧼","💦","🚰","🧽"]],
-  ["hand",["✋","👐","🤲","🙌"]],
-  ["brush",["🪥","🦷","🧴"]],
-  ["hot",["🥵","☀️","🔥","♨️"]],
-  ["cold",["🥶","❄️","🧊","⛄"]],
-  ["medicine",["💊","💉","🩹"]],
-  ["emergency",["🚨","🆘","🚑","☎️"]],
-  // transportation / community
-  ["bus",["🚌","🚍","🚏"]],
-  ["car",["🚗","🚙","🚕"]],
-  ["train",["🚂","🚆","🚊"]],
-  ["plane",["✈️","🛩️","🛫"]],
-  ["bike",["🚲","🚴"]],
-  ["truck",["🚚","🚛"]],
-  ["seatbelt",["🚗","🔒","🪢"]],
-  ["crosswalk",["🚸","🚦","🚶"]],
-  ["store",["🏪","🛒","🛍️"]],
-  ["grocery",["🛒","🍎","🥖","🥛"]],
-  // clothing
-  ["shirt",["👕","👚"]],
-  ["pant",["👖"]],
-  ["sock",["🧦"]],
-  ["shoe",["👟","👞","🥿"]],
-  ["jacket",["🧥","🧣"]],
-  ["coat",["🧥","🧣"]],
-  ["hat",["🎩","🧢","👒"]],
-];
-
-function suggestL2Alts(word){
-  const prim = (word && word.emoji) || "🔤";
-  const uniq = (a)=>a.filter((e,i)=>e && a.indexOf(e)===i);
-
-  // 1) admin-set override stored on the word
-  if (word && Array.isArray(word.l2)){
-    const arr = word.l2.filter(Boolean);
-    if (arr.length) return uniq([prim, ...arr]).slice(0,6);
-  }
-  // 2) hand-curated visuals
-  const key = (word && word.word ? word.word : "").toLowerCase().replace(/[^a-z]/g,"");
-  if (key && WORD_VISUALS[key] && Array.isArray(WORD_VISUALS[key].l2) && WORD_VISUALS[key].l2.length){
-    return uniq([prim, ...WORD_VISUALS[key].l2]).slice(0,6);
-  }
-  // 3) keyword engine
-  const exact  = (word && word.word ? word.word : "").toLowerCase().trim().replace(/\s+/g," ");
-  const text   = [word&&word.word, word&&word.display].concat((word&&word.triggers)||[])
-    .filter(Boolean).join(" ").toLowerCase();
-  const tokens = text.split(/[^a-z]+/).filter(Boolean);
-  let alts = [];
-  if (L2_EXACT[exact]) alts = alts.concat(L2_EXACT[exact]);
-  for (let i=0;i<L2_KEYWORDS.length;i++){
-    const k = L2_KEYWORDS[i][0];
-    const hit = k.indexOf(" ")!==-1
-      ? text.indexOf(k)!==-1
-      : tokens.some(t=> t===k || t.startsWith(k));
-    if (hit) alts = alts.concat(L2_KEYWORDS[i][1]);
-  }
-  const out = uniq([prim, ...alts]).slice(0,6);
-  return out.length ? out : [prim];
-}
-
-// Best single emoji for a word — used when importing/creating words that don't
-// have an emoji yet. Mirrors the keyword matching in suggestL2Alts but returns
-// just the most representative icon, or "" when nothing matches (the caller then
-// supplies its own placeholder).
-function suggestPrimaryEmoji(wordText){
-  const exact = (wordText||"").toLowerCase().trim().replace(/\s+/g," ");
-  if (L2_EXACT[exact] && L2_EXACT[exact][0]) return L2_EXACT[exact][0];
-  const text = (wordText||"").toLowerCase();
-  const tokens = text.split(/[^a-z]+/).filter(Boolean);
-  // Pass 1 — whole-word or phrase match (so "bathroom" resolves to its own icon,
-  // not via the shorter "bath" keyword). Pass 2 — prefix match, which catches
-  // gerunds/plurals like "running" → "run" and "books" → "book".
-  for (let i=0;i<L2_KEYWORDS.length;i++){
-    const k = L2_KEYWORDS[i][0];
-    const hit = k.indexOf(" ")!==-1 ? text.indexOf(k)!==-1 : tokens.some(t=> t===k);
-    if (hit && L2_KEYWORDS[i][1][0]) return L2_KEYWORDS[i][1][0];
-  }
-  for (let i=0;i<L2_KEYWORDS.length;i++){
-    const k = L2_KEYWORDS[i][0];
-    if (k.indexOf(" ")!==-1) continue;
-    if (tokens.some(t=> t!==k && t.startsWith(k)) && L2_KEYWORDS[i][1][0]) return L2_KEYWORDS[i][1][0];
-  }
-  return "";
-}
-
 // ── Word Detail Panel (See Screen) ───────────────────────────────
 function WordDetailPanel({word, user, onClose}){
   const [activeLevel, setActiveLevel] = useState(1);
@@ -2999,7 +2739,7 @@ function WordDetailPanel({word, user, onClose}){
   // Word-specific visuals
   const wordKey  = (word.word||"").toLowerCase().replace(/[^a-z]/g,"");
   const visuals  = WORD_VISUALS[wordKey] || null;
-  const l2Alts   = suggestL2Alts(word);
+  const l2Alts   = visuals?.l2 || [word.emoji,"🖼️","🎨","✨","💫","⭐"];
   const l1Guide  = visuals?.l1 || `A clear, realistic photograph of "${word.display||word.word}" on a plain white background, suitable for a child with autism. Single subject, no clutter, bright and unambiguous.`;
 
   // Currently selected L2 emoji
@@ -3366,7 +3106,7 @@ SEARCH: [term1, term2, term3]`}]
                 {customPhoto?(
                   <>
                     <img src={customPhoto} alt={word.word}
-                      style={{width:"100%",maxHeight:260,objectFit:"cover",display:"block"}}/>
+                      style={{width:"100%",maxHeight:280,objectFit:"contain",display:"block"}}/>
                     <div style={{position:"absolute",bottom:8,left:8,
                       background:"rgba(90,171,42,0.9)",borderRadius:8,
                       padding:"3px 10px",fontFamily:"'Nunito',sans-serif",
@@ -3377,7 +3117,7 @@ SEARCH: [term1, term2, term3]`}]
                 ):adminDefault?(
                   <>
                     <img src={adminDefault} alt={word.word}
-                      style={{width:"100%",maxHeight:260,objectFit:"cover",display:"block"}}/>
+                      style={{width:"100%",maxHeight:280,objectFit:"contain",display:"block"}}/>
                     <div style={{position:"absolute",bottom:8,left:8,
                       background:"rgba(108,92,231,0.9)",borderRadius:8,
                       padding:"3px 10px",fontFamily:"'Nunito',sans-serif",
@@ -3388,7 +3128,7 @@ SEARCH: [term1, term2, term3]`}]
                 ):unsplashUrl?(
                   <>
                     <img src={unsplashUrl} alt={word.word}
-                      style={{width:"100%",maxHeight:260,objectFit:"cover",display:"block"}}
+                      style={{width:"100%",maxHeight:280,objectFit:"contain",display:"block"}}
                       onError={()=>setUnsplashUrl(null)}/>
                     <div style={{position:"absolute",bottom:8,left:8,
                       background:"rgba(0,0,0,0.55)",borderRadius:8,
@@ -3662,7 +3402,6 @@ function AddWordInSeeModal({user, onClose, onAdd}){
         {[
           {label:"Word (what you say) *", val:word, set:setWord, placeholder:"e.g. sit down"},
           {label:"Display text (what student sees)", val:display, set:setDisplay, placeholder:"e.g. SIT DOWN"},
-          {label:"Emoji icon *", val:emoji, set:setEmoji, placeholder:"e.g. 🪑"},
           {label:"Voice triggers (comma separated)", val:triggers, set:setTriggers, placeholder:"e.g. sit down, take a seat"},
         ].map(f=>(
           <div key={f.label} style={{marginBottom:12}}>
@@ -3675,6 +3414,10 @@ function AddWordInSeeModal({user, onClose, onAdd}){
               fontSize:13,outline:"none",boxSizing:"border-box"}}/>
           </div>
         ))}
+
+        <div style={{marginBottom:12}}>
+          <EmojiPickerField value={emoji} onChange={setEmoji} color="#5AAB2A"/>
+        </div>
 
         {/* Category */}
         <div style={{marginBottom:12}}>
@@ -4230,7 +3973,7 @@ function BulkDefaultImporter({words, setWords}){
           wid=baseId+createdCount; createdCount++;
           const finalCats=cats.length?cats:["custom"];
           const color=(getCats().find(c=>c.id===finalCats[0])||{}).color||"#6C5CE7";
-          const w={id:wid, cat:finalCats[0], cats:finalCats, word:key, display:word.toUpperCase(), emoji:suggestPrimaryEmoji(key)||"🆕", photo:desc||"", color, triggers:[key]};
+          const w={id:wid, cat:finalCats[0], cats:finalCats, word:key, display:word.toUpperCase(), emoji:"🆕", photo:desc||"", color, triggers:[key]};
           newWords.push(w); lookup.push(w); created++;
         }
 
@@ -4554,50 +4297,6 @@ function AdminPanel({words,setWords,onLogout}){
   );
 }
 
-function AdminL2Alts({word, value, onChange}){
-  const emoji = (word && word.emoji) || "";
-  const auto  = suggestL2Alts({...(word||{}), l2:null});
-  const custom = Array.isArray(value) && value.filter(Boolean).length>0;
-  const base = custom ? value : auto;
-  const slots = [1,2,3,4,5].map(i=> (base && base[i]) || "");
-  const grapheme = (s)=>{ try{ const seg=[...new Intl.Segmenter().segment(s)]; return seg.length?seg[seg.length-1].segment:s; }catch(_){ return (s||"").slice(-2); } };
-  const setSlot = (i0, val)=>{
-    const g = val ? grapheme(val) : "";
-    const ns = slots.slice(); ns[i0] = g;
-    const hasAlt = ns.filter(Boolean).length > 0;
-    onChange(hasAlt ? [emoji||"", ...ns] : undefined);
-  };
-  const lbl={fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6,display:"block",fontFamily:"'Nunito',sans-serif"};
-  const cap={fontFamily:"'Nunito',sans-serif",fontSize:9,fontWeight:700,marginTop:4,textAlign:"center"};
-  const box={borderRadius:10,height:62,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"};
-  return(
-    <div style={{marginBottom:18}}>
-      <label style={lbl}>Color-Art alternatives (Level 2 / 3)</label>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>
-        <div style={{...box,background:"rgba(108,92,231,0.18)",border:"2px solid rgba(108,92,231,0.5)"}}>
-          <span style={{fontSize:26}}>{emoji||"🔤"}</span>
-          <span style={{...cap,color:"#A29BFE"}}>Primary</span>
-        </div>
-        {slots.map((sv,i)=>(
-          <div key={i} style={{...box,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)"}}>
-            <input value={sv} onChange={e=>setSlot(i, e.target.value)} placeholder="—" maxLength={8}
-              style={{width:"100%",height:30,border:"none",background:"transparent",color:"#fff",textAlign:"center",fontSize:22,outline:"none"}}/>
-            <span style={{...cap,color:"rgba(255,255,255,0.4)"}}>Alt {i+1}</span>
-          </div>
-        ))}
-      </div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:8}}>
-        <span style={{fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#777",lineHeight:1.4}}>
-          Teachers see these as the Primary + alternatives. Paste any emoji. {custom?"Custom set saved with the word.":"Auto-suggested from the word."}
-        </span>
-        {custom && (
-          <button onClick={()=>onChange(undefined)} style={{flexShrink:0,padding:"6px 10px",borderRadius:8,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#A29BFE",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:11,cursor:"pointer"}}>↺ Reset to automatic</button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}){
   const [f,setF]=useState(()=>{
     const b = word||{cat:"core",word:"",display:"",emoji:"",photo:"",color:"#1B65B8",triggers:[""]};
@@ -4610,9 +4309,11 @@ function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}
   return(
     <div>
       <AdminWordLevels wordId={f.id} emoji={f.emoji} display={f.display} color={f.color} initialPhoto={defaultPhoto} onPhotoChange={onPhotoChange}/>
-      <AdminL2Alts word={f} value={f.l2} onChange={arr=>s("l2",arr)}/>
+      <div style={{marginBottom:14}}>
+        <EmojiPickerField dark value={f.emoji} onChange={v=>s("emoji",v)} color={f.color}/>
+      </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        {[["Word — what the teacher says","word"],["Display Text — what students see","display"],["Emoji Icon","emoji"],["Photo Search Hint","photo"]].map(([l,k])=>(
+        {[["Word — what the teacher says","word"],["Display Text — what students see","display"],["Photo Search Hint","photo"]].map(([l,k])=>(
           <div key={k}><label style={lbl}>{l}</label><input value={f[k]||""} onChange={e=>s(k,e.target.value)} style={dark}/></div>
         ))}
         <div>
@@ -6198,6 +5899,123 @@ const EMOJI_GROUPS = {
   "Objects": ["⌚","📱","💻","⌨","🖥","🖨","🖱","🕹","💽","💾","💿","📀","📷","📸","📹","🎥","📞","☎","📟","📠","📺","📻","🧭","⏱","⏰","⌛","⏳","📡","🔋","🔌","💡","🔦","🕯","🧯","💸","💵","🪙","💰","💳","🧾","💎","⚖","🪜","🧰","🪛","🔧","🔨","🛠","🔩","⚙","🧱","⛓","🧲","🔫","🔪","🛡","🧿","🔮","📿","💈","⚗","🔭","🔬","🩹","🩺","💊","💉","🧬","🦠","🧫","🧪","🌡","🧹","🪠","🧺","🧻","🚽","🚿","🛁","🧼","🪒","🧽","🛎","🔑","🗝","🚪","🪑","🛋","🛏","🧸","🖼","🪞","🛍","🛒","🎁","🎈","🎀","🪡","🎉","🏮","✉","📦","🏷","📜","📃","📊","📅","📁","🗃","📋","🗞","📰","📓","📕","📖","📚","🔖","📎","📐","📏","🧮","📌","📍","✂","🖊","✒","🖌","🖍","📝","✏","🔍","🔎"],
   "Symbols": ["❤","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣","💕","💞","💓","💗","💖","💘","💝","💟","☮","✝","☪","🕉","☸","✡","🔯","☯","☦","🛐","⛎","♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓","⚛","☢","☣","❌","⭕","🛑","⛔","📛","🚫","💯","💢","♨","🚷","🚯","🔞","📵","🚭","❗","❕","❓","❔","‼","⁉","⚠","🚸","🔱","⚜","🔰","♻","✅","✴","✳","❎","🌐","💠","🌀","💤","♿","🅿","🚾","🚹","🚺","🚼","🏧","📶","ℹ","🔤","🔡","🔠","🆕","🆓","▶","⏸","⏹","⏭","⏮","⏩","⏪","⬆","⬇","➡","⬅","↗","↘","↙","↖","↕","↔","↩","↪","🔄","➕","➖","➗","✖","♾","🔙","✔","☑","🔴","🟠","🟡","🟢","🔵","🟣","🟤","⚫","⚪","🟥","🟧","🟨","🟩","🟦","🟪","🟫","⬛","⬜","🔶","🔷","🔸","🔹","🔺","🔻"],
 };
+
+// ── Concept → emoji search index (AAC-focused; grid below stays fully browsable) ──
+const EMOJI_SEARCH = {
+  "yes":"✅ 👍 🙂 ☑️ 💚 🟢","no":"❌ 👎 🚫 🛑 🔴 ✋","more":"➕ 🙌 👐 🔁 🤲","help":"🙋 🆘 🤝 🙌 💪",
+  "please":"🙏 😊 💛 ✨","thank you":"🙏 💛 😊 🤗","thanks":"🙏 💛 😊 🤗","want":"🙋 👉 🤲 💭","mine":"🙋 👐 💎 🫵",
+  "stop":"🛑 ✋ ⛔ 🚫","go":"🟢 ➡️ 🚦 🏁","wait":"⏳ ⏰ 🤚 ✋","done":"✅ 🏁 🎉 ☑️","finished":"✅ 🏁 🎉 ☑️",
+  "open":"📂 🔓 🚪","close":"🔒 🚪 ❌","closed":"🔒 🚪 ❌","on":"💡 🔛 🔆 ☀️","off":"🌑 🔌 🔕 💤",
+  "up":"⬆️ 🔼 ☝️ 🆙","down":"⬇️ 🔽 👇 ⏬","in":"📥 📦","out":"📤 🚪 🌳","like":"❤️ 👍 😍 🥰","dislike":"👎 😖 🙅",
+  "hello":"👋 🙂 😊","hi":"👋 🙂 😊","bye":"👋 🚪","goodbye":"👋 🚪","good":"👍 ✅ 😊 ⭐","bad":"👎 ❌ 😞","new":"🆕 ✨",
+  "bathroom":"🚽 🚻 🧻 🚾","potty":"🚽 🚻 🧻 🚾","toilet":"🚽 🚻 🧻 🚾","restroom":"🚽 🚻 🚾","wash":"🧼 🚰 💦 🤲",
+  "hands":"🤲 👐 🧼","bath":"🛁 🫧 🦆 🚿","shower":"🚿 💦 🛁","teeth":"🪥 😬 🦷","brush":"🪥 😬 🖌️","toothbrush":"🪥 😬",
+  "soap":"🧼 🫧","towel":"🧺 🛁",
+  "eat":"🍽️ 🍴 🥄 😋 🍕 🍎","hungry":"🍽️ 🍴 😋 🍔","food":"🍽️ 🍴 🍕 🍎 🥪","drink":"🥤 🧃 🥛 💧 🍵","thirsty":"🥤 🥛 💧",
+  "water":"💧 🚰 🌊 🧊","milk":"🥛 🍼 🐄","juice":"🧃 🍊 🥤","snack":"🍪 🍎 🧀 🥨","breakfast":"🥣 🍳 🥞 🥐","lunch":"🥪 🍱 🍎",
+  "dinner":"🍽️ 🍝 🍗","apple":"🍎 🍏","banana":"🍌","orange":"🍊","grapes":"🍇","strawberry":"🍓","berry":"🍓 🫐",
+  "cookie":"🍪","cake":"🎂 🍰 🧁","pizza":"🍕","bread":"🍞 🥖 🥐","cheese":"🧀","candy":"🍬 🍭 🍫","chocolate":"🍫",
+  "ice cream":"🍦 🍨 🍧","icecream":"🍦 🍨 🍧","egg":"🥚 🍳","fruit":"🍎 🍌 🍓 🍇 🍊","vegetable":"🥕 🥦 🌽 🥬","veggie":"🥕 🥦 🌽 🥬",
+  "carrot":"🥕","corn":"🌽","popcorn":"🍿","sandwich":"🥪","cereal":"🥣","soup":"🍲 🥣",
+  "sleep":"😴 🛏️ 💤 🌙","tired":"😴 🥱 💤","bed":"🛏️ 🛌 😴","rest":"😌 🛌 ☁️",
+  "happy":"😊 😄 🙂 😁 🥰 🤩","sad":"😢 😔 😞 💙 🥺","angry":"😠 😡 🤬 💢","mad":"😠 😡 🤬 💢","scared":"😨 😱 🙀","afraid":"😨 😱 🙀",
+  "excited":"🤩 🎉 ✨ 🥳","calm":"😌 🧘 🌿 ☁️","relax":"😌 🧘 🌿","worried":"😟 😰 😬","nervous":"😟 😰 😬","proud":"😊 🏆 🌟 👏",
+  "love":"❤️ 🥰 😍 💕 💖","silly":"🤪 😜 😝 🤣","funny":"🤣 😂 😆","surprised":"😲 😮 😯","sick":"🤒 🤢 🤧 🌡️","hurt":"🤕 🩹 😣",
+  "pain":"🤕 🩹 😣","cry":"😭 😢 💧","laugh":"😂 🤣 😆","shy":"🙈 😳 😊","confused":"😕 🤔 😵","feel":"😊 😢 😠 😨","feelings":"😊 😢 😠 😨",
+  "mom":"👩 🤱 💝","mommy":"👩 🤱 💝","mother":"👩 🤱 💝","dad":"👨 💙","daddy":"👨 💙","father":"👨 💙","baby":"👶 🍼 🧸",
+  "boy":"👦","girl":"👧","teacher":"👩‍🏫 📚 🍎","friend":"🤝 👫 😊","doctor":"👨‍⚕️ 🩺 🏥","nurse":"👩‍⚕️ 💉",
+  "family":"👨‍👩‍👧 🏠 ❤️","people":"🧑 👥 🙂","person":"🧑 🙂","grandma":"👵","grandpa":"👴","sister":"👧 👭","brother":"👦 👬",
+  "dog":"🐶 🐕","cat":"🐱 🐈","bird":"🐦 🐤","fish":"🐟 🐠","rabbit":"🐰 🐇","bunny":"🐰 🐇","bear":"🐻","horse":"🐴 🐎",
+  "cow":"🐄 🐮","pig":"🐷 🐖","duck":"🦆","frog":"🐸","lion":"🦁","monkey":"🐵 🐒","elephant":"🐘","animal":"🐶 🐱 🐰 🐻 🦁",
+  "butterfly":"🦋","bee":"🐝","turtle":"🐢","snake":"🐍","mouse":"🐭","sheep":"🐑","chicken":"🐔","penguin":"🐧",
+  "run":"🏃 💨","walk":"🚶","jump":"🦘 ⬆️ 🤸","sit":"🪑 ⬇️","stand":"🧍 ⬆️","play":"🎮 🧸 🎯 ⚽","dance":"💃 🕺 🎵",
+  "sing":"🎤 🎵 🎶","draw":"✏️ 🎨 🖍️","read":"📚 📖","write":"✏️ 📝 🖊️","look":"👀 👁️ 🔍","see":"👀 👁️ 🔍","watch":"👀 👁️ 🔭",
+  "listen":"👂 🎧","hear":"👂 🎧","clean":"🧹 🧽 🫧 ✨","color":"🖍️ 🎨 🌈","cut":"✂️","scissors":"✂️","paint":"🎨 🖌️",
+  "build":"🧱 🔨 🏗️","throw":"🤾 ⚾","catch":"🧤 ⚾","give":"🤲 🎁","share":"🤝 🤲","wave":"👋","point":"👉 ☝️","hug":"🤗 🫂",
+  "pencil":"✏️","crayon":"🖍️","marker":"🖊️","paper":"📄 📝","book":"📚 📖","backpack":"🎒","bag":"🎒 🛍️","chair":"🪑",
+  "table":"🪑 📚","desk":"🪑 📚","computer":"💻 🖥️","tablet":"📱","clock":"⏰ 🕐 ⏱️","time":"⏰ 🕐 ⏱️","phone":"📞 📱",
+  "music":"🎵 🎶 🎸 🎹","ball":"⚽ 🏀 ⚾ 🎾","toy":"🧸 🎮 🪀","car":"🚗","bus":"🚌","train":"🚂 🚆","airplane":"✈️","plane":"✈️",
+  "bike":"🚲","bicycle":"🚲","gift":"🎁","present":"🎁","money":"💰 💵 🪙","key":"🔑","light":"💡 🔦","door":"🚪",
+  "star":"⭐ 🌟 ✨","heart":"❤️ 💛 💚 💙 💜","flower":"🌸 🌼 🌻 🌷","tree":"🌳 🌲","sun":"☀️ 🌞","moon":"🌙 🌛","rain":"🌧️ 💧 ☔",
+  "snow":"❄️ ☃️ 🌨️","cloud":"☁️ 🌥️","fire":"🔥","rainbow":"🌈","umbrella":"☔ 🌂","weather":"☀️ 🌧️ ☁️ ❄️",
+  "home":"🏠 🏡","house":"🏠 🏡","school":"🏫","park":"🛝 🌳 ⛲","playground":"🛝 🌳","store":"🏪 🛒","shop":"🏪 🛒",
+  "hospital":"🏥","outside":"🌳 ☀️ 🏞️","outdoor":"🌳 ☀️ 🏞️","inside":"🏠 🚪","indoor":"🏠 🚪",
+  "arrow":"➡️ ⬅️ ⬆️ ⬇️","circle":"⭕ 🔴 🟢 🔵 ⚪","square":"⬛ ⬜ 🟥 🟦","triangle":"🔺 🔻","number":"🔢 1️⃣","letter":"🔤 🔡 🔠",
+  "abc":"🔤 🔡 🔠","check":"✅ ☑️ ✔️","cross":"❌ ✖️ ❎","question":"❓ ❔","warning":"⚠️ ❗","big":"🔵 ⬆️ 🐘","small":"🔹 🐭 👶",
+  "little":"🔹 🐭 👶","hot":"🔥 🥵 ☀️","cold":"❄️ 🥶 🧊","fast":"🏃 💨 ⚡","slow":"🐢 🐌","birthday":"🎂 🎉 🎈 🥳",
+  "party":"🎉 🎊 🥳 🎈","win":"🏆 🥇 🎖️","winner":"🏆 🥇 🎖️","game":"🎮 🎲 🎯",
+};
+
+// ── Reusable searchable emoji picker (sets the Level-2 emoji; Level 3 = its B&W form) ──
+function EmojiPickerField({value, onChange, color="#1B65B8", dark=false}){
+  const [q,setQ]=useState("");
+  const accent=color||"#1B65B8";
+  const grayFilter="grayscale(100%) contrast(0.55)";
+  const panelBg     = dark ? "rgba(255,255,255,0.04)" : "#FAFBFC";
+  const panelBorder = dark ? "rgba(255,255,255,0.12)" : "#EEF0F4";
+  const cellBg      = dark ? "rgba(255,255,255,0.06)" : "#fff";
+  const cellBorder  = dark ? "rgba(255,255,255,0.14)" : "#EEF0F4";
+  const labelColor  = dark ? "rgba(255,255,255,0.55)" : "#666";
+  const subColor    = dark ? "rgba(255,255,255,0.4)"  : "#AAB2BD";
+  const inputBg     = dark ? "rgba(255,255,255,0.06)" : "#fff";
+  const inputColor  = dark ? "#fff" : "#333";
+  const l3Bg        = dark ? "#33334A" : "#F4F5F7";
+
+  const segLast=(v)=>{ try{ const s=[...new Intl.Segmenter().segment(v)]; return s.length?s[s.length-1].segment:""; }catch(_){ return [...v].slice(-2).join("")||""; } };
+
+  const query=q.trim().toLowerCase();
+  let matches=[];
+  if(query){
+    const seen=new Set();
+    Object.keys(EMOJI_SEARCH).forEach(k=>{
+      if(k.includes(query)||query.includes(k)){
+        EMOJI_SEARCH[k].split(" ").forEach(e=>{ const t=e.trim(); if(t&&!seen.has(t)){ seen.add(t); matches.push(t); } });
+      }
+    });
+  }
+
+  const cellBtn=(e,key)=>(
+    <button key={key} onClick={()=>onChange(e)} style={{fontSize:19,lineHeight:1,padding:"4px 6px",borderRadius:8,cursor:"pointer",background:value===e?accent+"22":cellBg,border:`2px solid ${value===e?accent:cellBorder}`}}>{e}</button>
+  );
+
+  return(
+    <div>
+      <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:12,color:labelColor,textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>Emoji — Level 2 icon</div>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+        <div style={{textAlign:"center"}}>
+          <div style={{width:46,height:46,borderRadius:10,background:accent+"1F",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>{value||"🙂"}</div>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,fontWeight:800,color:subColor,marginTop:2}}>L2 COLOR</div>
+        </div>
+        <div style={{textAlign:"center"}}>
+          <div style={{width:46,height:46,borderRadius:10,background:l3Bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,filter:grayFilter}}>{value||"🙂"}</div>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:9,fontWeight:800,color:subColor,marginTop:2}}>L3 B&amp;W</div>
+        </div>
+        <input value={value||""} onChange={e=>onChange(segLast(e.target.value))} placeholder="Type or paste any emoji…" style={{flex:1,padding:"10px 12px",border:`2px solid ${panelBorder}`,borderRadius:10,fontSize:16,fontFamily:"'Nunito',sans-serif",outline:"none",background:inputBg,color:inputColor,boxSizing:"border-box"}}/>
+      </div>
+      <input value={q} onChange={e=>setQ(e.target.value)} placeholder="🔍 Search emojis — try happy, dog, apple, stop…" style={{width:"100%",boxSizing:"border-box",padding:"9px 12px",border:`2px solid ${panelBorder}`,borderRadius:10,fontSize:13,fontFamily:"'Nunito',sans-serif",outline:"none",marginBottom:8,background:inputBg,color:inputColor}}/>
+      <div style={{maxHeight:184,overflowY:"auto",border:`2px solid ${panelBorder}`,borderRadius:10,padding:"4px 8px 8px",background:panelBg}}>
+        {query?(
+          matches.length?(
+            <div>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:10,color:subColor,textTransform:"uppercase",letterSpacing:0.5,margin:"6px 2px 3px"}}>Matches for “{q.trim()}”</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{matches.map((e,i)=>cellBtn(e,"m"+i))}</div>
+            </div>
+          ):(
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:subColor,padding:"12px 4px"}}>No quick matches — clear the search to browse all emojis, or type/paste any emoji in the box above.</div>
+          )
+        ):(
+          Object.entries(EMOJI_GROUPS).map(([grp,list])=>(
+            <div key={grp}>
+              <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:10,color:subColor,textTransform:"uppercase",letterSpacing:0.5,margin:"6px 2px 3px"}}>{grp}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{list.map((e,i)=>cellBtn(e,grp+i))}</div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 const CAT_COLORS = ["#1B65B8","#5AAB2A","#E67E22","#8E44AD","#E74C3C","#00B894","#F1C40F","#1ABC9C","#E91E63","#FF5722","#607D8B","#795548"];
 
 function AddCatModal({onAdd, onClose, initial=null}){
@@ -6280,7 +6098,9 @@ function CWModal({onAdd,onClose}){
       </div>
       <Field label="Word — what you say *" value={word} onChange={setWord} placeholder="e.g. sit down, apple, outside"/>
       <Field label="Display Text — what students see" value={disp} onChange={setDisp} placeholder="e.g. SIT DOWN, APPLE, OUTSIDE"/>
-      <Field label="Emoji — visual icon *" value={emoji} onChange={setEmoji} placeholder="e.g. 🪑 🍎 🌳"/>
+      <div style={{marginBottom:14}}>
+        <EmojiPickerField value={emoji} onChange={setEmoji} color={color}/>
+      </div>
       <Field label="Photo Search Hint — helps find a matching image" value={photo} onChange={setPhoto} placeholder="e.g. child sitting in chair, red apple, playground"/>
       <Field label="Voice Triggers — words or phrases that activate this visual (comma separated)" value={trigs} onChange={setTrigs} placeholder="e.g. sit down, take a seat, sit please"/>
       <div style={{marginBottom:14}}>
@@ -6712,7 +6532,7 @@ export default function SaySee(){
       ) : homeMode==="settings" ? (
         <ErrorBoundary>
           <SettingsScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}
-            onLogout={logout} onNavigate={setHomeMode}/>
+            onLogout={logout}/>
         </ErrorBoundary>
       ) : homeMode==="reinforcers" ? (
         <ReinforcerSurveyScreen user={user} onBack={()=>setHomeMode("home")} onSave={()=>{}}/>
