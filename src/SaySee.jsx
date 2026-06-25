@@ -965,7 +965,26 @@ function WorkingForBoard({item, onPickNew, onBackToAAC, studentName}){
 }
 
 // ── First Then Board ──────────────────────────────────────────────
-function FirstThenBoard({firstItem, thenItem, onExit}){
+// ── Level-aware visual for boards (First-Then & Choice) ──────────
+// Renders an item at the student's assigned level: L1 photo (falls back to
+// emoji if none/broken), L2 color emoji, L3 grayscale emoji, L4 text-only
+// (returns null so the caller's word label carries the meaning).
+function BoardVisual({item, level=2, imgSize="min(40vw,30vh)", emojiSize="min(28vw,26vh)", radius=20}){
+  const [imgErr,setImgErr]=useState(false);
+  useEffect(()=>{ setImgErr(false); },[item&&item.id, item&&item.imgUrl, level]);
+  if(!item) return null;
+  if(level===4) return null;
+  const photo = item.imgUrl || getWordPhoto(item.id);
+  if(level===1 && photo && !imgErr){
+    return <img src={photo} alt={item.word||item.label||""}
+      style={{width:imgSize,height:imgSize,objectFit:"cover",borderRadius:radius}}
+      onError={()=>setImgErr(true)}/>;
+  }
+  return <div style={{fontSize:emojiSize,lineHeight:1,
+    filter:level===3?"grayscale(100%) contrast(0.55)":"none"}}>{item.emoji||"🎯"}</div>;
+}
+
+function FirstThenBoard({firstItem, thenItem, level=2, onExit}){
   return(
     <div style={{position:"fixed", inset:0, zIndex:200,
       display:"flex", flexDirection:"column", overflow:"hidden", background:"#E3F2FD"}}>
@@ -991,12 +1010,7 @@ function FirstThenBoard({firstItem, thenItem, onExit}){
         {firstItem ? (
           <div style={{display:"flex", flexDirection:"column", alignItems:"center",
             gap:8, animation:"popIn 0.4s ease", minHeight:0}}>
-            {firstItem.imgUrl
-              ? <img src={firstItem.imgUrl} alt={firstItem.word}
-                  style={{width:"min(40vw,30vh)", height:"min(40vw,30vh)",
-                    objectFit:"cover", borderRadius:20}}
-                  onError={e=>{e.target.style.display='none';}}/>
-              : <div style={{fontSize:"min(28vw,26vh)", lineHeight:1}}>{firstItem.emoji}</div>}
+            <BoardVisual item={firstItem} level={level}/>
             <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(22px,7vw,40px)",
               color:"#1B65B8", textAlign:"center"}}>{firstItem.display||firstItem.label}</div>
           </div>
@@ -1020,12 +1034,7 @@ function FirstThenBoard({firstItem, thenItem, onExit}){
         {thenItem ? (
           <div style={{display:"flex", flexDirection:"column", alignItems:"center",
             gap:8, animation:"popIn 0.4s ease", minHeight:0}}>
-            {thenItem.imgUrl
-              ? <img src={thenItem.imgUrl} alt={thenItem.word}
-                  style={{width:"min(40vw,30vh)", height:"min(40vw,30vh)",
-                    objectFit:"cover", borderRadius:20}}
-                  onError={e=>{e.target.style.display='none';}}/>
-              : <div style={{fontSize:"min(28vw,26vh)", lineHeight:1}}>{thenItem.emoji}</div>}
+            <BoardVisual item={thenItem} level={level}/>
             <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(22px,7vw,40px)",
               color:"#5AAB2A", textAlign:"center"}}>{thenItem.display||thenItem.label}</div>
           </div>
@@ -1042,7 +1051,7 @@ function FirstThenBoard({firstItem, thenItem, onExit}){
 }
 
 // ── Choice Board ──────────────────────────────────────────────────
-function ChoiceBoard({items, selected, onSelect, stage, onDone, onExit}){
+function ChoiceBoard({items, selected, onSelect, stage, level=2, onDone, onExit}){
   const isWorkingFor = stage === "workingfor_pick";
   const headerColor  = isWorkingFor ? "#F5A623" : "#8E44AD";
   const headerText   = isWorkingFor ? "🌟 Working for?"
@@ -1120,13 +1129,7 @@ function ChoiceBoard({items, selected, onSelect, stage, onDone, onExit}){
                 transition:"all 0.2s", overflow:"hidden"}}>
               <div style={{flex:1, width:"100%", minHeight:0, display:"flex",
                 alignItems:"center", justifyContent:"center", overflow:"hidden", borderRadius:12}}>
-                {item.imgUrl?(
-                  <img src={item.imgUrl} alt={item.word}
-                    style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:12}}
-                    onError={e=>{e.target.style.display='none';}}/>
-                ):(
-                  <div style={{fontSize:"clamp(32px,9vw,64px)",lineHeight:1}}>{item.emoji||"🎯"}</div>
-                )}
+                <BoardVisual item={item} level={level} imgSize="100%" emojiSize="clamp(32px,9vw,64px)" radius={12}/>
               </div>
               <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(13px,4vw,20px)",
                 color: isSelected ? "#fff" : "#333", textAlign:"center", lineHeight:1.1,
@@ -4655,6 +4658,8 @@ Reply with ONLY the matching word or NO_MATCH.`
   const timerStartRef  = useRef(null);
   const promptCountRef  = useRef(0);    // re-prompts within the current open trial
   const trialTimeoutRef = useRef(null); // 15s "assume followed" timeout for the open trial
+  const lastResultRef = useRef(0);      // timestamp of the last recognition result (for the stall watchdog)
+  const watchdogRef   = useRef(null);   // interval that restarts a stalled recognizer
 
   // ── Silent audio keep-alive ──
   // The browser's speech-recognition engine plays a system "earcon" (a beep)
@@ -4702,6 +4707,12 @@ Reply with ONLY the matching word or NO_MATCH.`
   const choiceStageRef = useRef("idle");
   useEffect(()=>{ appModeRef.current = appMode; },[appMode]);
   useEffect(()=>{ choiceStageRef.current = choiceStage; },[choiceStage]);
+  const firstItemRef = useRef(null);
+  const thenItemRef  = useRef(null);
+  const firstThenStageRef = useRef("idle");
+  useEffect(()=>{ firstItemRef.current = firstItem; },[firstItem]);
+  useEffect(()=>{ thenItemRef.current  = thenItem;  },[thenItem]);
+  useEffect(()=>{ firstThenStageRef.current = firstThenStage; },[firstThenStage]);
 
   // First-Then usage measure — counts each completed First-Then for the active student.
   // Measures USE of the First-Then support only; not a correct/incorrect judgement,
@@ -4751,8 +4762,9 @@ Reply with ONLY the matching word or NO_MATCH.`
     try{
       const rec=new SR();
       rec.continuous=true; rec.interimResults=true; rec.lang="en-US"; rec.maxAlternatives=3;
-      rec.onstart=()=>{ setListening(true); setMicError(""); startSilent(); };
+      rec.onstart=()=>{ setListening(true); setMicError(""); startSilent(); lastResultRef.current=Date.now(); };
       rec.onresult=(e)=>{
+        lastResultRef.current=Date.now();
         for(let i=e.resultIndex;i<e.results.length;i++){
           // Use interim results for faster display
           const isFinal = e.results[i].isFinal;
@@ -4811,29 +4823,30 @@ Reply with ONLY the matching word or NO_MATCH.`
 
             if(hasFirst && hasThen){
               // Full sentence detected — parse both parts at once
-              setAppMode("firstthen");
+              setAppMode("firstthen"); appModeRef.current="firstthen";
               const firstPart = t.split(/\bthen\b/i)[0].replace(/^(first|if)\s*/i,"").trim();
               const thenPart  = t.split(/\bthen\b/i)[1]?.replace(/^(you can|you get|you may|have|get)\s*/i,"").trim()||"";
               const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>firstPart.includes(tr)));
-              if(taskMatch) setFirstItem(taskMatch);
+              setFirstItem(taskMatch||null); firstItemRef.current=taskMatch||null;
               const rMatch = REINFORCERS.find(r=>thenPart.includes(r.label.toLowerCase())||thenPart.includes(r.id));
-              if(rMatch){ setThenItem({...rMatch,isThenReinforcer:true}); }
+              if(rMatch){ const it={...rMatch,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; }
               else {
                 const wordMatch2 = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>thenPart.includes(tr)));
-                if(wordMatch2) setThenItem(wordMatch2);
+                setThenItem(wordMatch2||null); thenItemRef.current=wordMatch2||null;
               }
               setFirstThenStage("complete");
               return;
             }
 
             if(hasFirst && !hasThen){
-              setAppMode("firstthen");
+              setAppMode("firstthen"); appModeRef.current="firstthen";
               setFirstThenStage("first");
-              setThenItem(null);
+              setFirstItem(null); firstItemRef.current=null;
+              setThenItem(null);  thenItemRef.current=null;
               const afterFirst = t.replace(/^(first|if)\s*/i,"").trim();
               if(afterFirst.length > 1){
                 const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterFirst.includes(tr)));
-                if(taskMatch) setFirstItem(taskMatch);
+                if(taskMatch){ setFirstItem(taskMatch); firstItemRef.current=taskMatch; }
               }
               return;
             }
@@ -4843,10 +4856,10 @@ Reply with ONLY the matching word or NO_MATCH.`
               const afterThen = t.replace(/.*?\bthen\b\s*/i,"").replace(/^(you can|you get|you may|have|get)\s*/i,"").trim();
               if(afterThen.length > 1){
                 const rMatch = REINFORCERS.find(r=>afterThen.includes(r.label.toLowerCase())||afterThen.includes(r.id));
-                if(rMatch){ setThenItem({...rMatch,isThenReinforcer:true}); setFirstThenStage("complete"); }
+                if(rMatch){ const it={...rMatch,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; setFirstThenStage("complete"); }
                 else {
                   const wordMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterThen.includes(tr)));
-                  if(wordMatch){ setThenItem(wordMatch); setFirstThenStage("complete"); }
+                  if(wordMatch){ setThenItem(wordMatch); thenItemRef.current=wordMatch; setFirstThenStage("complete"); }
                 }
               }
               return;
@@ -4936,6 +4949,7 @@ Reply with ONLY the matching word or NO_MATCH.`
               if(appModeRef.current==="firstthen" || appModeRef.current==="choice"){
                 setAppMode("aac"); appModeRef.current="aac";
                 setFirstItem(null); setThenItem(null); setFirstThenStage("idle");
+                firstItemRef.current=null; thenItemRef.current=null; firstThenStageRef.current="idle";
                 setChoiceItems([]); setChoiceSelected(null);
                 setChoiceStage("idle"); choiceStageRef.current="idle";
               }
@@ -4947,7 +4961,7 @@ Reply with ONLY the matching word or NO_MATCH.`
               timerStartRef.current = Date.now();
               promptCountRef.current = 0;
               clearInterval(timerRef.current);
-              timerRef.current = setInterval(()=>{ setResponseTimer(Date.now() - (timerStartRef.current||Date.now())); },100);
+              timerRef.current = setInterval(()=>{ setResponseTimer(Date.now() - (timerStartRef.current||Date.now())); },200);
               if(activeIdRef.current && aiModeRef.current){ setLevel(getStudentWordLevel(activeIdRef.current, word.id)); }
               startTrialTimeout();
             };
@@ -4965,14 +4979,23 @@ Reply with ONLY the matching word or NO_MATCH.`
               const correctionHit = CORRECTION.some(c=>phraseHit(fb,c));
               const rt = Date.now() - (timerStartRef.current||Date.now());
 
+              // After praise/correction closes the trial, a new command spoken in the same
+              // breath ("good, now touch your nose") should still open a new trial.
+              const nextCmd = ()=>{
+                const nw = wRef.current.find(w=> w.id!==openWord.id && (w.triggers||[w.word]).some(tr=>matchesTrigger(fb,tr)));
+                if(nw) openTrial(nw);
+              };
+
               if(correctionHit){
                 closeTrial("correction", rt);
                 setAiStatus("🔄 Correction noted"); setTimeout(()=>setAiStatus(""),1800);
+                nextCmd();
                 return;
               }
               if(praiseHit){
                 // praise after a prompt is still a prompted trial; praise with no prompt is independent
                 closeTrial(promptCountRef.current >= 1 ? "prompted" : "independent", rt);
+                nextCmd();
                 return;
               }
               if(saidTargetWord){
@@ -4988,6 +5011,22 @@ Reply with ONLY the matching word or NO_MATCH.`
                 return;
               }
               // not feedback for this trial — fall through (could be a brand-new instruction)
+            }
+
+            // ── 2b. First-Then sequential fill ──
+            // In First-Then mode, a plain word (no "first"/"then" keyword) fills the open
+            // slot instead of opening an AAC trial — supports "first" … pause … "sit down".
+            if(appModeRef.current==="firstthen"){
+              const wHit = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>matchesTrigger(t,tr)));
+              const rHit = REINFORCERS.find(r=>matchesTrigger(t,r.label.toLowerCase())||matchesTrigger(t,r.id));
+              if(!firstItemRef.current){
+                if(wHit){ setFirstItem(wHit); firstItemRef.current=wHit; setFirstThenStage("first"); return; }
+                if(rHit){ const it={...rHit,display:rHit.label}; setFirstItem(it); firstItemRef.current=it; setFirstThenStage("first"); return; }
+              } else if(!thenItemRef.current){
+                if(rHit){ const it={...rHit,display:rHit.label,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; setFirstThenStage("complete"); return; }
+                if(wHit){ setThenItem(wHit); thenItemRef.current=wHit; setFirstThenStage("complete"); return; }
+              }
+              // both slots full or no match — fall through to normal handling
             }
 
             // ── 3. Direct word match -> open a new trial ──
@@ -5016,12 +5055,36 @@ Reply with ONLY the matching word or NO_MATCH.`
         }
       };
       rec.onend=()=>{
-        if(lisRef.current){ startSilent(); try{ rec.start(); }catch{ lisRef.current=false; setListening(false); } }
-        else { setListening(false); }
+        if(!lisRef.current){ setListening(false); return; }
+        startSilent();
+        // Resilient restart: one transient start() failure shouldn't end the session.
+        let attempts=0;
+        const tryStart=()=>{
+          if(!lisRef.current) return;
+          try{ rec.start(); }
+          catch(err){
+            attempts++;
+            if(attempts<4){ setTimeout(tryStart,250); }
+            else { lisRef.current=false; setListening(false); }
+          }
+        };
+        tryStart();
       };
       recRef.current=rec;
       lisRef.current=true;
+      lastResultRef.current=Date.now();
       rec.start();
+      // Watchdog: on some tablets the recognizer goes quiet without firing onend.
+      // If no result arrives for a while, nudge a restart so the mic keeps responding.
+      clearInterval(watchdogRef.current);
+      watchdogRef.current=setInterval(()=>{
+        if(!lisRef.current) return;
+        const idle=Date.now()-(lastResultRef.current||0);
+        if(idle>9000){
+          lastResultRef.current=Date.now(); // reset so onend's restart gets a fresh window
+          try{ recRef.current && recRef.current.stop(); }catch{} // onend will restart it
+        }
+      },3000);
     } catch(err){
       setMicError("Could not start mic. Try opening this app directly in Chrome.");
       lisRef.current=false; setListening(false);
@@ -5030,11 +5093,12 @@ Reply with ONLY the matching word or NO_MATCH.`
 
   const stopMic=useCallback(()=>{
     lisRef.current=false; setListening(false); setMicError("");
+    clearInterval(watchdogRef.current);
     try{recRef.current?.stop();}catch{} recRef.current=null;
     stopSilent();
   },[]);
 
-  useEffect(()=>{ return()=>{ lisRef.current=false; try{recRef.current?.stop();}catch{}; try{silentRef.current?.osc.stop();}catch{} try{silentRef.current?.ctx.close();}catch{} silentRef.current=null; }; },[]);
+  useEffect(()=>{ return()=>{ lisRef.current=false; clearInterval(watchdogRef.current); try{recRef.current?.stop();}catch{}; try{silentRef.current?.osc.stop();}catch{} try{silentRef.current?.ctx.close();}catch{} silentRef.current=null; }; },[]);
 
   // Auto-start mic and close drawer when coming from Say tile
   useEffect(()=>{
@@ -5080,6 +5144,7 @@ Reply with ONLY the matching word or NO_MATCH.`
 
   const ac=curWord?.color||(allCats.find(c=>c.id===activeCat)?.color||"#1B65B8");
   const filtered=allWords.filter(w=>inCat(w,activeCat));
+  const boardLevel = activeStu?.level || level || 1;
 
   if(stuMode) return <StudentMode entry={curWord} level={level} listening={listening} transcript={transcript} onExit={()=>{ setStuMode(false); if(onGoHome) onGoHome(); }}/>;
 
@@ -5087,13 +5152,13 @@ Reply with ONLY the matching word or NO_MATCH.`
   // Show ABA boards when triggered
   if(autoStart && appMode==="firstthen") return(
     <FirstThenBoard
-      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage}
+      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel}
       onExit={()=>{setAppMode("aac");appModeRef.current="aac";setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}/>
   );
   if(autoStart && appMode==="choice") return(
     <ChoiceBoard
       items={choiceItems} selected={choiceSelected}
-      stage={choiceStage||"listening"}
+      stage={choiceStage||"listening"} level={boardLevel}
       onDone={()=>setChoiceStage("display")}
       onExit={()=>{
         setAppMode("aac"); appModeRef.current="aac";
@@ -5221,13 +5286,13 @@ Reply with ONLY the matching word or NO_MATCH.`
   // ABA boards for non-autoStart (traditional teacher view)
   if(appMode==="firstthen") return(
     <FirstThenBoard
-      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage}
+      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel}
       onExit={()=>{setAppMode("aac");appModeRef.current="aac";setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}/>
   );
   if(appMode==="choice") return(
     <ChoiceBoard
       items={choiceItems} selected={choiceSelected}
-      stage={choiceStage||"listening"}
+      stage={choiceStage||"listening"} level={boardLevel}
       onDone={()=>setChoiceStage("display")}
       onExit={()=>{
         setAppMode("aac"); appModeRef.current="aac";
