@@ -5183,6 +5183,8 @@ Reply with ONLY the matching word or NO_MATCH.`
             }
             // Add choices when in choice listening mode
             if(choiceStageRef.current === "listening"){
+              // multi-word praise/correction is feedback, never a choice
+              if(PRAISE.concat(CORRECTION).some(p=>p.indexOf(" ")!==-1 && t.includes(p))){ return; }
               const choiceWord = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>t.includes(tr)));
               const choiceReinforcer = REINFORCERS.find(r=>t.includes(r.label.toLowerCase()));
               const newChoice = choiceWord || (choiceReinforcer ? {...choiceReinforcer, display:choiceReinforcer.label} : null);
@@ -5271,6 +5273,27 @@ Reply with ONLY the matching word or NO_MATCH.`
               startTrialTimeout();
             };
 
+            // ── Multi-word praise / correction = feedback only (any mode) ──
+            // "good job", "well done", "try again" are NEVER a directive, a First-Then
+            // slot, or a choice. They score the open trial (if one is open) and leave the
+            // current word on screen, so a directive persists until a NEW directive is given.
+            {
+              const fbT = " " + t + " ";
+              const mwP = PRAISE.some(p=>p.indexOf(" ")!==-1 && phraseHit(fbT,p));
+              const mwC = CORRECTION.some(c=>c.indexOf(" ")!==-1 && phraseHit(fbT,c));
+              if(mwP || mwC){
+                if(appModeRef.current==="aac" && lastInstructionRef.current){
+                  const rt = Date.now() - (timerStartRef.current||Date.now());
+                  if(mwC){ closeTrial("correction", rt); setAiStatus("🔄 Correction noted"); }
+                  else { closeTrial(promptCountRef.current>=1?"prompted":"independent", rt); setAiStatus("👍 Logged as correct"); }
+                } else {
+                  setAiStatus(mwC ? "🔄 Correction" : "👍 Praise");
+                }
+                setTimeout(()=>setAiStatus(""),1600);
+                return;
+              }
+            }
+
             // ── 2. Teacher feedback on an OPEN trial (Say screen only) ──
             if(appModeRef.current === "aac" && lastInstructionRef.current){
               const openWord = lastInstructionRef.current;
@@ -5284,23 +5307,15 @@ Reply with ONLY the matching word or NO_MATCH.`
               const correctionHit = CORRECTION.some(c=>phraseHit(fb,c));
               const rt = Date.now() - (timerStartRef.current||Date.now());
 
-              // After praise/correction closes the trial, a new command spoken in the same
-              // breath ("good, now touch your nose") should still open a new trial.
-              const nextCmd = ()=>{
-                const nw = wRef.current.find(w=> w.id!==openWord.id && (w.triggers||[w.word]).some(tr=>matchesTrigger(fb,tr)));
-                if(nw) openTrial(nw);
-              };
-
               if(correctionHit){
                 closeTrial("correction", rt);
                 setAiStatus("🔄 Correction noted"); setTimeout(()=>setAiStatus(""),1800);
-                nextCmd();
                 return;
               }
               if(praiseHit){
-                // praise after a prompt is still a prompted trial; praise with no prompt is independent
+                // praise with no prompt is independent; after a prompt it's a prompted trial.
+                // The current word stays on screen — a new word appears only on a new directive.
                 closeTrial(promptCountRef.current >= 1 ? "prompted" : "independent", rt);
-                nextCmd();
                 return;
               }
               if(saidTargetWord){
