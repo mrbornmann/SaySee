@@ -508,6 +508,71 @@ const MASTER_WORDS = [
   {id:37,cat:"actions",   word:"come here",  display:"COME HERE",    emoji:"👋", photo:"teacher waving child come",        color:"#5AAB2A", triggers:["come here","come to me"]},
   {id:38,cat:"actions",   word:"go",         display:"GO",           emoji:"🚦", photo:"green traffic light go",           color:"#5AAB2A", triggers:["let's go","go ahead","time to go","ready go"]},
   {id:39,cat:"actions",   word:"try again",  display:"TRY AGAIN",    emoji:"🔄", photo:"child trying again",               color:"#1ABC9C", triggers:["try again","let's try again"]},
+  // ── Comprehensive Classroom Library (64 phrases, deduped vs base; no Pexels — upload-driven photos) ──
+  {id:"lib_watch_me", cat:"classroom", word:"watch me", display:"WATCH ME", emoji:"👀", color:"#2980B9", triggers:["watch me"]},
+  {id:"lib_stay_with_the_group", cat:"classroom", word:"stay with the group", display:"STAY WITH THE GROUP", emoji:"👥", color:"#2980B9", triggers:["stay with the group","stay with group","stay together"]},
+  {id:"lib_go_back", cat:"classroom", word:"go back", display:"GO BACK", emoji:"↩️", color:"#2980B9", triggers:["go back","go back please"]},
+  {id:"lib_slow_down", cat:"classroom", word:"slow down", display:"SLOW DOWN", emoji:"🐢", color:"#2980B9", triggers:["slow down","slowly"]},
+  {id:"lib_answer_the_question", cat:"classroom", word:"answer the question", display:"ANSWER", emoji:"🙋", color:"#2980B9", triggers:["answer the question","answer please"]},
+  {id:"lib_take_turns", cat:"classroom", word:"take turns", display:"TAKE TURNS", emoji:"🔁", color:"#2980B9", triggers:["take turns","your turn","my turn","whose turn"]},
+  {id:"lib_share", cat:"classroom", word:"share", display:"SHARE", emoji:"🤲", color:"#2980B9", triggers:["share","share with your friends"]},
+  {id:"lib_help_a_friend", cat:"classroom", word:"help a friend", display:"HELP A FRIEND", emoji:"🫂", color:"#2980B9", triggers:["help a friend","help your friend"]},
+  {id:"lib_ask_for_help", cat:"classroom", word:"ask for help", display:"ASK FOR HELP", emoji:"🆘", color:"#2980B9", triggers:["ask for help","raise your hand for help"]},
+  {id:"lib_finish_your_work", cat:"academic", word:"finish your work", display:"FINISH YOUR WORK", emoji:"🏁", color:"#8E44AD", triggers:["finish your work","finish work","all finished"]},
+  {id:"lib_check_your_work", cat:"academic", word:"check your work", display:"CHECK YOUR WORK", emoji:"🔍", color:"#8E44AD", triggers:["check your work","check work","go back and check"]},
+  {id:"lib_math_book", cat:"academic", word:"math book", display:"MATH BOOK", emoji:"📕", color:"#8E44AD", triggers:["math book","take out your math book","get your math book"]},
+  {id:"lib_reading_book", cat:"reading", word:"reading book", display:"READING BOOK", emoji:"📗", color:"#D98324", triggers:["reading book","take out your reading book"]},
+  {id:"lib_notebook", cat:"writing", word:"notebook", display:"NOTEBOOK", emoji:"📓", color:"#9B59B6", triggers:["notebook","open your notebook","take out your notebook"]},
+  {id:"lib_crayons", cat:"writing", word:"crayons", display:"CRAYONS", emoji:"🖍️", color:"#9B59B6", triggers:["crayons","get your crayons"]},
+  {id:"lib_put_your_supplies_away", cat:"classroom", word:"put your supplies away", display:"SUPPLIES AWAY", emoji:"🧺", color:"#2980B9", triggers:["put your supplies away","supplies away","put your things away"]},
+  {id:"lib_circle_time", cat:"classroom", word:"circle time", display:"CIRCLE TIME", emoji:"⭕", color:"#2980B9", triggers:["circle time","come to the circle","go to circle"]},
+  {id:"lib_morning_meeting", cat:"classroom", word:"morning meeting", display:"MORNING MEETING", emoji:"🌅", color:"#2980B9", triggers:["morning meeting"]},
+  {id:"lib_calendar", cat:"classroom", word:"calendar", display:"CALENDAR", emoji:"📅", color:"#2980B9", triggers:["calendar","calendar time"]},
+  {id:"lib_centers", cat:"classroom", word:"centers", display:"CENTERS", emoji:"🎯", color:"#2980B9", triggers:["centers","center time"]},
+  {id:"lib_small_group", cat:"classroom", word:"small group", display:"SMALL GROUP", emoji:"👨‍👩‍👧", color:"#2980B9", triggers:["small group","small group time"]},
+  {id:"lib_independent_work", cat:"classroom", word:"independent work", display:"INDEPENDENT WORK", emoji:"✍️", color:"#2980B9", triggers:["independent work","work by yourself","work alone"]},
+  {id:"lib_partner_work", cat:"classroom", word:"partner work", display:"PARTNER WORK", emoji:"👫", color:"#2980B9", triggers:["partner work","work with a partner","partners"]},
+  {id:"lib_pe", cat:"ape", word:"pe", display:"PE", emoji:"🤸", color:"#FD79A8", triggers:["p e","pe","gym","physical education","gym time"]},
+  {id:"lib_music", cat:"classroom", word:"music", display:"MUSIC", emoji:"🎵", color:"#2980B9", triggers:["music","music time","music class"]},
+  {id:"lib_art", cat:"classroom", word:"art", display:"ART", emoji:"🎨", color:"#2980B9", triggers:["art","art class"]},
+  {id:"lib_computer", cat:"academic", word:"computer", display:"COMPUTER", emoji:"💻", color:"#8E44AD", triggers:["computer","computer time","on the computer"]},
+  {id:"lib_chromebook", cat:"academic", word:"chromebook", display:"CHROMEBOOK", emoji:"💻", color:"#8E44AD", triggers:["chromebook","get your chromebook"]},
+  {id:"lib_ipad", cat:"academic", word:"ipad", display:"IPAD", emoji:"📱", color:"#8E44AD", triggers:["ipad","tablet","get your ipad"]},
+  {id:"lib_wash_hands", cat:"health", word:"wash hands", display:"WASH HANDS", emoji:"🧼", color:"#E74C3C", triggers:["wash hands","wash your hands"]},
+  {id:"lib_dry_hands", cat:"health", word:"dry hands", display:"DRY HANDS", emoji:"🧻", color:"#E74C3C", triggers:["dry hands","dry your hands"]},
+  {id:"lib_drink_water", cat:"health", word:"drink water", display:"DRINK WATER", emoji:"🚰", color:"#E74C3C", triggers:["drink water","get a drink","water fountain","get some water"]},
+  {id:"lib_blow_your_nose", cat:"health", word:"blow your nose", display:"BLOW YOUR NOSE", emoji:"🤧", color:"#E74C3C", triggers:["blow your nose","get a tissue"]},
+  {id:"lib_cover_your_cough", cat:"health", word:"cover your cough", display:"COVER YOUR COUGH", emoji:"😷", color:"#E74C3C", triggers:["cover your cough","cough in your elbow"]},
+  {id:"lib_jacket", cat:"clothing", word:"jacket", display:"JACKET", emoji:"🧥", color:"#FAB1A0", triggers:["put on your jacket","jacket","coat","put on your coat"]},
+  {id:"lib_tie_your_shoes", cat:"clothing", word:"tie your shoes", display:"TIE YOUR SHOES", emoji:"👟", color:"#FAB1A0", triggers:["tie your shoes","tie your shoe","shoes"]},
+  {id:"lib_calm_body", cat:"emotions", word:"calm body", display:"CALM BODY", emoji:"🧘", color:"#F1C40F", triggers:["calm body","calm your body"]},
+  {id:"lib_deep_breath", cat:"emotions", word:"deep breath", display:"DEEP BREATH", emoji:"😮‍💨", color:"#F1C40F", triggers:["take a deep breath","deep breath","deep breaths"]},
+  {id:"lib_break", cat:"emotions", word:"break", display:"BREAK", emoji:"⏸️", color:"#F1C40F", triggers:["take a break","break time","i need a break"]},
+  {id:"lib_safe_body", cat:"emotions", word:"safe body", display:"SAFE BODY", emoji:"🛡️", color:"#F1C40F", triggers:["safe body","keep a safe body"]},
+  {id:"lib_throw_it_away", cat:"classroom", word:"throw it away", display:"THROW IT AWAY", emoji:"🗑️", color:"#2980B9", triggers:["throw it away","throw away","in the trash"]},
+  {id:"lib_put_it_away", cat:"classroom", word:"put it away", display:"PUT IT AWAY", emoji:"📦", color:"#2980B9", triggers:["put it away","put away","put away your toys"]},
+  {id:"lib_push_in_your_chair", cat:"classroom", word:"push in your chair", display:"PUSH IN YOUR CHAIR", emoji:"🪑", color:"#2980B9", triggers:["push in your chair","push your chair in"]},
+  {id:"lib_carpet", cat:"classroom", word:"carpet", display:"CARPET", emoji:"🟦", color:"#2980B9", triggers:["go to the carpet","carpet","come to the carpet","on the carpet"]},
+  {id:"lib_desk", cat:"classroom", word:"desk", display:"DESK", emoji:"🗄️", color:"#2980B9", triggers:["go to your desk","at your desk","back to your desk"]},
+  {id:"lib_come_inside", cat:"classroom", word:"come inside", display:"COME INSIDE", emoji:"🏫", color:"#2980B9", triggers:["come inside","time to come in","line up to come inside"]},
+  {id:"lib_time_to_leave", cat:"classroom", word:"time to leave", display:"TIME TO LEAVE", emoji:"🚪", color:"#2980B9", triggers:["time to leave","time to go home"]},
+  {id:"lib_get_ready_to_go_home", cat:"classroom", word:"get ready to go home", display:"GO HOME", emoji:"🏠", color:"#2980B9", triggers:["get ready to go home","pack up to go home","time for dismissal"]},
+  {id:"lib_open_your_book", cat:"reading", word:"open your book", display:"OPEN YOUR BOOK", emoji:"📖", color:"#D98324", triggers:["open your book","open book","open to the page"]},
+  {id:"lib_close_your_book", cat:"reading", word:"close your book", display:"CLOSE YOUR BOOK", emoji:"📕", color:"#D98324", triggers:["close your book","close book"]},
+  {id:"lib_tiger", cat:"animals", word:"tiger", display:"TIGER", emoji:"🐯", color:"#27AE60", triggers:["tiger"]},
+  {id:"lib_burrito", cat:"food", word:"burrito", display:"BURRITO", emoji:"🌯", color:"#E74C3C", triggers:["burrito"]},
+  {id:"lib_chair", cat:"classroom", word:"chair", display:"CHAIR", emoji:"🪑", color:"#2980B9", triggers:["the chair","sit on the chair"]},
+  {id:"lib_red", cat:"academic", word:"red", display:"RED", emoji:"🔴", color:"#8E44AD", triggers:["red","the color red"]},
+  {id:"lib_blue", cat:"academic", word:"blue", display:"BLUE", emoji:"🔵", color:"#8E44AD", triggers:["blue","the color blue"]},
+  {id:"lib_green", cat:"academic", word:"green", display:"GREEN", emoji:"🟢", color:"#8E44AD", triggers:["green","the color green"]},
+  {id:"lib_circle", cat:"math", word:"circle", display:"CIRCLE", emoji:"⚪", color:"#3498DB", triggers:["the circle","circle shape"]},
+  {id:"lib_square", cat:"math", word:"square", display:"SQUARE", emoji:"🟥", color:"#3498DB", triggers:["square","square shape"]},
+  {id:"lib_triangle", cat:"math", word:"triangle", display:"TRIANGLE", emoji:"🔺", color:"#3498DB", triggers:["triangle","triangle shape"]},
+  {id:"lib_number_one", cat:"math", word:"number one", display:"NUMBER 1", emoji:"1️⃣", color:"#3498DB", triggers:["number one","number 1"]},
+  {id:"lib_number_two", cat:"math", word:"number two", display:"NUMBER 2", emoji:"2️⃣", color:"#3498DB", triggers:["number two","number 2"]},
+  {id:"lib_number_three", cat:"math", word:"number three", display:"NUMBER 3", emoji:"3️⃣", color:"#3498DB", triggers:["number three","number 3"]},
+  {id:"lib_number_four", cat:"math", word:"number four", display:"NUMBER 4", emoji:"4️⃣", color:"#3498DB", triggers:["number four","number 4"]},
+  {id:"lib_number_five", cat:"math", word:"number five", display:"NUMBER 5", emoji:"5️⃣", color:"#3498DB", triggers:["number five","number 5"]},
 ];
 
 const CATS_VERSION = 2;
@@ -991,7 +1056,7 @@ function BoardVisual({item, level=2, imgSize="min(40vw,30vh)", emojiSize="min(28
   useEffect(()=>{ setImgErr(false); },[item&&item.id, item&&item.imgUrl, level]);
   if(!item) return null;
   if(level===4) return null;
-  const photo = item.imgUrl || getWordPhoto(item.id);
+  const photo = getWordPhoto(item.id);
   if(level===1 && photo && !imgErr){
     return <img src={photo} alt={item.word||item.label||""}
       style={{width:imgSize,height:imgSize,objectFit:"cover",borderRadius:radius}}
@@ -1070,7 +1135,7 @@ function FirstThenBoard({firstItem, thenItem, level=2, onExit}){
 // ── Choice Board ──────────────────────────────────────────────────
 function ChoiceBoard({items, selected, onSelect, stage, level=2, onDone, onExit}){
   const isWorkingFor = stage === "workingfor_pick";
-  const headerColor  = isWorkingFor ? "#F5A623" : "#8E44AD";
+  const headerColor  = isWorkingFor ? "#F5A623" : "#1B65B8";
   const headerText   = isWorkingFor ? "🌟 Working for?"
                      : stage === "listening" ? "🎯 Add choices…"
                      : "Choice Board";
@@ -1082,7 +1147,7 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, onDone, onExit}
 
   return(
     <div style={{position:"fixed", inset:0,
-      background: isWorkingFor ? "#FFF8E7" : "#F3E5F5",
+      background: isWorkingFor ? "#FFF8E7" : "#E3F2FD",
       display:"flex", flexDirection:"column", zIndex:200, overflow:"hidden"}}>
       {/* Header */}
       <div style={{background:headerColor, padding:"10px 14px",
@@ -1112,9 +1177,9 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, onDone, onExit}
 
       {/* Listening status — keeps prompting until all 6 slots are used */}
       {stage==="listening"&&items.length<SLOTS&&(
-        <div style={{background:"rgba(142,68,173,0.10)",padding:"8px 14px",
+        <div style={{background:"rgba(27,101,184,0.10)",padding:"8px 14px",
           textAlign:"center",flexShrink:0}}>
-          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#8E44AD",fontWeight:800}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#1B65B8",fontWeight:800}}>
             {items.length===0
               ? "Say the first choice… (up to 6)"
               : `${items.length} added — say another, or tap ✓ Done`}
@@ -1130,7 +1195,7 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, onDone, onExit}
           if(!item){
             return(
               <div key={`empty-${i}`} style={{borderRadius:18,
-                border: stage==="listening" ? "2px dashed rgba(142,68,173,0.25)" : "none",
+                border: stage==="listening" ? "2px dashed rgba(27,101,184,0.25)" : "none",
                 background: stage==="listening" ? "rgba(255,255,255,0.35)" : "transparent"}}/>
             );
           }
@@ -3025,7 +3090,9 @@ function WordDetailPanel({word, user, onClose}){
           }
         }catch(e){}
       }
-      if(alive && !customPhoto && !hasDefault && !unsplashUrl) fetchWordImage();
+      // Pexels auto-pull disabled — Level 1 shows the upload prompt until a real photo is
+      // uploaded (admin default or teacher photo). fetchWordImage remains for an explicit pull.
+      void alive;
     })();
     return ()=>{ alive=false; };
   },[]);
@@ -5080,6 +5147,7 @@ Reply with ONLY the matching word or NO_MATCH.`
   ];
   const GREETINGS = ["good morning","good afternoon","good evening","welcome back","welcome to class","welcome","glad you're here","glad to see you","nice to see you","happy to see you","how are you","how are you doing","good to see you"];
   const CONVO = ["how was your","i talked with","i talked to","i spoke with","i'm going to help","i am going to help","i will help","let me tell you","over the weekend","this morning i"];
+  const TRANSITIONS = ["let's move on","lets move on","moving on","in a minute","in just a minute","almost done","almost finished","almost time","wrap it up","wrapping up","one more minute","time is almost up","let's get ready","two more minutes","five more minutes"];
   const QUESTION_LEADS = ["are you","is it","is this","is that","do you","does it","did you","can you point","point to","show me","find the","find your","where is","where's","what is","what's","what color","what number","which color","which number","which one is","which is","who is","who's","how many","how much"];
   const POLAR_LEADS = ["are you","do you want","do you like","does it","did you","is it","is this","is that","would you like"];
   const AFFIRM_CUES = ["yes","yeah","yep","that's right","i see you","you are","you do","sorry to hear","i hear you","you feel","i can see you","good choice"];
@@ -5087,6 +5155,61 @@ Reply with ONLY the matching word or NO_MATCH.`
   const FILLER = ["please","okay","ok","alright","all right","everyone","friends","guys","class","kiddos","team","can you","could you","would you","will you","let's","lets","i need you to","i want you to","i'd like you to","i would like you to","it's time to","its time to","time to","hey","now","go ahead and","let me see you","let me see"];
   const stripFiller = (txt)=>{ let r=" "+txt+" "; FILLER.forEach(f=>{ try{ r=r.replace(new RegExp(`\\b${_esc(f)}\\b`,'gi')," "); }catch(_e){} }); return r.replace(/\s+/g," ").trim(); };
   const longestMatch = (txt)=>{ let b=null,L=-1; for(const w of wRef.current){ for(const tr of (w.triggers||[w.word])){ if(_wb(txt,tr) && (""+tr).length>L){ b=w; L=(""+tr).length; } } } return b; };
+
+  // ── Yelling / loud-voice detection (opt-in; taps the mic via an AnalyserNode) ──
+  const [yellingEnabled,setYellingEnabled] = useState(()=>mem.get(`set_yell_${user.id}`, false));
+  const yellingRef = useRef(yellingEnabled);
+  const volRef = useRef(null);
+  const yellCooldownRef = useRef(0);
+  const triggerYellingSupport = ()=>{
+    const now=Date.now();
+    if(now - yellCooldownRef.current < 8000) return;     // don't re-fire within 8s
+    yellCooldownRef.current = now;
+    const sup = SUPPORT_WORDS.find(s=>s.id==="sup_quiet"); if(!sup) return;
+    setAppMode("aac"); appModeRef.current="aac";
+    setFirstItem(null); setThenItem(null); setFirstThenStage("idle"); firstItemRef.current=null; thenItemRef.current=null; firstThenStageRef.current="idle";
+    setChoiceItems([]); setChoiceStage("idle"); choiceStageRef.current="idle"; setQOptions(null); pendingYNRef.current=null;
+    lastInstructionRef.current=null; if(trialTimeoutRef.current){ clearTimeout(trialTimeoutRef.current); trialTimeoutRef.current=null; }
+    setCurWord(sup); setFlash(true); setTimeout(()=>setFlash(false),700);
+    setAiStatus("🔊 Loud — showing "+sup.display); setTimeout(()=>setAiStatus(""),2500);
+  };
+  const stopVolumeMonitor = ()=>{
+    const v=volRef.current; if(!v) return; volRef.current=null;
+    try{ cancelAnimationFrame(v.raf); }catch(_e){}
+    try{ v.stream.getTracks().forEach(tr=>tr.stop()); }catch(_e){}
+    try{ v.ctx.close(); }catch(_e){}
+  };
+  const startVolumeMonitor = ()=>{
+    if(!yellingRef.current || volRef.current) return;
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+        if(!yellingRef.current){ try{ stream.getTracks().forEach(tr=>tr.stop()); }catch(_e){} return; }
+        const ctx=new AC();
+        const src=ctx.createMediaStreamSource(stream);
+        const an=ctx.createAnalyser(); an.fftSize=512;
+        src.connect(an);
+        const arr=new Uint8Array(an.fftSize);
+        let loudSince=0;
+        const tick=()=>{
+          if(!volRef.current) return;
+          an.getByteTimeDomainData(arr);
+          let sum=0; for(let i=0;i<arr.length;i++){ const d=(arr[i]-128)/128; sum+=d*d; }
+          const rms=Math.sqrt(sum/arr.length);
+          const now=Date.now();
+          if(rms > 0.32){                                  // loud threshold (calibratable)
+            if(!loudSince) loudSince=now;
+            else if(now-loudSince > 1200){ loudSince=0; triggerYellingSupport(); }  // sustained ~1.2s
+          } else loudSince=0;
+          if(volRef.current) volRef.current.raf=requestAnimationFrame(tick);
+        };
+        volRef.current={ ctx, stream, raf:requestAnimationFrame(tick) };
+      }).catch(()=>{});
+    }catch(_e){}
+  };
+  useEffect(()=>{ yellingRef.current=yellingEnabled; try{ mem.set(`set_yell_${user.id}`,yellingEnabled); }catch(_e){} if(yellingEnabled){ if(lisRef.current) startVolumeMonitor(); } else { stopVolumeMonitor(); } },[yellingEnabled]);
+  useEffect(()=>{ if(listening && yellingRef.current) startVolumeMonitor(); else stopVolumeMonitor(); },[listening]);
 
   const startMic=useCallback(()=>{
     setMicError("");
@@ -5193,12 +5316,12 @@ Reply with ONLY the matching word or NO_MATCH.`
               setAppMode("firstthen"); appModeRef.current="firstthen";
               const firstPart = t.split(/\bthen\b/i)[0].replace(/^(first|if)\s*/i,"").trim();
               const thenPart  = t.split(/\bthen\b/i)[1]?.replace(/^(you can|you get|you may|have|get)\s*/i,"").trim()||"";
-              const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>firstPart.includes(tr)));
+              const taskMatch = longestMatch(stripFiller(firstPart));
               setFirstItem(taskMatch||null); firstItemRef.current=taskMatch||null;
               const rMatch = REINFORCERS.find(r=>thenPart.includes(r.label.toLowerCase())||thenPart.includes(r.id));
               if(rMatch){ const it={...rMatch,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; }
               else {
-                const wordMatch2 = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>thenPart.includes(tr)));
+                const wordMatch2 = longestMatch(stripFiller(thenPart));
                 setThenItem(wordMatch2||null); thenItemRef.current=wordMatch2||null;
               }
               setFirstThenStage("complete");
@@ -5212,7 +5335,7 @@ Reply with ONLY the matching word or NO_MATCH.`
               setThenItem(null);  thenItemRef.current=null;
               const afterFirst = t.replace(/^(first|if)\s*/i,"").trim();
               if(afterFirst.length > 1){
-                const taskMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterFirst.includes(tr)));
+                const taskMatch = longestMatch(stripFiller(afterFirst));
                 if(taskMatch){ setFirstItem(taskMatch); firstItemRef.current=taskMatch; }
               }
               return;
@@ -5225,7 +5348,7 @@ Reply with ONLY the matching word or NO_MATCH.`
                 const rMatch = REINFORCERS.find(r=>afterThen.includes(r.label.toLowerCase())||afterThen.includes(r.id));
                 if(rMatch){ const it={...rMatch,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; setFirstThenStage("complete"); }
                 else {
-                  const wordMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>afterThen.includes(tr)));
+                  const wordMatch = longestMatch(stripFiller(afterThen));
                   if(wordMatch){ setThenItem(wordMatch); thenItemRef.current=wordMatch; setFirstThenStage("complete"); }
                 }
               }
@@ -5247,36 +5370,16 @@ Reply with ONLY the matching word or NO_MATCH.`
             if(choiceStageRef.current === "listening"){
               // multi-word praise/correction is feedback, never a choice
               if(PRAISE.concat(CORRECTION).some(p=>p.indexOf(" ")!==-1 && t.includes(p))){ return; }
-              const choiceWord = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>t.includes(tr)));
+              const choiceWord = longestMatch(stripFiller(t));
               const choiceReinforcer = REINFORCERS.find(r=>t.includes(r.label.toLowerCase()));
+              // Pull straight from the word list — render at the student's level via BoardVisual.
+              // No Pexels: a choice uses the word's own emoji / uploaded photo, levelized like the board.
               const newChoice = choiceWord || (choiceReinforcer ? {...choiceReinforcer, display:choiceReinforcer.label} : null);
               if(newChoice){
-                // Fetch image for this choice from Pexels
-                const PEXELS_KEY = import.meta.env.VITE_PEXELS_KEY||"";
-                const wordStr = (newChoice.word||"").toLowerCase();
-                const cachedImg = mem.get(`word_img_v4_${wordStr.replace(/\s+/g,'_')}`, null);
-                const enrichedChoice = {...newChoice, imgUrl: cachedImg||null};
-
-                if(PEXELS_KEY && !cachedImg){
-                  // Fetch in background
-                  fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(wordStr+" plain white background")}&per_page=1&orientation=square&size=medium`,
-                    {headers:{Authorization:PEXELS_KEY}})
-                  .then(r=>r.json()).then(d=>{
-                    const p = d.photos?.[0]?.src||{};
-                    const url = p.large||p.medium||p.small;
-                    if(url){
-                      mem.set(`word_img_v4_${wordStr.replace(/\s+/g,'_')}`, url);
-                      setChoiceItems(prev=>prev.map(c=>
-                        c.id===newChoice.id ? {...c, imgUrl:url} : c
-                      ));
-                    }
-                  }).catch(()=>{});
-                }
-
                 setChoiceItems(prev=>{
                   if(prev.length >= 6) return prev;
                   if(prev.find(c=>c.id===newChoice.id)) return prev;
-                  return [...prev, enrichedChoice];
+                  return [...prev, newChoice];
                 });
               }
               return;
@@ -5338,6 +5441,15 @@ Reply with ONLY the matching word or NO_MATCH.`
             // ── Greeting / conversation = keep the current image (no visual) ──
             if(GREETINGS.some(p=>_wb(t,p)) || CONVO.some(p=>_wb(t,p))){
               setAiStatus(GREETINGS.some(p=>_wb(t,p))?"👋 Greeting":"💬"); setTimeout(()=>setAiStatus(""),1200);
+              return;
+            }
+
+            // ── Transition (no target) = keep the current image ──
+            // "let's move on", "in a minute", "almost done" carry no new instruction, so leave the
+            // current visual up. A transition WITH a task ("now take out your math book") still
+            // falls through to the instruction matcher below, since it contains a word match.
+            if(TRANSITIONS.some(p=>_wb(t,p)) && !longestMatch(stripFiller(t))){
+              setAiStatus("⏭️"); setTimeout(()=>setAiStatus(""),1000);
               return;
             }
 
@@ -5405,7 +5517,7 @@ Reply with ONLY the matching word or NO_MATCH.`
             // In First-Then mode, a plain word (no "first"/"then" keyword) fills the open
             // slot instead of opening an AAC trial — supports "first" … pause … "sit down".
             if(appModeRef.current==="firstthen"){
-              const wHit = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>matchesTrigger(t,tr)));
+              const wHit = longestMatch(stripFiller(t));
               const rHit = REINFORCERS.find(r=>matchesTrigger(t,r.label.toLowerCase())||matchesTrigger(t,r.id));
               if(!firstItemRef.current){
                 if(wHit){ setFirstItem(wHit); firstItemRef.current=wHit; setFirstThenStage("first"); return; }
@@ -5440,10 +5552,22 @@ Reply with ONLY the matching word or NO_MATCH.`
             if(directMatch){
               openTrial(directMatch);
             } else if(t.length > 3 && aiModeRef.current){
-              // ── 4. No direct match — try semantic matching ──
+              // ── Teacher Intent Mode (Phase 5) — rules found nothing, ask the model to read intent.
+              // Sends only the anonymized phrase + word list; routes the match as a question
+              // (comprehension, its own data stream) or an instruction depending on phrasing.
               trackUnmatched(t);
+              const wasQuestion = QUESTION_LEADS.some(p=>_wb(t,p)) || /\?\s*$/.test(t);
               semanticMatch(t, wRef.current).then(semanticWord=>{
-                if(semanticWord){ openTrial(semanticWord); }
+                if(!semanticWord) return;
+                if(wasQuestion){
+                  setAppMode("aac"); appModeRef.current="aac";
+                  lastInstructionRef.current=null; if(trialTimeoutRef.current){ clearTimeout(trialTimeoutRef.current); trialTimeoutRef.current=null; }
+                  setCurWord(semanticWord); setQOptions(null); setFlash(true); setTimeout(()=>setFlash(false),500);
+                  logQuestion(semanticWord, "shown", activeIdRef.current);
+                  setAiStatus("❓ "+(semanticWord.display||semanticWord.word)); setTimeout(()=>setAiStatus(""),1800);
+                } else {
+                  openTrial(semanticWord);
+                }
               });
             }
           } else setTrans(t);
@@ -6006,6 +6130,15 @@ Reply with ONLY the matching word or NO_MATCH.`
                     <div style={{fontSize:12,color:"#AAA",marginTop:2}}>Top priority. Phrases like “stop,” “nice hands,” and “no throwing” instantly show a support visual.</div>
                   </div>
                   <button onClick={()=>setEmergencyEnabled(v=>!v)} style={{flexShrink:0,padding:"8px 16px",borderRadius:30,border:"none",background:emergencyEnabled?"#5AAB2A":"#E0E0E0",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>{emergencyEnabled?"ON":"OFF"}</button>
+                </div>
+
+                {/* Yelling / loud-voice detection toggle (opt-in) */}
+                <div style={{background:"#F8F9FC",borderRadius:14,padding:16,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{flex:1,paddingRight:10}}>
+                    <div style={{fontWeight:800,fontSize:14,color:"#1A1A2E"}}>Yelling detection</div>
+                    <div style={{fontSize:12,color:"#AAA",marginTop:2}}>Listens to the room's volume; sustained loudness shows the “quiet voice” support. Needs mic access — calibrate to your classroom.</div>
+                  </div>
+                  <button onClick={()=>setYellingEnabled(v=>!v)} style={{flexShrink:0,padding:"8px 16px",borderRadius:30,border:"none",background:yellingEnabled?"#5AAB2A":"#E0E0E0",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>{yellingEnabled?"ON":"OFF"}</button>
                 </div>
 
                 {/* How it works */}
@@ -6889,8 +7022,16 @@ export default function SaySee(){
           base=local;
         }
         if(!off&&base&&base.length){
-          setMasterWords(base);
-          try{ localStorage.setItem("saysee_master_words", JSON.stringify(base)); }catch(e){}
+          // Merge in any new seed words (e.g. the Comprehensive Library) the Supabase base
+          // doesn't have yet, so they appear even when the base table is already populated.
+          const ids=new Set(base.map(x=>x.id));
+          const missing=[...MASTER_WORDS,...DEV_WORDS].filter(sw=>!ids.has(sw.id));
+          const merged=missing.length?[...base,...missing]:base;
+          setMasterWords(merged);
+          try{ localStorage.setItem("saysee_master_words", JSON.stringify(merged)); }catch(e){}
+          // Push ONLY the newly-added base words up to Supabase (admin) so other devices get them;
+          // existing words are left untouched, preserving any admin edits.
+          if(missing.length && user.role==="admin"){ for(const m of missing){ try{ await sbWords.upsertBase(m); }catch(e){} } }
         }
       }catch(e){}
     })();
