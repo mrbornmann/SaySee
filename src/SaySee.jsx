@@ -1051,12 +1051,12 @@ function WorkingForBoard({item, onPickNew, onBackToAAC, studentName}){
 // Renders an item at the student's assigned level: L1 photo (falls back to
 // emoji if none/broken), L2 color emoji, L3 grayscale emoji, L4 text-only
 // (returns null so the caller's word label carries the meaning).
-function BoardVisual({item, level=2, imgSize="min(40vw,30vh)", emojiSize="min(28vw,26vh)", radius=20}){
+function BoardVisual({item, level=2, uid, imgSize="min(40vw,30vh)", emojiSize="min(28vw,26vh)", radius=20}){
   const [imgErr,setImgErr]=useState(false);
   useEffect(()=>{ setImgErr(false); },[item&&item.id, item&&item.imgUrl, level]);
   if(!item) return null;
   if(level===4) return null;
-  const photo = getWordPhoto(item.id);
+  const photo = getWordPhoto(item.id, uid);
   if(level===1 && photo && !imgErr){
     return <img src={photo} alt={item.word||item.label||""}
       style={{width:imgSize,height:imgSize,objectFit:"cover",borderRadius:radius}}
@@ -1066,7 +1066,7 @@ function BoardVisual({item, level=2, imgSize="min(40vw,30vh)", emojiSize="min(28
     filter:level===3?"grayscale(100%) contrast(0.55)":"none"}}>{item.emoji||"🎯"}</div>;
 }
 
-function FirstThenBoard({firstItem, thenItem, level=2, onExit}){
+function FirstThenBoard({firstItem, thenItem, level=2, uid, onExit}){
   return(
     <div style={{position:"fixed", inset:0, zIndex:200,
       display:"flex", flexDirection:"column", overflow:"hidden", background:"#E3F2FD"}}>
@@ -1092,7 +1092,7 @@ function FirstThenBoard({firstItem, thenItem, level=2, onExit}){
         {firstItem ? (
           <div style={{display:"flex", flexDirection:"column", alignItems:"center",
             gap:8, animation:"popIn 0.4s ease", minHeight:0}}>
-            <BoardVisual item={firstItem} level={level}/>
+            <BoardVisual item={firstItem} level={level} uid={uid}/>
             <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(22px,7vw,40px)",
               color:"#1B65B8", textAlign:"center"}}>{firstItem.display||firstItem.label}</div>
           </div>
@@ -1116,7 +1116,7 @@ function FirstThenBoard({firstItem, thenItem, level=2, onExit}){
         {thenItem ? (
           <div style={{display:"flex", flexDirection:"column", alignItems:"center",
             gap:8, animation:"popIn 0.4s ease", minHeight:0}}>
-            <BoardVisual item={thenItem} level={level}/>
+            <BoardVisual item={thenItem} level={level} uid={uid}/>
             <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(22px,7vw,40px)",
               color:"#5AAB2A", textAlign:"center"}}>{thenItem.display||thenItem.label}</div>
           </div>
@@ -1133,7 +1133,7 @@ function FirstThenBoard({firstItem, thenItem, level=2, onExit}){
 }
 
 // ── Choice Board ──────────────────────────────────────────────────
-function ChoiceBoard({items, selected, onSelect, stage, level=2, onDone, onExit}){
+function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, onDone, onExit}){
   const isWorkingFor = stage === "workingfor_pick";
   const headerColor  = isWorkingFor ? "#F5A623" : "#1B65B8";
   const headerText   = isWorkingFor ? "🌟 Working for?"
@@ -1211,7 +1211,7 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, onDone, onExit}
                 transition:"all 0.2s", overflow:"hidden"}}>
               <div style={{flex:1, width:"100%", minHeight:0, display:"flex",
                 alignItems:"center", justifyContent:"center", overflow:"hidden", borderRadius:12}}>
-                <BoardVisual item={item} level={level} imgSize="100%" emojiSize="clamp(32px,9vw,64px)" radius={12}/>
+                <BoardVisual item={item} level={level} uid={uid} imgSize="100%" emojiSize="clamp(32px,9vw,64px)" radius={12}/>
               </div>
               <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(13px,4vw,20px)",
                 color: isSelected ? "#fff" : "#333", textAlign:"center", lineHeight:1.1,
@@ -5682,13 +5682,13 @@ Reply with ONLY the matching word or NO_MATCH.`
   // Show ABA boards when triggered
   if(autoStart && appMode==="firstthen") return(
     <FirstThenBoard
-      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel}
+      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel} uid={user.id}
       onExit={()=>{setAppMode("aac");appModeRef.current="aac";setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}/>
   );
   if(autoStart && appMode==="choice") return(
     <ChoiceBoard
       items={choiceItems} selected={choiceSelected}
-      stage={choiceStage||"listening"} level={boardLevel}
+      stage={choiceStage||"listening"} level={boardLevel} uid={user.id}
       onDone={()=>setChoiceStage("display")}
       onExit={()=>{
         setAppMode("aac"); appModeRef.current="aac";
@@ -5816,13 +5816,13 @@ Reply with ONLY the matching word or NO_MATCH.`
   // ABA boards for non-autoStart (traditional teacher view)
   if(appMode==="firstthen") return(
     <FirstThenBoard
-      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel}
+      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel} uid={user.id}
       onExit={()=>{setAppMode("aac");appModeRef.current="aac";setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}/>
   );
   if(appMode==="choice") return(
     <ChoiceBoard
       items={choiceItems} selected={choiceSelected}
-      stage={choiceStage||"listening"} level={boardLevel}
+      stage={choiceStage||"listening"} level={boardLevel} uid={user.id}
       onDone={()=>setChoiceStage("display")}
       onExit={()=>{
         setAppMode("aac"); appModeRef.current="aac";
