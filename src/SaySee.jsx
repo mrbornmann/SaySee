@@ -5055,6 +5055,39 @@ Reply with ONLY the matching word or NO_MATCH.`
 
   const [micError,setMicError]=useState("");
 
+  // ── Listening-engine settings (persisted via mem) ──
+  const [yesNoEnabled,setYesNoEnabled] = useState(()=>mem.get(`set_yesno_${user.id}`, false));
+  const [emergencyEnabled,setEmergencyEnabled] = useState(()=>mem.get(`set_emrg_${user.id}`, true));
+  const [qOptions,setQOptions] = useState(null);          // ["yes","no"] when a yes/no question is on screen
+  const yesNoRef = useRef(yesNoEnabled);
+  const emergencyRef = useRef(emergencyEnabled);
+  const pendingYNRef = useRef(null);                      // {wordId,studentId,ts} awaiting the teacher's articulated yes/no
+  useEffect(()=>{ yesNoRef.current=yesNoEnabled; mem.set(`set_yesno_${user.id}`,yesNoEnabled); },[yesNoEnabled]);
+  useEffect(()=>{ emergencyRef.current=emergencyEnabled; mem.set(`set_emrg_${user.id}`,emergencyEnabled); },[emergencyEnabled]);
+  const logQuestion = (w, val, sid)=>{ try{ const k=`qlog_${user.id}`; const arr=mem.get(k,[]); arr.push({wordId:(w&&w.id)||null, word:(w&&w.word)||null, value:val||"shown", studentId:sid||null, ts:Date.now()}); mem.set(k, arr.slice(-2000)); }catch(_e){} };
+
+  // ── Listening lexicons + helpers (intent classification) ──
+  const _esc = (s)=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const _wb  = (txt,p)=>{ try{ return new RegExp(`\\b${_esc(p)}\\b`,'i').test(" "+txt+" "); }catch(_e){ return (" "+txt+" ").includes(p); } };
+  const _any = (txt,arr)=> arr.some(p=>_wb(txt,p));
+  const SUPPORT_WORDS = [
+    {id:"sup_stop",      word:"stop",            display:"STOP",                      emoji:"🛑", color:"#E53935", triggers:["stop","stop right now"]},
+    {id:"sup_nicehands", word:"nice hands",      display:"NICE HANDS",                emoji:"🤲", color:"#43A047", triggers:["nice hands","gentle hands","hands to yourself","keep your hands to yourself"]},
+    {id:"sup_handsfeet", word:"hands and feet",  display:"HANDS & FEET TO OURSELVES",  emoji:"🧍", color:"#43A047", triggers:["hands and feet to ourselves","hands and feet to yourself","feet on the floor","feet to yourself"]},
+    {id:"sup_nohit",     word:"safe hands",      display:"GENTLE HANDS",               emoji:"✋", color:"#43A047", triggers:["no hitting","stop hitting","no hands"]},
+    {id:"sup_nothrow",   word:"put it down",     display:"PUT IT DOWN",                emoji:"🧸", color:"#FB8C00", triggers:["no throwing","stop throwing","put that down","put it down"]},
+    {id:"sup_quiet",     word:"quiet voice",     display:"QUIET VOICE",                emoji:"🤫", color:"#3949AB", triggers:["no yelling","quiet voice","inside voice","stop yelling"]},
+  ];
+  const GREETINGS = ["good morning","good afternoon","good evening","welcome back","welcome to class","welcome","glad you're here","glad to see you","nice to see you","happy to see you","how are you","how are you doing","good to see you"];
+  const CONVO = ["how was your","i talked with","i talked to","i spoke with","i'm going to help","i am going to help","i will help","let me tell you","over the weekend","this morning i"];
+  const QUESTION_LEADS = ["are you","is it","is this","is that","do you","does it","did you","can you point","point to","show me","find the","find your","where is","where's","what is","what's","what color","what number","which color","which number","which one is","which is","who is","who's","how many","how much"];
+  const POLAR_LEADS = ["are you","do you want","do you like","does it","did you","is it","is this","is that","would you like"];
+  const AFFIRM_CUES = ["yes","yeah","yep","that's right","i see you","you are","you do","sorry to hear","i hear you","you feel","i can see you","good choice"];
+  const NEG_CUES = ["no","not","you're not","you are not","you don't","you do not"];
+  const FILLER = ["please","okay","ok","alright","all right","everyone","friends","guys","class","kiddos","team","can you","could you","would you","will you","let's","lets","i need you to","i want you to","i'd like you to","i would like you to","it's time to","its time to","time to","hey","now","go ahead and","let me see you","let me see"];
+  const stripFiller = (txt)=>{ let r=" "+txt+" "; FILLER.forEach(f=>{ try{ r=r.replace(new RegExp(`\\b${_esc(f)}\\b`,'gi')," "); }catch(_e){} }); return r.replace(/\s+/g," ").trim(); };
+  const longestMatch = (txt)=>{ let b=null,L=-1; for(const w of wRef.current){ for(const tr of (w.triggers||[w.word])){ if(_wb(txt,tr) && (""+tr).length>L){ b=w; L=(""+tr).length; } } } return b; };
+
   const startMic=useCallback(()=>{
     setMicError("");
     startSilent(); // keep audio output active so the recognition "beep" stays silent
@@ -5093,6 +5126,35 @@ Reply with ONLY the matching word or NO_MATCH.`
               // Restore working for for this student
               const savedReinforcer = mem.get(`wf_${studentMatch.id}`, null);
               if(savedReinforcer) setWorkingForItem(savedReinforcer);
+            }
+
+            // ── 0. EMERGENCY / behavior-support directives (top priority) ──
+            if(emergencyRef.current){
+              const emHit = SUPPORT_WORDS.find(sw=>(sw.triggers||[]).some(tr=>_wb(t,tr)));
+              if(emHit){
+                setAppMode("aac"); appModeRef.current="aac";
+                setFirstItem(null); setThenItem(null); setFirstThenStage("idle"); firstItemRef.current=null; thenItemRef.current=null; firstThenStageRef.current="idle";
+                setChoiceItems([]); setChoiceSelected(null); setChoiceStage("idle"); choiceStageRef.current="idle";
+                setQOptions(null); pendingYNRef.current=null;
+                lastInstructionRef.current=null; if(trialTimeoutRef.current){ clearTimeout(trialTimeoutRef.current); trialTimeoutRef.current=null; }
+                setCurWord(emHit); setFlash(true); setTimeout(()=>setFlash(false),700);
+                setAiStatus("🛟 Support: "+emHit.display); setTimeout(()=>setAiStatus(""),2500);
+                return;
+              }
+            }
+
+            // ── Capture the teacher's articulated Yes/No for a pending question ──
+            if(pendingYNRef.current){
+              const pend = pendingYNRef.current;
+              const neg = _any(t,NEG_CUES), aff = _any(t,AFFIRM_CUES);
+              if(neg || aff){
+                const w = wRef.current.find(x=>x.id===pend.wordId) || null;
+                logQuestion(w, neg?"no":"yes", pend.studentId);
+                pendingYNRef.current=null; setQOptions(null);
+                setAiStatus(neg?"📝 Recorded: No":"📝 Recorded: Yes"); setTimeout(()=>setAiStatus(""),1600);
+                return;
+              }
+              pendingYNRef.current=null;  // not a yes/no reply — fall through and process normally
             }
 
             // ── 1b. Working For — "what are you working for" ──
@@ -5261,7 +5323,7 @@ Reply with ONLY the matching word or NO_MATCH.`
                 setChoiceStage("idle"); choiceStageRef.current="idle";
               }
               clearTimeout(trialTimeoutRef.current);
-              setCurWord(word);
+              setCurWord(word); setQOptions(null); pendingYNRef.current=null;
               setFlash(true);
               setTimeout(()=>setFlash(false),700);
               lastInstructionRef.current = word;
@@ -5272,6 +5334,12 @@ Reply with ONLY the matching word or NO_MATCH.`
               if(activeIdRef.current && aiModeRef.current){ setLevel(getStudentWordLevel(activeIdRef.current, word.id)); }
               startTrialTimeout();
             };
+
+            // ── Greeting / conversation = keep the current image (no visual) ──
+            if(GREETINGS.some(p=>_wb(t,p)) || CONVO.some(p=>_wb(t,p))){
+              setAiStatus(GREETINGS.some(p=>_wb(t,p))?"👋 Greeting":"💬"); setTimeout(()=>setAiStatus(""),1200);
+              return;
+            }
 
             // ── Multi-word praise / correction = feedback only (any mode) ──
             // "good job", "well done", "try again" are NEVER a directive, a First-Then
@@ -5350,7 +5418,25 @@ Reply with ONLY the matching word or NO_MATCH.`
             }
 
             // ── 3. Direct word match -> open a new trial ──
-            const directMatch = wRef.current.find(w=>(w.triggers||[w.word]).some(tr=>matchesTrigger(t,tr)));
+            // ── QUESTION — display the object asked about; record as its own data stream ──
+            if(QUESTION_LEADS.some(p=>_wb(t,p)) || /\?\s*$/.test(t)){
+              const qTgt = longestMatch(stripFiller(t));
+              if(qTgt){
+                setAppMode("aac"); appModeRef.current="aac";
+                lastInstructionRef.current=null; if(trialTimeoutRef.current){ clearTimeout(trialTimeoutRef.current); trialTimeoutRef.current=null; }
+                setCurWord(qTgt); setFlash(true); setTimeout(()=>setFlash(false),500);
+                logQuestion(qTgt, "shown", activeIdRef.current);
+                if(POLAR_LEADS.some(p=>_wb(t,p))){
+                  pendingYNRef.current={wordId:qTgt.id, studentId:activeIdRef.current, ts:Date.now()};
+                  setQOptions(yesNoRef.current?["yes","no"]:null);
+                } else { setQOptions(null); }
+                setAiStatus("❓ "+(qTgt.display||qTgt.word)); setTimeout(()=>setAiStatus(""),1800);
+                return;
+              }
+            }
+
+            // ── NEW INSTRUCTION — filler-stripped, longest-phrase match (phrase + action/location) ──
+            const directMatch = longestMatch(stripFiller(t));
             if(directMatch){
               openTrial(directMatch);
             } else if(t.length > 3 && aiModeRef.current){
@@ -5721,6 +5807,13 @@ Reply with ONLY the matching word or NO_MATCH.`
                 {activeStu.progress?.[curWord.id]?"✅ Learned!":"Mark as Learned"}
               </button>
             )}
+            {qOptions&&(
+              <div style={{display:"flex",gap:14,marginTop:6}}>
+                {qOptions.map(opt=>(
+                  <button key={opt} onClick={()=>{ const pend=pendingYNRef.current; const w=pend?wRef.current.find(x=>x.id===pend.wordId):null; logQuestion(w, opt, pend?pend.studentId:activeIdRef.current); pendingYNRef.current=null; setQOptions(null); setAiStatus("📝 Recorded: "+(opt==="yes"?"Yes":"No")); setTimeout(()=>setAiStatus(""),1600); }} style={{padding:"14px 30px",borderRadius:18,border:"none",background:opt==="yes"?"#43A047":"#E53935",color:"#fff",fontFamily:"'Fredoka One',cursive",fontSize:22,cursor:"pointer",boxShadow:"0 4px 14px rgba(0,0,0,0.15)"}}>{opt==="yes"?"👍 Yes":"👎 No"}</button>
+                ))}
+              </div>
+            )}
           </>
         ):(
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,width:"100%",minHeight:"50vw"}}>
@@ -5895,6 +5988,24 @@ Reply with ONLY the matching word or NO_MATCH.`
                   <button onClick={()=>setAiMode(m=>!m)} style={{padding:"8px 16px",borderRadius:30,border:"none",background:aiMode?"#5AAB2A":"#E0E0E0",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer",transition:"all 0.2s"}}>
                     {aiMode?"ON":"OFF"}
                   </button>
+                </div>
+
+                {/* Yes / No response toggle */}
+                <div style={{background:"#F8F9FC",borderRadius:14,padding:16,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{flex:1,paddingRight:10}}>
+                    <div style={{fontWeight:800,fontSize:14,color:"#1A1A2E"}}>Yes / No response</div>
+                    <div style={{fontSize:12,color:"#AAA",marginTop:2}}>On yes-or-no questions, show tappable Yes/No so a student can answer. Your spoken response is recorded either way.</div>
+                  </div>
+                  <button onClick={()=>setYesNoEnabled(v=>!v)} style={{flexShrink:0,padding:"8px 16px",borderRadius:30,border:"none",background:yesNoEnabled?"#5AAB2A":"#E0E0E0",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>{yesNoEnabled?"ON":"OFF"}</button>
+                </div>
+
+                {/* Emergency / behavior-support toggle */}
+                <div style={{background:"#F8F9FC",borderRadius:14,padding:16,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{flex:1,paddingRight:10}}>
+                    <div style={{fontWeight:800,fontSize:14,color:"#1A1A2E"}}>Emergency support cues</div>
+                    <div style={{fontSize:12,color:"#AAA",marginTop:2}}>Top priority. Phrases like “stop,” “nice hands,” and “no throwing” instantly show a support visual.</div>
+                  </div>
+                  <button onClick={()=>setEmergencyEnabled(v=>!v)} style={{flexShrink:0,padding:"8px 16px",borderRadius:30,border:"none",background:emergencyEnabled?"#5AAB2A":"#E0E0E0",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:13,cursor:"pointer"}}>{emergencyEnabled?"ON":"OFF"}</button>
                 </div>
 
                 {/* How it works */}
