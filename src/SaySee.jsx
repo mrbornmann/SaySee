@@ -1051,12 +1051,12 @@ function WorkingForBoard({item, onPickNew, onBackToAAC, studentName}){
 // Renders an item at the student's assigned level: L1 photo (falls back to
 // emoji if none/broken), L2 color emoji, L3 grayscale emoji, L4 text-only
 // (returns null so the caller's word label carries the meaning).
-function BoardVisual({item, level=2, uid, imgSize="min(40vw,30vh)", emojiSize="min(28vw,26vh)", radius=20}){
+function BoardVisual({item, level=2, uid, photoMap, imgSize="min(40vw,30vh)", emojiSize="min(28vw,26vh)", radius=20}){
   const [imgErr,setImgErr]=useState(false);
   useEffect(()=>{ setImgErr(false); },[item&&item.id, item&&item.imgUrl, level]);
   if(!item) return null;
   if(level===4) return null;
-  const photo = getWordPhoto(item.id, uid);
+  const photo = (photoMap && photoMap[item.id]) || getWordPhoto(item.id, uid);
   if(level===1 && photo && !imgErr){
     return <img src={photo} alt={item.word||item.label||""}
       style={{width:imgSize,height:imgSize,objectFit:"cover",borderRadius:radius}}
@@ -1066,7 +1066,7 @@ function BoardVisual({item, level=2, uid, imgSize="min(40vw,30vh)", emojiSize="m
     filter:level===3?"grayscale(100%) contrast(0.55)":"none"}}>{item.emoji||"🎯"}</div>;
 }
 
-function FirstThenBoard({firstItem, thenItem, level=2, uid, onExit}){
+function FirstThenBoard({firstItem, thenItem, level=2, uid, photoMap, onExit}){
   return(
     <div style={{position:"fixed", inset:0, zIndex:200,
       display:"flex", flexDirection:"column", overflow:"hidden", background:"#E3F2FD"}}>
@@ -1092,7 +1092,7 @@ function FirstThenBoard({firstItem, thenItem, level=2, uid, onExit}){
         {firstItem ? (
           <div style={{display:"flex", flexDirection:"column", alignItems:"center",
             gap:8, animation:"popIn 0.4s ease", minHeight:0}}>
-            <BoardVisual item={firstItem} level={level} uid={uid}/>
+            <BoardVisual item={firstItem} level={level} uid={uid} photoMap={photoMap}/>
             <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(22px,7vw,40px)",
               color:"#1B65B8", textAlign:"center"}}>{firstItem.display||firstItem.label}</div>
           </div>
@@ -1116,7 +1116,7 @@ function FirstThenBoard({firstItem, thenItem, level=2, uid, onExit}){
         {thenItem ? (
           <div style={{display:"flex", flexDirection:"column", alignItems:"center",
             gap:8, animation:"popIn 0.4s ease", minHeight:0}}>
-            <BoardVisual item={thenItem} level={level} uid={uid}/>
+            <BoardVisual item={thenItem} level={level} uid={uid} photoMap={photoMap}/>
             <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(22px,7vw,40px)",
               color:"#5AAB2A", textAlign:"center"}}>{thenItem.display||thenItem.label}</div>
           </div>
@@ -1133,7 +1133,7 @@ function FirstThenBoard({firstItem, thenItem, level=2, uid, onExit}){
 }
 
 // ── Choice Board ──────────────────────────────────────────────────
-function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, onDone, onExit}){
+function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, photoMap, onDone, onExit}){
   const isWorkingFor = stage === "workingfor_pick";
   const headerColor  = isWorkingFor ? "#F5A623" : "#1B65B8";
   const headerText   = isWorkingFor ? "🌟 Working for?"
@@ -1211,7 +1211,7 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, onDone, on
                 transition:"all 0.2s", overflow:"hidden"}}>
               <div style={{flex:1, width:"100%", minHeight:0, display:"flex",
                 alignItems:"center", justifyContent:"center", overflow:"hidden", borderRadius:12}}>
-                <BoardVisual item={item} level={level} uid={uid} imgSize="100%" emojiSize="clamp(32px,9vw,64px)" radius={12}/>
+                <BoardVisual item={item} level={level} uid={uid} photoMap={photoMap} imgSize="100%" emojiSize="clamp(32px,9vw,64px)" radius={12}/>
               </div>
               <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(13px,4vw,20px)",
                 color: isSelected ? "#fff" : "#333", textAlign:"center", lineHeight:1.1,
@@ -5001,7 +5001,7 @@ Reply with ONLY the matching word or NO_MATCH.`
       return updated;
     });
   },[]);
-  const [photos,setPhotos]       = useState(()=>{ const p={}; /* load any saved photos */ return p; });
+  const [photos,setPhotos]       = useState(()=>{ try{ return mem.get(`photos_${user.id}`, {}) || {}; }catch(e){ return {}; } });
   const [photoModal,setPhotoModal] = useState(null); // word entry awaiting photo
   const allWords                 = [...words.filter(w=>w.cat!=="custom"),...customW];
 
@@ -5032,6 +5032,7 @@ Reply with ONLY the matching word or NO_MATCH.`
   const trialTimeoutRef = useRef(null); // 15s "assume followed" timeout for the open trial
   const lastResultRef = useRef(0);      // timestamp of the last recognition result (for the stall watchdog)
   const watchdogRef   = useRef(null);   // interval that restarts a stalled recognizer
+  const restartTriesRef = useRef(0);    // consecutive rebuilds with no result (runaway guard)
 
   // ── Silent audio keep-alive ──
   // The browser's speech-recognition engine plays a system "earcon" (a beep)
@@ -5226,6 +5227,7 @@ Reply with ONLY the matching word or NO_MATCH.`
       rec.onstart=()=>{ setListening(true); setMicError(""); startSilent(); lastResultRef.current=Date.now(); };
       rec.onresult=(e)=>{
         lastResultRef.current=Date.now();
+        restartTriesRef.current=0; // a result means the recognizer is alive
         for(let i=e.resultIndex;i<e.results.length;i++){
           // Use interim results for faster display
           const isFinal = e.results[i].isFinal;
@@ -5587,18 +5589,14 @@ Reply with ONLY the matching word or NO_MATCH.`
       rec.onend=()=>{
         if(!lisRef.current){ setListening(false); return; }
         startSilent();
-        // Resilient restart: one transient start() failure shouldn't end the session.
-        let attempts=0;
-        const tryStart=()=>{
-          if(!lisRef.current) return;
-          try{ rec.start(); }
-          catch(err){
-            attempts++;
-            if(attempts<4){ setTimeout(tryStart,250); }
-            else { lisRef.current=false; setListening(false); }
-          }
-        };
-        tryStart();
+        // Chrome lets a reused recognizer go stale after a few stop/restart cycles
+        // (the mic "stops listening" after a handful of utterances — most visible when
+        // naming choices one at a time). Rebuild a FRESH recognizer each time instead of
+        // restarting the stale object. The counter (reset on every result) prevents a
+        // runaway rebuild loop if the recognizer can't stay up.
+        restartTriesRef.current++;
+        if(restartTriesRef.current>10){ lisRef.current=false; setListening(false); return; }
+        setTimeout(()=>{ if(lisRef.current) startMic(); }, 220);
       };
       recRef.current=rec;
       lisRef.current=true;
@@ -5682,13 +5680,13 @@ Reply with ONLY the matching word or NO_MATCH.`
   // Show ABA boards when triggered
   if(autoStart && appMode==="firstthen") return(
     <FirstThenBoard
-      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel} uid={user.id}
+      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel} uid={user.id} photoMap={photos}
       onExit={()=>{setAppMode("aac");appModeRef.current="aac";setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}/>
   );
   if(autoStart && appMode==="choice") return(
     <ChoiceBoard
       items={choiceItems} selected={choiceSelected}
-      stage={choiceStage||"listening"} level={boardLevel} uid={user.id}
+      stage={choiceStage||"listening"} level={boardLevel} uid={user.id} photoMap={photos}
       onDone={()=>setChoiceStage("display")}
       onExit={()=>{
         setAppMode("aac"); appModeRef.current="aac";
@@ -5816,13 +5814,13 @@ Reply with ONLY the matching word or NO_MATCH.`
   // ABA boards for non-autoStart (traditional teacher view)
   if(appMode==="firstthen") return(
     <FirstThenBoard
-      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel} uid={user.id}
+      firstItem={firstItem} thenItem={thenItem} stage={firstThenStage} level={boardLevel} uid={user.id} photoMap={photos}
       onExit={()=>{setAppMode("aac");appModeRef.current="aac";setFirstItem(null);setThenItem(null);setFirstThenStage("idle");}}/>
   );
   if(appMode==="choice") return(
     <ChoiceBoard
       items={choiceItems} selected={choiceSelected}
-      stage={choiceStage||"listening"} level={boardLevel} uid={user.id}
+      stage={choiceStage||"listening"} level={boardLevel} uid={user.id} photoMap={photos}
       onDone={()=>setChoiceStage("display")}
       onExit={()=>{
         setAppMode("aac"); appModeRef.current="aac";
@@ -7041,6 +7039,35 @@ export default function SaySee(){
   const login = async (email, password, setErr) => {
     const demo = DEMO_ACCOUNTS.find(a=>a.email===email.toLowerCase()&&a.password===password);
     if(demo){
+      // Route demo logins through REAL Supabase auth so they load live data
+      // (base words, photos, settings) as an authenticated teacher — not as an
+      // anonymous user that RLS blocks. Falls back to local-only if Supabase
+      // is unreachable or the demo user isn't confirmed yet, so it never hard-fails.
+      if(supabase){
+        try{
+          let res = await supabase.auth.signInWithPassword({email:demo.email,password:demo.password});
+          if(res.error){
+            // First run for this demo account — provision it in Supabase, then sign in.
+            try{ await supabase.auth.signUp({email:demo.email,password:demo.password,options:{data:{name:demo.name,role:demo.role,plan:demo.plan}}}); }catch(e){}
+            res = await supabase.auth.signInWithPassword({email:demo.email,password:demo.password});
+          }
+          if(!res.error && res.data?.user){
+            const u = res.data.user;
+            const isAdmin = ADMIN_EMAILS.includes(demo.email.toLowerCase());
+            const demoUser = {
+              id:u.id, email:demo.email, name:demo.name,
+              role:isAdmin?"admin":(demo.role||"teacher"),
+              plan:demo.plan||"monthly",
+              maxStudents:demo.maxStudents||28,
+              isDemo:true,
+            };
+            setUser(demoUser);
+            try{ localStorage.setItem("saysee_session",JSON.stringify({user:demoUser,ts:Date.now()})); }catch(e){}
+            return;
+          }
+        }catch(e){}
+      }
+      // Fallback — Supabase unreachable or sign-in blocked: keep the local demo session.
       setUser(demo);
       try{ localStorage.setItem("saysee_session",JSON.stringify({user:demo,ts:Date.now()})); }catch(e){}
       return;
