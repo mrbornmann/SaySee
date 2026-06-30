@@ -949,7 +949,7 @@ function WordCard({entry, level, photoOverride, onRequestPhoto}){
     // Has photo
     return(
       <div style={box}>
-        {!ok&&<div style={{position:"absolute",inset:0,background:"#F0F3F7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:48}}>✨</div>}
+        {!ok&&<div style={{position:"absolute",inset:0,background:"#F0F3F7"}}/>}
         <img src={storedPhoto} alt={entry.word}
           onLoad={()=>setOk(true)}
           style={{width:"100%",height:"100%",objectFit:"cover",opacity:ok?1:0,transition:"opacity 0.4s"}}/>
@@ -1051,7 +1051,7 @@ function WorkingForBoard({item, onPickNew, onBackToAAC, studentName}){
 // Renders an item at the student's assigned level: L1 photo (falls back to
 // emoji if none/broken), L2 color emoji, L3 grayscale emoji, L4 text-only
 // (returns null so the caller's word label carries the meaning).
-function BoardVisual({item, level=2, uid, photoMap, imgSize="min(40vw,30vh)", emojiSize="min(28vw,26vh)", radius=20}){
+function BoardVisual({item, level=2, uid, photoMap, fill=false, imgSize="min(40vw,30vh)", emojiSize="min(28vw,26vh)", radius=20}){
   const [imgErr,setImgErr]=useState(false);
   useEffect(()=>{ setImgErr(false); },[item&&item.id, item&&item.imgUrl, level]);
   if(!item) return null;
@@ -1059,7 +1059,9 @@ function BoardVisual({item, level=2, uid, photoMap, imgSize="min(40vw,30vh)", em
   const photo = (photoMap && photoMap[item.id]) || getWordPhoto(item.id, uid);
   if(level===1 && photo && !imgErr){
     return <img src={photo} alt={item.word||item.label||""}
-      style={{width:imgSize,height:imgSize,objectFit:"cover",borderRadius:radius}}
+      style={fill
+        ? {position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",borderRadius:radius}
+        : {width:imgSize,height:imgSize,objectFit:"cover",borderRadius:radius}}
       onError={()=>setImgErr(true)}/>;
   }
   return <div style={{fontSize:emojiSize,lineHeight:1,
@@ -1210,8 +1212,8 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, photoMap, 
                 transform: isSelected ? "scale(0.97)" : "scale(1)",
                 transition:"all 0.2s", overflow:"hidden"}}>
               <div style={{flex:1, width:"100%", minHeight:0, display:"flex",
-                alignItems:"center", justifyContent:"center", overflow:"hidden", borderRadius:12}}>
-                <BoardVisual item={item} level={level} uid={uid} photoMap={photoMap} imgSize="100%" emojiSize="clamp(32px,9vw,64px)" radius={12}/>
+                alignItems:"center", justifyContent:"center", overflow:"hidden", borderRadius:12, position:"relative"}}>
+                <BoardVisual item={item} level={level} uid={uid} photoMap={photoMap} fill imgSize="100%" emojiSize="clamp(32px,9vw,64px)" radius={12}/>
               </div>
               <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(13px,4vw,20px)",
                 color: isSelected ? "#fff" : "#333", textAlign:"center", lineHeight:1.1,
@@ -5320,11 +5322,14 @@ Reply with ONLY the matching word or NO_MATCH.`
               const thenPart  = t.split(/\bthen\b/i)[1]?.replace(/^(you can|you get|you may|have|get)\s*/i,"").trim()||"";
               const taskMatch = longestMatch(stripFiller(firstPart));
               setFirstItem(taskMatch||null); firstItemRef.current=taskMatch||null;
-              const rMatch = REINFORCERS.find(r=>thenPart.includes(r.label.toLowerCase())||thenPart.includes(r.id));
-              if(rMatch){ const it={...rMatch,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; }
+              // Prefer a levelized word from the list (L1 photo / L2-3 emoji / L4 text);
+              // fall back to an emoji-only reward only if the reward isn't a known word.
+              const wordMatch2 = longestMatch(stripFiller(thenPart));
+              if(wordMatch2){ setThenItem(wordMatch2); thenItemRef.current=wordMatch2; }
               else {
-                const wordMatch2 = longestMatch(stripFiller(thenPart));
-                setThenItem(wordMatch2||null); thenItemRef.current=wordMatch2||null;
+                const rMatch = REINFORCERS.find(r=>thenPart.includes(r.label.toLowerCase())||thenPart.includes(r.id));
+                if(rMatch){ const it={...rMatch,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; }
+                else { setThenItem(null); thenItemRef.current=null; }
               }
               setFirstThenStage("complete");
               return;
@@ -5347,11 +5352,12 @@ Reply with ONLY the matching word or NO_MATCH.`
               setFirstThenStage("then");
               const afterThen = t.replace(/.*?\bthen\b\s*/i,"").replace(/^(you can|you get|you may|have|get)\s*/i,"").trim();
               if(afterThen.length > 1){
-                const rMatch = REINFORCERS.find(r=>afterThen.includes(r.label.toLowerCase())||afterThen.includes(r.id));
-                if(rMatch){ const it={...rMatch,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; setFirstThenStage("complete"); }
+                // Prefer a levelized word; the emoji reward is only the fallback.
+                const wordMatch = longestMatch(stripFiller(afterThen));
+                if(wordMatch){ setThenItem(wordMatch); thenItemRef.current=wordMatch; setFirstThenStage("complete"); }
                 else {
-                  const wordMatch = longestMatch(stripFiller(afterThen));
-                  if(wordMatch){ setThenItem(wordMatch); thenItemRef.current=wordMatch; setFirstThenStage("complete"); }
+                  const rMatch = REINFORCERS.find(r=>afterThen.includes(r.label.toLowerCase())||afterThen.includes(r.id));
+                  if(rMatch){ const it={...rMatch,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; setFirstThenStage("complete"); }
                 }
               }
               return;
@@ -5525,8 +5531,8 @@ Reply with ONLY the matching word or NO_MATCH.`
                 if(wHit){ setFirstItem(wHit); firstItemRef.current=wHit; setFirstThenStage("first"); return; }
                 if(rHit){ const it={...rHit,display:rHit.label}; setFirstItem(it); firstItemRef.current=it; setFirstThenStage("first"); return; }
               } else if(!thenItemRef.current){
-                if(rHit){ const it={...rHit,display:rHit.label,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; setFirstThenStage("complete"); return; }
                 if(wHit){ setThenItem(wHit); thenItemRef.current=wHit; setFirstThenStage("complete"); return; }
+                if(rHit){ const it={...rHit,display:rHit.label,isThenReinforcer:true}; setThenItem(it); thenItemRef.current=it; setFirstThenStage("complete"); return; }
               }
               // both slots full or no match — fall through to normal handling
             }
@@ -5701,10 +5707,10 @@ Reply with ONLY the matching word or NO_MATCH.`
   );
   if(autoStart && appMode==="workingfor") return(
     <WorkingForBoard
-      reinforcer={workingForItem} stage={wfStage}
-      items={REINFORCERS}
-      onSelect={item=>{setWorkingForItem(item);setWfStage("selected");mem.set(`wf_${activeId}`,item);}}
-      onExit={()=>{setAppMode("aac");setWfStage("idle");}}/>
+      item={workingForItem}
+      studentName={activeStu?.name}
+      onPickNew={()=>setWorkingForItem(null)}
+      onBackToAAC={()=>{setAppMode("aac");setWfStage("idle");}}/>
   );
 
   if(autoStart) return(
@@ -5835,10 +5841,10 @@ Reply with ONLY the matching word or NO_MATCH.`
   );
   if(appMode==="workingfor") return(
     <WorkingForBoard
-      reinforcer={workingForItem} stage={wfStage}
-      items={REINFORCERS}
-      onSelect={item=>{setWorkingForItem(item);setWfStage("selected");mem.set(`wf_${activeId}`,item);}}
-      onExit={()=>{setAppMode("aac");setWfStage("idle");}}/>
+      item={workingForItem}
+      studentName={activeStu?.name}
+      onPickNew={()=>setWorkingForItem(null)}
+      onBackToAAC={()=>{setAppMode("aac");setWfStage("idle");}}/>
   );
 
   return(
@@ -7196,7 +7202,7 @@ export default function SaySee(){
       ) : homeMode==="settings" ? (
         <ErrorBoundary>
           <SettingsScreen user={user} words={masterWords} onBack={()=>setHomeMode("home")}
-            onLogout={logout}/>
+            onLogout={logout} onNavigate={(id)=>setHomeMode(id)}/>
         </ErrorBoundary>
       ) : homeMode==="reinforcers" ? (
         <ReinforcerSurveyScreen user={user} onBack={()=>setHomeMode("home")} onSave={()=>{}}/>
