@@ -3890,6 +3890,8 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
   });
   const [showStripe,setShowStripe]=useState(false);
   const [stripePlan,setStripePlan]=useState("monthly");
+  const [creatingPlan,setCreatingPlan]=useState(null);
+  const [showQuoteModal,setShowQuoteModal]=useState(false);
 
   const iStyle={width:"100%",padding:"12px 16px",borderRadius:12,border:"2px solid rgba(255,255,255,0.25)",background:"rgba(255,255,255,0.92)",color:"#1A1A2E",fontSize:15,fontFamily:"'Nunito',sans-serif",outline:"none",boxSizing:"border-box"};
   const lStyle={fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.55)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:5,display:"block",fontFamily:"'Nunito',sans-serif"};
@@ -3904,9 +3906,11 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
     if(pass.length<6){setErr("Password needs 6+ characters.");return;}
     setMode("plan");
   };
-  const doCreate=async()=>{
+  const doCreate=async(selectedPlan)=>{
     setErr("");
-    await onRegister(name, email, pass, plan, setErr);
+    setCreatingPlan(selectedPlan||plan);
+    await onRegister(email, pass, name, selectedPlan||plan, setErr);
+    setCreatingPlan(null);
   };
 
   const plans=[
@@ -3994,23 +3998,26 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
           </>}
 
           {showStripe&&(
-            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
-              <PaymentForm
-                user={{id:`temp_${Date.now()}`,email,name,role:"teacher",plan:stripePlan,maxStudents:28}}
-                plan={stripePlan}
-                onSuccess={async (paidPlan)=>{
-                  setShowStripe(false);
-                  // Register account with paid plan
-                  await onRegister(name,email,pass,paidPlan||stripePlan,setErr);
-                }}
-                onCancel={()=>setShowStripe(false)}
-              />
+            <div onClick={()=>setShowStripe(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+              <div onClick={e=>e.stopPropagation()}>
+                <PaymentForm
+                  user={{id:`temp_${Date.now()}`,email,name,role:"teacher",plan:stripePlan,maxStudents:28}}
+                  plan={stripePlan}
+                  onSuccess={async (paidPlan)=>{
+                    setShowStripe(false);
+                    // Register account with paid plan
+                    await onRegister(email,pass,name,paidPlan||stripePlan,setErr);
+                  }}
+                  onCancel={()=>setShowStripe(false)}
+                />
+              </div>
             </div>
           )}
 
           {mode==="plan"&&<>
             <div style={{fontFamily:"'Fredoka One',cursive",fontSize:21,color:"#fff",marginBottom:5}}>Choose your plan</div>
             <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"rgba(255,255,255,0.45)",marginBottom:20}}>Start free for 7 days — or pay now and skip the trial.</div>
+            {err&&<div style={{color:"#FF7675",fontSize:13,marginBottom:12,fontFamily:"'Nunito',sans-serif",background:"rgba(255,118,117,0.12)",border:"1px solid rgba(255,118,117,0.35)",borderRadius:10,padding:"8px 12px"}}>{err}</div>}
             {plans.map(p=>(
               <div key={p.id} style={{padding:"14px 16px",borderRadius:14,marginBottom:10,background:plan===p.id?`${p.color}22`:"rgba(255,255,255,0.04)",border:`2px solid ${plan===p.id?p.color:"rgba(255,255,255,0.1)"}`,transition:"all 0.2s",position:"relative"}}>
                 {p.badge&&<div style={{position:"absolute",top:-8,right:10,background:p.color,color:"#fff",fontSize:9,fontWeight:900,padding:"2px 8px",borderRadius:20,fontFamily:"'Nunito',sans-serif",letterSpacing:1}}>{p.badge}</div>}
@@ -4021,25 +4028,27 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
                 <div style={{fontFamily:"'Nunito',sans-serif",fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:2}}>{p.sub}</div>
                 {/* Free Trial + Pay Now buttons per card */}
                 {p.id==="school"?(
-                  <a href="mailto:hello@saysee.io?subject=School Site License Inquiry"
-                    style={{display:"block",textAlign:"center",padding:"9px",borderRadius:10,
-                    background:p.color,color:"#fff",fontFamily:"'Nunito',sans-serif",
-                    fontWeight:800,fontSize:13,textDecoration:"none",marginTop:10}}>
+                  <button onClick={()=>{setPlan(p.id);setShowQuoteModal(true);}}
+                    style={{display:"block",width:"100%",textAlign:"center",padding:"9px",borderRadius:10,
+                    border:"none",background:p.color,color:"#fff",fontFamily:"'Nunito',sans-serif",
+                    fontWeight:800,fontSize:13,cursor:"pointer",marginTop:10}}>
                     ✉️ Contact Us
-                  </a>
+                  </button>
                 ):(
                   <div style={{display:"flex",gap:8,marginTop:10}}>
-                    <button onClick={()=>{setPlan(p.id);doCreate();}}
+                    <button onClick={()=>{setPlan(p.id);doCreate(p.id);}} disabled={!!creatingPlan}
                       style={{flex:1,padding:"9px",borderRadius:10,
                       border:`2px solid ${p.color}`,background:"transparent",
                       color:p.color,fontFamily:"'Nunito',sans-serif",
-                      fontWeight:800,fontSize:12,cursor:"pointer"}}>
-                      🎁 Free Trial
+                      fontWeight:800,fontSize:12,cursor:creatingPlan?"wait":"pointer",
+                      opacity:creatingPlan&&creatingPlan!==p.id?0.5:1}}>
+                      {creatingPlan===p.id?"Creating…":"🎁 Free Trial"}
                     </button>
-                    <button onClick={()=>{setPlan(p.id);setStripePlan(p.id);setShowStripe(true);}}
+                    <button onClick={()=>{setPlan(p.id);setStripePlan(p.id);setShowStripe(true);}} disabled={!!creatingPlan}
                       style={{flex:1,padding:"9px",borderRadius:10,border:"none",
                       background:p.color,color:"#fff",fontFamily:"'Nunito',sans-serif",
-                      fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                      fontWeight:800,fontSize:12,cursor:creatingPlan?"wait":"pointer",
+                      opacity:creatingPlan&&creatingPlan!==p.id?0.5:1}}>
                       💳 Pay Now
                     </button>
                   </div>
@@ -4047,7 +4056,90 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
               </div>
             ))}
           </>}
+          {showQuoteModal&&<QuoteRequestModal defaultName={name} defaultEmail={email} onClose={()=>setShowQuoteModal(false)}/>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Quote Request Modal (School Site inquiries) ──────────────────
+function QuoteRequestModal({defaultName="",defaultEmail="",onClose}){
+  const [qName,setQName]=useState(defaultName);
+  const [qEmail,setQEmail]=useState(defaultEmail);
+  const [org,setOrg]=useState("");
+  const [phone,setPhone]=useState("");
+  const [size,setSize]=useState("");
+  const [msg,setMsg]=useState("");
+  const [status,setStatus]=useState("idle"); // idle | sending | sent | error
+  const [errMsg,setErrMsg]=useState("");
+
+  const iStyle={width:"100%",padding:"11px 14px",borderRadius:10,border:"2px solid #E8ECF0",background:"#fff",color:"#1A1A2E",fontSize:14,fontFamily:"'Nunito',sans-serif",outline:"none",boxSizing:"border-box"};
+  const lStyle={fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:0.5,marginBottom:5,display:"block",fontFamily:"'Nunito',sans-serif"};
+
+  const mailtoFallback=()=>{
+    const body=`Name: ${qName}%0AEmail: ${qEmail}%0ASchool/Organization: ${org}%0APhone: ${phone}%0AEstimated classrooms/students: ${size}%0A%0AMessage:%0A${msg}`;
+    window.location.href=`mailto:hello@saysee.io?subject=${encodeURIComponent("School Site License Inquiry")}&body=${body}`;
+  };
+
+  const submit=async()=>{
+    setErrMsg("");
+    if(!qName||!qEmail||!org){ setErrMsg("Name, email, and school/organization are required."); return; }
+    setStatus("sending");
+    try{
+      const res=await fetch("/api/send-quote",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name:qName,email:qEmail,org,phone,size,message:msg,to:"hello@saysee.io"})
+      });
+      if(!res.ok) throw new Error("Request failed");
+      setStatus("sent");
+    }catch(e){
+      setStatus("error");
+      mailtoFallback();
+    }
+  };
+
+  return(
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:28,width:"min(94vw,440px)",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 60px rgba(0,0,0,0.2)"}}>
+        {status==="sent"?(
+          <div style={{textAlign:"center",padding:"20px 0"}}>
+            <div style={{fontSize:40,marginBottom:10}}>✅</div>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#1B65B8",marginBottom:8}}>Request sent!</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:14,color:"#666",lineHeight:1.6,marginBottom:20}}>
+              Thanks, {qName.split(" ")[0]||"there"} — we'll follow up at {qEmail} shortly.
+            </div>
+            <button onClick={onClose} style={{width:"100%",padding:"12px",borderRadius:30,border:"none",background:"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:15,cursor:"pointer"}}>Close</button>
+          </div>
+        ):(<>
+          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:20,color:"#1B65B8",marginBottom:4}}>Request a School Site quote</div>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#888",marginBottom:18}}>Tell us a bit about your school and we'll get back to you at hello@saysee.io.</div>
+
+          <div style={{marginBottom:12}}><label style={lStyle}>Your name</label><input value={qName} onChange={e=>setQName(e.target.value)} placeholder="Jane Smith" style={iStyle}/></div>
+          <div style={{marginBottom:12}}><label style={lStyle}>Email</label><input value={qEmail} onChange={e=>setQEmail(e.target.value)} type="email" placeholder="you@school.edu" style={iStyle}/></div>
+          <div style={{marginBottom:12}}><label style={lStyle}>School / Organization</label><input value={org} onChange={e=>setOrg(e.target.value)} placeholder="Lincoln Elementary" style={iStyle}/></div>
+          <div style={{display:"flex",gap:10,marginBottom:12}}>
+            <div style={{flex:1}}><label style={lStyle}>Phone (optional)</label><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(555) 555-5555" style={iStyle}/></div>
+            <div style={{flex:1}}><label style={lStyle}>Classrooms/students</label><input value={size} onChange={e=>setSize(e.target.value)} placeholder="e.g. 6 classrooms" style={iStyle}/></div>
+          </div>
+          <div style={{marginBottom:16}}><label style={lStyle}>Message (optional)</label>
+            <textarea value={msg} onChange={e=>setMsg(e.target.value)} rows={3} placeholder="Anything else we should know?" style={{...iStyle,resize:"vertical",fontFamily:"'Nunito',sans-serif"}}/>
+          </div>
+
+          {errMsg&&<div style={{color:"#E74C3C",fontSize:13,marginBottom:12,fontFamily:"'Nunito',sans-serif"}}>{errMsg}</div>}
+          {status==="error"&&<div style={{color:"#E74C3C",fontSize:13,marginBottom:12,fontFamily:"'Nunito',sans-serif"}}>Couldn't reach our server, so we opened your email client instead — please hit send there.</div>}
+
+          <button onClick={submit} disabled={status==="sending"}
+            style={{width:"100%",padding:"13px",borderRadius:30,border:"none",
+            background:status==="sending"?"#CCC":"#5AAB2A",color:"#fff",fontFamily:"'Nunito',sans-serif",
+            fontWeight:900,fontSize:15,cursor:status==="sending"?"not-allowed":"pointer",marginBottom:10}}>
+            {status==="sending"?"Sending…":"Send request"}
+          </button>
+          <button onClick={onClose} style={{width:"100%",padding:"10px",borderRadius:30,border:"2px solid #EEE",background:"transparent",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:14,color:"#AAA",cursor:"pointer"}}>
+            Cancel
+          </button>
+        </>)}
       </div>
     </div>
   );
