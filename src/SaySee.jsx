@@ -123,7 +123,7 @@ if(supabase){
 const sbAuth = {
   signUp: async (email, password, name, plan) => {
     if (!supabase) throw new Error("Not connected");
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name, plan, role:"teacher" } } });
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name, plan, role:"teacher" }, emailRedirectTo: window.location.origin } });
     if (error) throw error;
     if (data.user) await supabase.from("accounts").insert({ id:data.user.id, email, name, role:"teacher", created_at:new Date().toISOString() });
     return data;
