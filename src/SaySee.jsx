@@ -6420,7 +6420,7 @@ Reply with ONLY the matching word or NO_MATCH.`
             return updated;
           });
         }
-      }} onClose={()=>setAddWord(false)}/>}}
+      }} onClose={()=>setAddWord(false)}/>}
 
       {/* Photo upload modal */}
       {photoModal&&(
