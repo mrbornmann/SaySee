@@ -7301,9 +7301,14 @@ export default function SaySee(){
       ) : (
         // Say tile — straight to AAC listening with autoStart
         <ErrorBoundary>
-          <TeacherApp user={user} words={masterWords} onLogout={logout}
+         <TeacherApp user={user} words={masterWords} onLogout={logout}
             daysLeft={daysLeftInTrial(user)}
             onGoHome={()=>setHomeMode("home")}
+            onPlanChange={p=>setUser(u=>{
+              const next={...u,plan:p};
+              try{ localStorage.setItem("saysee_session",JSON.stringify({user:next,ts:Date.now()})); }catch(e){}
+              return next;
+            })}
             autoStart={true}/>
         </ErrorBoundary>
       )}
