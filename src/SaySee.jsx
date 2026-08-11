@@ -6440,9 +6440,9 @@ Reply with ONLY the matching word or NO_MATCH.`
           <PaymentForm
             user={user}
             plan={stripeInAppPlan}
-            onSuccess={paidPlan=>{
+           onSuccess={paidPlan=>{
               setShowStripeInApp(false);
-              setUser(u=>({...u,plan:paidPlan}));
+              if(onPlanChange) onPlanChange(paidPlan);
               setDrawer(false);
             }}
             onCancel={()=>setShowStripeInApp(false)}
