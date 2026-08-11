@@ -7190,7 +7190,18 @@ export default function SaySee(){
       setUser(loginUser);
       try{ localStorage.setItem("saysee_session",JSON.stringify({user:loginUser,ts:Date.now()})); }catch(e){}
     }catch(err){
-      if(setErr) setErr(err.message||"Login failed. Please try again.");
+      const raw = (err && err.message) || "";
+      const friendly =
+        /email not confirmed/i.test(raw)
+          ? "Confirm your email to continue. We sent a confirmation link — open it, then sign in to start your trial or subscription."
+        : /invalid login credentials/i.test(raw)
+          ? "That email and password don't match. Check them and try again."
+        : /email rate limit|over_email_send_rate/i.test(raw)
+          ? "Too many emails sent just now. Wait a few minutes and try again."
+        : raw.trim() && raw.trim() !== "{}"
+          ? raw
+          : "Login failed. Please try again.";
+      if(setErr) setErr(friendly);
     }
   };
 
