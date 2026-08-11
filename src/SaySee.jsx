@@ -4822,7 +4822,7 @@ function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}
 }
 
 // ── Teacher app ───────────────────────────────────────────────
-function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome,autoStart=false}){
+function TeacherApp({user,words,onLogout,daysLeft=null,onGoHome,autoStart=false,onPlanChange}){
   // ── In-app Stripe payment ───────────────────────────────────────
   const [showStripeInApp,setShowStripeInApp] = useState(false);
   const [stripeInAppPlan,setStripeInAppPlan] = useState("monthly");
