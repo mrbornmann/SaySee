@@ -4821,8 +4821,7 @@ function AdminWordForm({word,defaultPhoto,onPhotoChange,onSave,onDelete,onClose}
       </div>
       <div style={{marginBottom:16}}>
         <label style={lbl}>Voice triggers (one per line)</label>
-        <textarea value={(f.triggers||[]).join("\n")} onChange={e=>s("triggers",e.target.value.split("\n"))} rows={4} style={{...dark,resize:"vertical"}}/>
-      </div>
+<textarea value={(f.triggers||[]).join("\n")} onChange={e=>s("triggers",e.target.value.split("\n").map(t=>t.trim()).filter(Boolean))} rows={4} style={{...dark,resize:"vertical"}}/>      </div>
       <div style={{display:"flex",gap:8}}>
         {word&&<button onClick={()=>onDelete(word.id)} style={{padding:"10px 14px",borderRadius:10,border:"2px solid #E74C3C",background:"transparent",color:"#E74C3C",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,cursor:"pointer"}}>Delete</button>}
         <button onClick={onClose} style={{flex:1,padding:"10px",borderRadius:10,border:"2px solid rgba(255,255,255,0.15)",background:"transparent",color:"#fff",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer"}}>Cancel</button>
