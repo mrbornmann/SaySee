@@ -5262,8 +5262,7 @@ Reply with ONLY the matching word or NO_MATCH.`
   const NEG_CUES = ["no","not","you're not","you are not","you don't","you do not"];
   const FILLER = ["please","okay","ok","alright","all right","everyone","friends","guys","class","kiddos","team","can you","could you","would you","will you","let's","lets","i need you to","i want you to","i'd like you to","i would like you to","it's time to","its time to","time to","hey","now","go ahead and","let me see you","let me see"];
   const stripFiller = (txt)=>{ let r=" "+txt+" "; FILLER.forEach(f=>{ try{ r=r.replace(new RegExp(`\\b${_esc(f)}\\b`,'gi')," "); }catch(_e){} }); return r.replace(/\s+/g," ").trim(); };
-  const longestMatch = (txt)=>{ let b=null,L=-1; for(const w of wRef.current){ for(const tr of (w.triggers||[w.word])){ if(_wb(txt,tr) && (""+tr).length>L){ b=w; L=(""+tr).length; } } } return b; };
-
+const longestMatch = (txt)=>{ let b=null,L=-1; for(const w of wRef.current){ for(const tr of (w.triggers||[w.word])){ if(!tr||!String(tr).trim()) continue; if(_wb(txt,tr) && (""+tr).length>L){ b=w; L=(""+tr).length; } } } return b; };
   // ── Yelling / loud-voice detection (opt-in; taps the mic via an AnalyserNode) ──
   const [yellingEnabled,setYellingEnabled] = useState(()=>mem.get(`set_yell_${user.id}`, false));
   const yellingRef = useRef(yellingEnabled);
