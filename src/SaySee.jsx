@@ -7127,6 +7127,7 @@ export default function SaySee(){
           let local;
           try{ const sv=localStorage.getItem("saysee_master_words"); const w=sv?JSON.parse(sv):null; local=(w&&w.length)?w:[...MASTER_WORDS,...DEV_WORDS]; }
           catch(e){ local=[...MASTER_WORDS,...DEV_WORDS]; }
+          local=cleanWordTriggers(local);
           await sbWords.seedBase(local);
           base=local;
         }
