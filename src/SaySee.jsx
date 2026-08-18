@@ -7136,7 +7136,7 @@ export default function SaySee(){
           // doesn't have yet, so they appear even when the base table is already populated.
           const ids=new Set(base.map(x=>x.id));
           const missing=[...MASTER_WORDS,...DEV_WORDS].filter(sw=>!ids.has(sw.id));
-          const merged=missing.length?[...base,...missing]:base;
+          const merged=cleanWordTriggers(missing.length?[...base,...missing]:base);
           setMasterWords(merged);
           try{ localStorage.setItem("saysee_master_words", JSON.stringify(merged)); }catch(e){}
           // Push ONLY the newly-added base words up to Supabase (admin) so other devices get them;
