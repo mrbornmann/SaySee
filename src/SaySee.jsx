@@ -7023,7 +7023,7 @@ function DistrictAdminPanel({user, onLogout}){
 export default function SaySee(){
   const [user,setUser]           = useState(null);
   const [loading,setLoading]     = useState(true);
-  const [masterWords,setMasterWords] = useState([...MASTER_WORDS, ...DEV_WORDS]);
+  const [masterWords,setMasterWords] = useState(()=>cleanWordTriggers([...MASTER_WORDS, ...DEV_WORDS]));
   const [, setCatsTick] = useState(0);
   const [homeMode,setHomeMode]   = useState("home");
   const [showTerms,setShowTerms] = useState(false);
