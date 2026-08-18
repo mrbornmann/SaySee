@@ -468,6 +468,17 @@ const mem = {
 };
 
 // ── Data ─────────────────────────────────────────────────────────
+// Strip blank/whitespace voice triggers. A "" trigger compiles to /\b\b/ and matches every
+// utterance, so the word becomes a silent catch-all that swallows anything unrecognised.
+// Applied on load so bad rows already saved in localStorage/Supabase are healed automatically.
+function cleanWordTriggers(list){
+  return (list||[]).map(w=>{
+    const src = (w && w.triggers && w.triggers.length) ? w.triggers : [w && w.word];
+    const t = src.map(x=>String(x==null?"":x).trim()).filter(Boolean);
+    return { ...w, triggers: t.length ? t : [String((w&&w.word)||"").trim()].filter(Boolean) };
+  }).filter(w=>w && (w.triggers||[]).length);
+}
+
 const MASTER_WORDS = [
   {id:1, cat:"core",      word:"stop",       display:"STOP",         emoji:"🛑", photo:"stop sign red street",            color:"#1B65B8", triggers:["stop","stop it","freeze"]},
   {id:2, cat:"core",      word:"sit down",   display:"SIT DOWN",     emoji:"🪑", photo:"child sitting chair classroom",    color:"#D63031", triggers:["sit","sit down","have a seat"]},
