@@ -5240,7 +5240,10 @@ Reply with ONLY the matching word or NO_MATCH.`
 
   // ── Listening lexicons + helpers (intent classification) ──
   const _esc = (s)=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  const _wb  = (txt,p)=>{ try{ return new RegExp(`\\b${_esc(p)}\\b`,'i').test(" "+txt+" "); }catch(_e){ return (" "+txt+" ").includes(p); } };
+ // A blank/whitespace trigger compiles to /\b\b/ which matches EVERY utterance, turning
+  // that word into a silent catch-all. Reject empties before building the regex.
+  const _wb  = (txt,p)=>{ if(p===null||p===undefined||!String(p).trim()) return false;
+    try{ return new RegExp(`\\b${_esc(p)}\\b`,'i').test(" "+txt+" "); }catch(_e){ return (" "+txt+" ").includes(p); } };
   const _any = (txt,arr)=> arr.some(p=>_wb(txt,p));
   const SUPPORT_WORDS = [
     {id:"sup_stop",      word:"stop",            display:"STOP",                      emoji:"🛑", color:"#E53935", triggers:["stop","stop right now"]},
