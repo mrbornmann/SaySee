@@ -5501,6 +5501,7 @@ const longestMatch = (txt)=>{ let b=null,L=-1; for(const w of wRef.current){ for
             const escRx = (s)=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
             const phraseHit = (text, phrase)=>{ try { return new RegExp(`\\b${escRx(phrase)}\\b`,'i').test(text); } catch { return text.includes(phrase); } };
             const matchesTrigger = (transcript, trigger)=>{
+              if(trigger===null||trigger===undefined||!String(trigger).trim()) return false; // blank trigger = catch-all guard
               // short words need a word boundary so "go" doesn't match inside "good"/"going"
               if(String(trigger).length <= 3){ try { return new RegExp(`\\b${escRx(trigger)}\\b`,'i').test(transcript); } catch { return transcript.includes(trigger); } }
               return transcript.includes(trigger);
