@@ -3719,7 +3719,8 @@ function AddWordInSeeModal({user, onClose, onAdd}){
       emoji:emoji.trim(),
       cat,
       age:age==="all"?undefined:age,
-      triggers: triggers ? triggers.split(",").map(t=>t.trim()) : [word.trim()],
+     triggers: (triggers ? triggers.split(",").map(t=>t.trim()).filter(Boolean) : []).length
+        ? triggers.split(",").map(t=>t.trim()).filter(Boolean) : [word.trim()],
       color:"#1B65B8",
     };
     try {
