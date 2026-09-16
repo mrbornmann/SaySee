@@ -1236,7 +1236,7 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, photoMap, 
                 alignItems:"center", justifyContent:"center", overflow:"hidden", borderRadius:12, position:"relative"}}>
           <BoardVisual item={item} level={level} uid={uid} photoMap={photoMap} imgSize={visSize} emojiSize={visSize} radius={12}/>
               </div>
-              <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(13px,4vw,20px)",
+               <div style={{fontFamily:"'Fredoka One',cursive", fontSize:labelSize,
                 color: isSelected ? "#fff" : "#333", textAlign:"center", lineHeight:1.1,
                 flexShrink:0, paddingBottom:2}}>
                 {(item.display||item.label||item.word||"").toUpperCase()}
