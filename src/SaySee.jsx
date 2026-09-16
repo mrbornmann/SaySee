@@ -1072,8 +1072,8 @@ function BoardVisual({item, level=2, uid, photoMap, fill=false, imgSize="min(40v
     return <img src={photo} alt={item.word||item.label||""}
       style={fill
         ? {position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",borderRadius:radius}
-        : {width:imgSize,height:imgSize,objectFit:"cover",borderRadius:radius}}
-      onError={()=>setImgErr(true)}/>;
+        : {width:imgSize,height:imgSize,maxWidth:"100%",maxHeight:"100%",objectFit:"cover",borderRadius:radius}}      
+        onError={()=>setImgErr(true)}/>;
   }
   return <div style={{fontSize:emojiSize,lineHeight:1,
     filter:level===3?"grayscale(100%) contrast(0.55)":"none"}}>{item.emoji||"🎯"}</div>;
