@@ -1234,7 +1234,7 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, photoMap, 
                 transition:"all 0.2s", overflow:"hidden"}}>
               <div style={{flex:1, width:"100%", minHeight:0, display:"flex",
                 alignItems:"center", justifyContent:"center", overflow:"hidden", borderRadius:12, position:"relative"}}>
-                <BoardVisual item={item} level={level} uid={uid} photoMap={photoMap} fill imgSize="100%" emojiSize="clamp(32px,9vw,64px)" radius={12}/>
+          <BoardVisual item={item} level={level} uid={uid} photoMap={photoMap} imgSize={visSize} emojiSize={visSize} radius={12}/>
               </div>
               <div style={{fontFamily:"'Fredoka One',cursive", fontSize:"clamp(13px,4vw,20px)",
                 color: isSelected ? "#fff" : "#333", textAlign:"center", lineHeight:1.1,
