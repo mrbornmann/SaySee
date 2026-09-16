@@ -1210,9 +1210,9 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, photoMap, 
         </div>
       )}
 
-      {/* Fixed 2 × 3 choice grid */}
+           {/* Adaptive choice grid — sized to the number of choices on the board */}
       <div style={{flex:1, display:"grid",
-        gridTemplateColumns:"repeat(2, 1fr)", gridTemplateRows:"repeat(3, 1fr)",
+        gridTemplateColumns:`repeat(${cols}, 1fr)`, gridTemplateRows:`repeat(${rows}, 1fr)`,
         gap:8, padding:8, minHeight:0}}>
         {slots.map((item,i)=>{
           if(!item){
