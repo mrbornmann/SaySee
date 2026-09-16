@@ -1153,10 +1153,20 @@ function ChoiceBoard({items, selected, onSelect, stage, level=2, uid, photoMap, 
                      : stage === "listening" ? "🎯 Add choices…"
                      : "Choice Board";
 
-  // Always lay out as a fixed 6-slot grid (2 columns × 3 rows) so a small
-  // number of choices are not stretched/elongated. Items fill from the top.
+    // The grid adapts to how many choices are on the board, so two choices are shown
+  // large instead of squeezed into a fixed 2x3 grid. While the teacher is still
+  // naming choices, one empty slot is kept visible to invite the next one.
   const SLOTS = 6;
-  const slots = Array.from({length:SLOTS}, (_,i)=>items[i]||null);
+  const filled = (items||[]).slice(0, SLOTS);
+  const showCount = Math.min(SLOTS,
+    stage==="listening" ? Math.max(filled.length+1, 2) : Math.max(filled.length, 1));
+  const cols = showCount <= 1 ? 1 : 2;
+  const rows = Math.ceil(showCount / cols);
+  const slots = Array.from({length:showCount}, (_,i)=>filled[i]||null);
+  // One size for BOTH the photo and the emoji, derived from the grid, so every
+  // tile's visual is the same size no matter which kind it is.
+  const visSize   = `min(${Math.floor(74/cols)}vw, ${Math.floor(54/rows)}vh)`;
+  const labelSize = rows >= 3 ? "clamp(12px,3.2vw,18px)" : "clamp(15px,4.5vw,26px)";
 
   return(
     <div style={{position:"fixed", inset:0,
