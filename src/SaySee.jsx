@@ -125,7 +125,16 @@ const sbAuth = {
     if (!supabase) throw new Error("Not connected");
     const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name, plan, role:"teacher" }, emailRedirectTo: window.location.origin } });
     if (error) throw error;
-    if (data.user) await supabase.from("accounts").insert({ id:data.user.id, email, name, role:"teacher", created_at:new Date().toISOString() });
+        if (data.user) {
+      const now = new Date();
+      const trialEnds = new Date(now.getTime() + 7*24*60*60*1000);
+      await supabase.from("accounts").insert({
+        id:data.user.id, email, name, role:"teacher",
+        plan:"trial",                                   // never null -> no silent free-forever accounts
+        trial_ends_at:trialEnds.toISOString(),
+        created_at:now.toISOString()
+      });
+    }
     return data;
   },
   signIn: async (email, password) => {
