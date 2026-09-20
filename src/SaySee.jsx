@@ -1377,6 +1377,16 @@ function PaymentForm({user, plan, onSuccess, onCancel}){
           .confirmCardPayment(data.clientSecret);
         if(confirmError){ setError(confirmError.message); setLoading(false); return; }
       }
+      // Ask the server to verify against Stripe and write the plan to the
+      // account. Covers 3-D Secure (which clears after create-subscription has
+      // already responded) and any path where the row wasn't updated.
+      try{
+        await fetch('/api/sync-plan', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ email: user.email })
+        });
+      }catch(syncErr){ console.log('sync-plan failed (payment still succeeded):', syncErr); }
       onSuccess(plan);
     } catch(e){
       setError('Payment failed. Please try again.');
