@@ -7053,6 +7053,10 @@ export default function SaySee(){
 
   const ADMIN_EMAILS = ["admin@saysee.app","admin@saysee.io","hello@saysee.io"];
 
+  // Trial-expired paywall state (root level, so the gate can take payment)
+  const [showTrialPay,setShowTrialPay] = useState(false);
+  const [trialPayPlan,setTrialPayPlan] = useState("monthly");
+
   const checkSession = async () => {
     try {
       try{ if(supabase) await supabase.auth.refreshSession(); }catch(e){}
