@@ -7065,7 +7065,7 @@ export default function SaySee(){
         const userData = acct ? {
           ...acct,
           role: isAdmin?"admin":(acct.role||"teacher"),
-          plan: isAdmin?"admin":(acct.plan||"monthly"),
+          plan: isAdmin?"admin":(acct.plan||"trial"),
           maxStudents: acct.max_students||28,
           name: acct.name||email,
         } : {
