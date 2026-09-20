@@ -7218,7 +7218,7 @@ export default function SaySee(){
         id:u.id, email,
         name:u.user_metadata?.name||email,
         role:isAdmin?"admin":"teacher",
-        plan:isAdmin?"admin":"monthly",
+        plan:isAdmin?"admin":"trial",
         maxStudents:28,
       };
       setUser(loginUser);
