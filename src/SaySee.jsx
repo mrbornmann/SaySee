@@ -7340,6 +7340,31 @@ export default function SaySee(){
             });
           }} onLogout={logout} user={user}/>
         </ErrorBoundary>
+        ) : isTrialExpired(user) ? (
+        <ErrorBoundary>
+          <TrialExpiredScreen user={user} onLogout={logout}
+            setShowPayment={setShowTrialPay} setPaymentPlan={setTrialPayPlan}/>
+          {showTrialPay && (
+            <div onClick={()=>setShowTrialPay(false)}
+              style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",
+              alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+              <div onClick={e=>e.stopPropagation()}>
+                <PaymentForm user={user} plan={trialPayPlan}
+                  onSuccess={async(p)=>{
+                    const newPlan = p || trialPayPlan;
+                    try{ if(supabase) await supabase.from("accounts").update({plan:newPlan}).eq("id",user.id); }catch(e){}
+                    setShowTrialPay(false);
+                    setUser(u=>{
+                      const next={...u,plan:newPlan};
+                      try{ localStorage.setItem("saysee_session",JSON.stringify({user:next,ts:Date.now()})); }catch(e){}
+                      return next;
+                    });
+                  }}
+                  onCancel={()=>setShowTrialPay(false)}/>
+              </div>
+            </div>
+          )}
+        </ErrorBoundary>
       ) : homeMode==="home" ? (
         <HomeScreen user={user} onLogout={logout} onMode={setHomeMode}
           daysLeft={daysLeftInTrial(user)}/>
