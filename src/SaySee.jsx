@@ -7255,10 +7255,30 @@ export default function SaySee(){
     setHomeMode("home");
   };
 
+    // Fails CLOSED: missing/unreadable dates mean 0 days left, not a fresh trial.
   const daysLeftInTrial = (u) => {
-    if(!u?.created_at) return 7;
-    const days = Math.ceil((new Date(u.created_at).getTime()+7*24*60*60*1000-Date.now())/(1000*60*60*24));
-    return Math.max(0,days);
+    if(!u) return 0;
+    let endMs = null;
+    if(u.trial_ends_at){
+      const t = new Date(u.trial_ends_at).getTime();
+      if(!isNaN(t)) endMs = t;
+    }
+    if(endMs===null && u.created_at){
+      const c = new Date(u.created_at).getTime();
+      if(!isNaN(c)) endMs = c + 7*24*60*60*1000;
+    }
+    if(endMs===null) return 0;
+    return Math.max(0, Math.ceil((endMs - Date.now())/(1000*60*60*24)));
+  };
+
+  // A plan that grants access. Anything else (including null/"trial") is gated.
+  const PAID_PLANS = ["monthly","annual","school","admin"];
+  const isTrialExpired = (u) => {
+    if(!u) return false;
+    if(u.role==="admin" || u.role==="district_admin") return false;
+    try{ if(DEMO_EMAILS.has(String(u.email||"").toLowerCase())) return false; }catch(e){}
+    if(PAID_PLANS.includes(u.plan)) return false;
+    return daysLeftInTrial(u) <= 0;
   };
 
   if(loading) return(
