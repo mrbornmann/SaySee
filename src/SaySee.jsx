@@ -4048,6 +4048,16 @@ function AuthScreen({accounts,onLogin,onRegister,termsAccepted=false,onShowTerms
                     setShowStripe(false);
                     // Register account with paid plan
                     await onRegister(email,pass,name,paidPlan||stripePlan,setErr);
+                    // The account row is only created by onRegister, so the
+                    // payment couldn't write to it. Sync now that it exists —
+                    // the server re-checks Stripe, so this can't be spoofed.
+                    try{
+                      await fetch('/api/sync-plan', {
+                        method:'POST',
+                        headers:{ 'Content-Type':'application/json' },
+                        body: JSON.stringify({ email })
+                      });
+                    }catch(syncErr){ console.log('sync-plan after signup failed:', syncErr); }
                   }}
                   onCancel={()=>setShowStripe(false)}
                 />
