@@ -7072,7 +7072,7 @@ export default function SaySee(){
           id:session.user.id, email,
           name:session.user.user_metadata?.name||email,
           role:isAdmin?"admin":"teacher",
-          plan:isAdmin?"admin":"monthly",
+          plan:isAdmin?"admin":"trial",
           maxStudents:28,
         };
         setUser(userData);
